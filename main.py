@@ -1,4 +1,3 @@
-from statistics import mean, stdev
 import matplotlib.pyplot as plt
 
 chiplet = []
@@ -27,16 +26,8 @@ chiplet.append(chiplet_1)
 chiplet.append(chiplet_2)
 chiplet.append(chiplet_3)
 
-injection_q = {}
-icnt_to_mem_q = {}
-forward_waiting_q = {}
-icnt_pop_llc_q = {}
-rop_q = {}
-icnt_to_l2_q = {}
-l2_to_icnt_q = {}
-inter_icnt_pop_sm_q = {}
-response_q = {}
 total = {}
+byte = {}
 
 
 def check_local_or_remote(x):  # 0 for local, 1 for remote
@@ -70,29 +61,103 @@ def hop_rate(x):
 
 def total_distribution(x):
     start = end = 0
+    temp_dict = {}
+    tot = 0
     for i in x.keys():
         for j in range(len(x[i])):
-            if x[i][j][7].find("(injection port buffer)"):
+            if "(injection port buffer)" in x[i][j][7]:
                 start = int(x[i][j][5].split(": ")[1])
-                for k in range(j+1, len(x[i])):
-                    if x[i][k][7].find("reply is pushed to SM boundary Q in chiplet"):
-                        end = int(x[i][k][5].split(": ")[1])
-                        if (end - start) in total.keys():
-                            total[end - start] += 1
-                        else:
-                            total[end - start] = 1
-                        start = end = 0
-                        break
-                    else:
-                        continue
+                continue
+            elif "reply is pushed to SM boundary Q in chiplet" in x[i][j][7]:
+                end = int(x[i][j][5].split(": ")[1])
+                if (end - start) in temp_dict.keys():
+                    temp_dict[end - start] += 1
+                else:
+                    temp_dict[end - start] = 1
+                    break
             else:
                 continue
-    plt.plot(total.keys(), total.values(), "g*")
-    plt.xlabel("per packet RTC")
-    plt.ylabel("number of packets")
-    plt.xlim(0, 400)
-    plt.ylim(-500, 6000)
+        tot += 1
+
+    for i in temp_dict.keys():
+        total[i] = temp_dict[i]/tot
+
+    #plt.plot(total.keys(), total.values(), "g*")
+    plt.bar(list(temp_dict.keys()), list(temp_dict.values()))
+    plt.ylim(0, 200)
+    plt.xlabel("Per Packet RTC")
+    plt.ylabel("Number of Packets")
+    plt.title("Number of Packets for each RTC")
     plt.show()
+
+
+def bytes_distribution(x):
+    tot = 0
+    temp_dict = {}
+    for i in x.keys():
+        if abs(int(x[i][0][2].split(": ")[1]) - int(x[i][0][3].split(": ")[1])) > 1: # two hop
+            continue
+        else: # one hop
+            continue
+
+
+def dominant_factor(x):
+    out = {}
+    for i in x.keys():
+        base = int(x[i][0][5].split(": ")[1])
+        for j in range(len(x[i])):
+            if x[i][j][0] == "IN_ICNT_TO_MEM":
+                out.setdefault("injection_buffer", []).append(0)
+
+            elif x[i][j][0] == "icnt_pop_llc_push":
+                out.setdefault("LLC_boundary_buffer",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "IN_PARTITION_ROP_DELAY":
+                out.setdefault("ROP push",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "IN_PARTITION_ICNT_TO_L2_QUEUE":
+                out.setdefault("ICNT_2_L2 push",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "m_icnt_L2_queue-":
+                out.setdefault("cache hit/miss",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "IN_PARTITION_L2_TO_DRAM_QUEUE":
+                out.setdefault("L2_TO_DRAM (cache miss)",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "L2_dram_queue_top()":
+                out.setdefault("push to mem_latency Q",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "m_dram_latency_queue()":
+                out.setdefault("DRAM access", []).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "m_dram_r->r_return_queue_top":
+                out.setdefault("DRAM to LLC push", []).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "fL2_TO_ICNT_QUEUE":
+                out.setdefault("L2_TO_ICNT", []).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "inter_icnt_pop_sm_push":
+                out.setdefault("sm_push", []).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "'forward_waiting_push":
+                out.setdefault("forward_waiting_push", []).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+            elif x[i][j][0] == "'forward_waiting_pop":
+                out.setdefault("forward_waiting_pop", []).append(int(x[i][j][5].split(": ")[1]) - base)
+                base = int(x[i][j][5].split(": ")[1])
+
+
 
 
 if __name__ == '__main__':
@@ -117,11 +182,16 @@ if __name__ == '__main__':
 
     lined_list.sort(key=lambda x: (int(x[4].split(": ")[1]), int(x[5].split(": ")[1])))
     packet = {}
+    cycles = {}
+    flag = 0
     for i in range(0, len(lined_list)):
         if check_local_or_remote(lined_list[i]):
             if int(lined_list[i][4].split(": ")[1]) in packet.keys():
                 packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
             else:
                 packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
+                flag = 0
 
-    total_distribution(packet)
+    # total_distribution(packet)
+    # bytes_distribution(packet)
+    dominant_factor(packet)
