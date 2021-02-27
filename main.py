@@ -1,5 +1,4 @@
 from statistics import mean, stdev
-
 import matplotlib.pyplot as plt
 
 chiplet = []
@@ -28,32 +27,76 @@ chiplet.append(chiplet_1)
 chiplet.append(chiplet_2)
 chiplet.append(chiplet_3)
 
-
-def link_percentage(src, dst):
-    global link_01
-    global link_12
-    global link_23
-    global link_30
-    if (src == 192 and dst == 193) or (src == 193 and dst == 192):
-        link_01 += 1
-    if (src == 193 and dst == 194) or (src == 194 and dst == 193):
-        link_12 += 1
-    if (src == 194 and dst == 195) or (src == 195 and dst == 194):
-        link_23 += 1
-    if (src == 195 and dst == 192) or (src == 192 and dst == 195):
-        link_30 += 1
+injection_q = {}
+icnt_to_mem_q = {}
+forward_waiting_q = {}
+icnt_pop_llc_q = {}
+rop_q = {}
+icnt_to_l2_q = {}
+l2_to_icnt_q = {}
+inter_icnt_pop_sm_q = {}
+response_q = {}
+total = {}
 
 
 def check_local_or_remote(x):  # 0 for local, 1 for remote
     for i in range(len(chiplet)):
-        if int(x[2]) in chiplet[i]["SM_ID"] or int(x[2]) in chiplet[i]["LLC_ID"] or int(x[2]) == chiplet[i]["port"]:
-            if int(x[3]) in chiplet[i]["SM_ID"] or int(x[3]) in chiplet[i]["LLC_ID"] or int(x[3]) == chiplet[i]["port"]:
+        if int(x[2].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[2].split(": ")[1]) in chiplet[i]["LLC_ID"] or int(
+                x[2].split(": ")[1]) == chiplet[i]["port"]:
+            if int(x[3].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[3].split(": ")[1]) in chiplet[i][
+                "LLC_ID"] or int(x[3].split(": ")[1]) == chiplet[i]["port"]:
                 return 0
             return 1
 
 
+def hop_rate(x):
+    one_hop = 0
+    two_hop = 0
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if int(packet[i][j][1].split(": ")[1]) == 0:
+                if int(packet[i][j][2].split(": ")[1]) != 0 and int(packet[i][j][3].split(": ")[1]) != 0:
+                    if abs(int(packet[i][j][2].split(": ")[1]) - int(packet[i][j][3].split(": ")[1])) > 1:
+                        two_hop += 1
+                        break
+                    elif abs(int(packet[i][j][2].split(": ")[1]) - int(packet[i][j][3].split(": ")[1])) == 1:
+                        one_hop += 1
+                        break
+                else:
+                    continue
+    # print(one_hop)
+    # print(two_hop)
+
+
+def total_distribution(x):
+    start = end = 0
+    for i in x.keys():
+        for j in range(len(x[i])):
+            if x[i][j][7].find("(injection port buffer)"):
+                start = int(x[i][j][5].split(": ")[1])
+                for k in range(j+1, len(x[i])):
+                    if x[i][k][7].find("reply is pushed to SM boundary Q in chiplet"):
+                        end = int(x[i][k][5].split(": ")[1])
+                        if (end - start) in total.keys():
+                            total[end - start] += 1
+                        else:
+                            total[end - start] = 1
+                        start = end = 0
+                        break
+                    else:
+                        continue
+            else:
+                continue
+    plt.plot(total.keys(), total.values(), "g*")
+    plt.xlabel("per packet RTC")
+    plt.ylabel("number of packets")
+    plt.xlim(0, 400)
+    plt.ylim(-500, 6000)
+    plt.show()
+
+
 if __name__ == '__main__':
-    file = open("test.rtf", "r")
+    file = open("report.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -64,52 +107,21 @@ if __name__ == '__main__':
     for i in lined_content:
         item = [x for x in i.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
+
     # print(lined_list[0][0])                 # command
     # print(lined_list[0][1].split(":")[1])   # packet type
     # print(lined_list[0][2].split(":")[1])   # source
     # print(lined_list[0][3].split(":")[1])   # destination
     # print(lined_list[0][4].split(":")[1])   # packet number
     # print(lined_list[0][5].split(":")[1])   # cycle
-    print(lined_list[4][4])
-    #sorted_lined_list = sorted(lined_list, key=lambda x: int(x[4].split(":")[1]))
-    #packet = {int(lined_list[0][4].split(":")[1]): lined_list[0]}
-    #print(sorted_lined_list)
-    """""
-    for i in range(1, len(lined_list)):
-        if int(lined_list[i][4].split(":")[1]) in packet.keys():
-            packet[int(lined_list[i][4].split(":")[1])].append(lined_list[i])
-        else:
-            packet[int(lined_list[i][4].split(":")[1])] = lined_list[i]
-    print(packet)
-    #
-    x = [0, 8000]
-    m = [mean2, mean2]
-    s_plus = [mean2 + stdv2, mean2 + stdv2]
-    s_minus = [mean2 - stdv2, mean2 - stdv2]
-    plt.plot(pkt_rtt.keys(), pkt_rtt.values(), label="(request/reply) two hops")
-    plt.plot(x, m, "r", label="mean")
-    plt.plot(x, s_plus, "r--", label="stdev")
-    plt.plot(x, s_minus, "r--")
-    plt.title("Round Trip Cycle for each packet")
-    plt.xlabel("packet index")
-    plt.ylabel("Round Trip Cycle (RTC)")
 
-    x = [0, 16500]
-    m = [mean1, mean1]
-    s_plus = [mean1 + stdv1, mean1 + stdv1]
-    s_minus = [mean1 - stdv1, mean1 - stdv1]
-    plt.plot(pkt_rtt_half.keys(), pkt_rtt_half.values(), label="request for two hop packets")
-    plt.plot(x, m, "r", label="mean")
-    plt.plot(x, s_plus, "r--", label="stdev")
-    plt.plot(x, s_minus, "r--")
-    plt.title("Single Trip Cycle for each packet")
-    plt.xlabel("packet index")
-    plt.ylabel("Single Trip Cycle (STC)")
+    lined_list.sort(key=lambda x: (int(x[4].split(": ")[1]), int(x[5].split(": ")[1])))
+    packet = {}
+    for i in range(0, len(lined_list)):
+        if check_local_or_remote(lined_list[i]):
+            if int(lined_list[i][4].split(": ")[1]) in packet.keys():
+                packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
+            else:
+                packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
 
-    #plt.plot(pkt_rtt_half_one_hop.keys(), pkt_rtt_half_one_hop.values())
-
-
-    plt.legend(loc="best")
-    plt.show()
-
-    """
+    total_distribution(packet)
