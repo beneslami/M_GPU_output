@@ -1,3 +1,5 @@
+from statistics import mean
+
 import matplotlib.pyplot as plt
 
 chiplet = []
@@ -80,9 +82,9 @@ def total_distribution(x):
         tot += 1
 
     for i in temp_dict.keys():
-        total[i] = temp_dict[i]/tot
+        total[i] = temp_dict[i] / tot
 
-    #plt.plot(total.keys(), total.values(), "g*")
+    # plt.plot(total.keys(), total.values(), "g*")
     plt.bar(list(temp_dict.keys()), list(temp_dict.values()))
     plt.ylim(0, 200)
     plt.xlabel("Per Packet RTC")
@@ -95,69 +97,124 @@ def bytes_distribution(x):
     tot = 0
     temp_dict = {}
     for i in x.keys():
-        if abs(int(x[i][0][2].split(": ")[1]) - int(x[i][0][3].split(": ")[1])) > 1: # two hop
+        if abs(int(x[i][0][2].split(": ")[1]) - int(x[i][0][3].split(": ")[1])) > 1:  # two hop
             continue
-        else: # one hop
+        else:  # one hop
             continue
 
 
 def dominant_factor(x):
     out = {}
+    temp = {}
+    temp2 = 0
     for i in x.keys():
         base = int(x[i][0][5].split(": ")[1])
+        if int(x[i][0][4].split(": ")[1]) == 249324:
+            temp2 = int(x[i][0][5].split(": ")[1])
+
         for j in range(len(x[i])):
             if x[i][j][0] == "IN_ICNT_TO_MEM":
                 out.setdefault("injection_buffer", []).append(0)
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["injection_buffer"] = 0
 
             elif x[i][j][0] == "icnt_pop_llc_push":
-                out.setdefault("LLC_boundary_buffer",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                out.setdefault("LLC_boundary_buffer", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["LLC_boundary_buffer"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "IN_PARTITION_ROP_DELAY":
-                out.setdefault("ROP push",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                out.setdefault("ROP push", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["ROP push"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "IN_PARTITION_ICNT_TO_L2_QUEUE":
-                out.setdefault("ICNT_2_L2 push",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                out.setdefault("ICNT_2_L2 push", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["ICNT_2_L2 push"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "m_icnt_L2_queue-":
-                out.setdefault("cache hit/miss",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                out.setdefault("cache hit/miss", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["cache hit/miss"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "IN_PARTITION_L2_TO_DRAM_QUEUE":
-                out.setdefault("L2_TO_DRAM (cache miss)",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                out.setdefault("L2_TO_DRAM (cache miss)", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["L2_TO_DRAM (cache miss)"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "L2_dram_queue_top()":
-                out.setdefault("push to mem_latency Q",[]).append(int(x[i][j][5].split(": ")[1]) - base)
+                out.setdefault("push to mem_latency Q", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["push to mem_latency Q"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "m_dram_latency_queue()":
-                out.setdefault("DRAM access", []).append(int(x[i][j][5].split(": ")[1]) - base)
+                out.setdefault("DRAM_access", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["DRAM_access"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "m_dram_r->r_return_queue_top":
                 out.setdefault("DRAM to LLC push", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["DRAM to LLC push"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "fL2_TO_ICNT_QUEUE":
                 out.setdefault("L2_TO_ICNT", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["L2_TO_ICNT"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
             elif x[i][j][0] == "inter_icnt_pop_sm_push":
                 out.setdefault("sm_push", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["sm_push"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
-            elif x[i][j][0] == "'forward_waiting_push":
+            elif x[i][j][0] == "forward_waiting_push":
                 out.setdefault("forward_waiting_push", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["forward_waiting_push"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
-            elif x[i][j][0] == "'forward_waiting_pop":
+            elif x[i][j][0] == "forward_waiting_pop":
                 out.setdefault("forward_waiting_pop", []).append(int(x[i][j][5].split(": ")[1]) - base)
                 base = int(x[i][j][5].split(": ")[1])
+                if int(x[i][0][4].split(": ")[1]) == 258983:
+                    temp["forward_waiting_pop"] = int(x[i][j][5].split(": ")[1]) - temp2
+                    temp2 = int(x[i][j][5].split(": ")[1])
 
+    items = ["injection_buffer", "ROP push", "ICNT_2_L2 push", "cache hit/miss", "L2_TO_DRAM (cache miss)",
+             "push to mem_latency Q", "DRAM to LLC push", "L2_TO_ICNT", "sm_push", "forward_waiting_push", "forward_waiting_pop"]
 
+    #z = []
+    #for i in range(len(items)):
+     #   z.append(mean(out[items[i]]))
+#    print(z)
+    #plt.bar(list(items), list(z))
+    plt.plot(list(temp.keys()), list(temp.values()), "rs-")
+    plt.title("Dominant Factor")
+    plt.ylabel("Cycles")
+    plt.xticks(rotation=90)
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -192,6 +249,8 @@ if __name__ == '__main__':
                 packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
                 flag = 0
 
+    #for i in range(len(packet[185800])):
+    #    print(packet[185800][i])
     # total_distribution(packet)
     # bytes_distribution(packet)
     dominant_factor(packet)
