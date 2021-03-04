@@ -94,13 +94,52 @@ def total_distribution(x):
 
 
 def bytes_distribution(x):
-    tot = 0
-    temp_dict = {}
-    for i in x.keys():
-        if abs(int(x[i][0][2].split(": ")[1]) - int(x[i][0][3].split(": ")[1])) > 1:  # two hop
-            continue
-        else:  # one hop
-            continue
+    cycle_byte = {}
+    cycle_req = {}
+    cycle_resp = {}
+    prob = {}
+    total = 0
+    for i in range(len(x)):
+        if x[i][0] == "IN_ICNT_TO_MEM" or x[i][0] == "icnt_pop_llc_push" or x[i][0] == "inter_icnt_pop_llc_pop" or x[i][0] == "inter_icnt_pop_sm_push" or x[i][0] == "forward_waiting_push" or x[i][0] == "forward_waiting_pop":
+            if int(lined_list[i][5].split(": ")[1]) in cycle_byte.keys():
+                cycle_byte[int(lined_list[i][5].split(":")[1])] += int(lined_list[i][6].split(":")[1])
+            else:
+                cycle_byte[int(lined_list[i][5].split(":")[1])] = int(lined_list[i][6].split(":")[1])
+
+            if int(lined_list[i][1].split(": ")[1]) == 0:
+                if int(lined_list[i][5].split(": ")[1]) in cycle_req.keys():
+                    cycle_req[int(lined_list[i][5].split(":")[1])] += int(lined_list[i][6].split(":")[1])
+                else:
+                    cycle_req[int(lined_list[i][5].split(":")[1])] = int(lined_list[i][6].split(":")[1])
+            elif int(lined_list[i][1].split(": ")[1]) == 2:
+                if int(lined_list[i][5].split(": ")[1]) in cycle_resp.keys():
+                    cycle_resp[int(lined_list[i][5].split(":")[1])] += int(lined_list[i][6].split(":")[1])
+                else:
+                    cycle_resp[int(lined_list[i][5].split(":")[1])] = int(lined_list[i][6].split(":")[1])
+
+            if int(lined_list[i][5].split(": ")[1]) in prob.keys():
+                prob[int(lined_list[i][5].split(": ")[1])] += 1
+            else:
+                prob[int(lined_list[i][5].split(": ")[1])] = 1
+            total += 1
+
+    sum = 0
+    for i in prob.keys():
+        prob[i] = prob[i]/total
+        sum += prob[i]
+    print(sum)
+    plt.plot(prob.keys(), prob.values(), "r*")
+    plt.xlabel("cycle")
+    plt.ylabel("Probability")
+    plt.title("The distribution of the number of packets")
+    #plt.bar(list(cycle_byte.keys()), list(cycle_byte.values()), label="total")
+    #plt.bar(list(cycle_req.keys()), list(cycle_req.values()), label="request")
+    #plt.bar(list(cycle_resp.keys()), list(cycle_resp.values()), label="response")
+    #plt.xlabel("cycle")
+    #plt.ylabel("total bytes")
+    #plt.title("Bytes Per Cycle in the interconnect")
+    #plt.legend(loc="best")
+    plt.show()
 
 
 def dominant_factor(x):
@@ -203,13 +242,14 @@ def dominant_factor(x):
                     temp2 = int(x[i][j][5].split(": ")[1])
 
     items = ["injection_buffer", "ROP push", "ICNT_2_L2 push", "cache hit/miss", "L2_TO_DRAM (cache miss)",
-             "push to mem_latency Q", "DRAM to LLC push", "L2_TO_ICNT", "sm_push", "forward_waiting_push", "forward_waiting_pop"]
+             "push to mem_latency Q", "DRAM to LLC push", "L2_TO_ICNT", "sm_push", "forward_waiting_push",
+             "forward_waiting_pop"]
 
-    #z = []
-    #for i in range(len(items)):
-     #   z.append(mean(out[items[i]]))
-#    print(z)
-    #plt.bar(list(items), list(z))
+    # z = []
+    # for i in range(len(items)):
+    #   z.append(mean(out[items[i]]))
+    #    print(z)
+    # plt.bar(list(items), list(z))
     plt.plot(list(temp.keys()), list(temp.values()), "rs-")
     plt.title("Dominant Factor")
     plt.ylabel("Cycles")
@@ -249,8 +289,8 @@ if __name__ == '__main__':
                 packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
                 flag = 0
 
-    #for i in range(len(packet[185800])):
-    #    print(packet[185800][i])
-    # total_distribution(packet)
-    # bytes_distribution(packet)
-    dominant_factor(packet)
+    for i in range(len(packet[250151])):
+        print(packet[250151][i])
+    #total_distribution(packet)
+    #bytes_distribution(lined_list)
+    #dominant_factor(packet)
