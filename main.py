@@ -1,4 +1,5 @@
 from statistics import mean
+from typing import TextIO
 
 import matplotlib.pyplot as plt
 
@@ -32,16 +33,6 @@ total = {}
 byte = {}
 
 
-def check_local_or_remote(x):  # 0 for local, 1 for remote
-    for i in range(len(chiplet)):
-        if int(x[2].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[2].split(": ")[1]) in chiplet[i]["LLC_ID"] or int(
-                x[2].split(": ")[1]) == chiplet[i]["port"]:
-            if int(x[3].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[3].split(": ")[1]) in chiplet[i][
-                "LLC_ID"] or int(x[3].split(": ")[1]) == chiplet[i]["port"]:
-                return 0
-            return 1
-
-
 def hop_rate(x):
     one_hop = 0
     two_hop = 0
@@ -59,6 +50,16 @@ def hop_rate(x):
                     continue
     # print(one_hop)
     # print(two_hop)
+
+
+def check_local_or_remote(x):  # 0 for local, 1 for remote
+    for i in range(len(chiplet)):
+        if int(x[2].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[2].split(": ")[1]) in chiplet[i]["LLC_ID"] or int(
+                x[2].split(": ")[1]) == chiplet[i]["port"]:
+            if int(x[3].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[3].split(": ")[1]) in chiplet[i][
+                "LLC_ID"] or int(x[3].split(": ")[1]) == chiplet[i]["port"]:
+                return 0
+            return 1
 
 
 def total_distribution(x):
@@ -100,7 +101,8 @@ def bytes_distribution(x):
     prob = {}
     total = 0
     for i in range(len(x)):
-        if x[i][0] == "IN_ICNT_TO_MEM" or x[i][0] == "icnt_pop_llc_push" or x[i][0] == "inter_icnt_pop_llc_pop" or x[i][0] == "inter_icnt_pop_sm_push" or x[i][0] == "forward_waiting_push" or x[i][0] == "forward_waiting_pop":
+        if x[i][0] == "IN_ICNT_TO_MEM" or x[i][0] == "icnt_pop_llc_push" or x[i][0] == "inter_icnt_pop_llc_pop" or x[i][
+            0] == "inter_icnt_pop_sm_push" or x[i][0] == "forward_waiting_push" or x[i][0] == "forward_waiting_pop":
             if int(lined_list[i][5].split(": ")[1]) in cycle_byte.keys():
                 cycle_byte[int(lined_list[i][5].split(":")[1])] += int(lined_list[i][6].split(":")[1])
             else:
@@ -125,20 +127,20 @@ def bytes_distribution(x):
 
     sum = 0
     for i in prob.keys():
-        prob[i] = prob[i]/total
+        prob[i] = prob[i] / total
         sum += prob[i]
     print(sum)
     plt.plot(prob.keys(), prob.values(), "r*")
     plt.xlabel("cycle")
     plt.ylabel("Probability")
     plt.title("The distribution of the number of packets")
-    #plt.bar(list(cycle_byte.keys()), list(cycle_byte.values()), label="total")
-    #plt.bar(list(cycle_req.keys()), list(cycle_req.values()), label="request")
-    #plt.bar(list(cycle_resp.keys()), list(cycle_resp.values()), label="response")
-    #plt.xlabel("cycle")
-    #plt.ylabel("total bytes")
-    #plt.title("Bytes Per Cycle in the interconnect")
-    #plt.legend(loc="best")
+    # plt.bar(list(cycle_byte.keys()), list(cycle_byte.values()), label="total")
+    # plt.bar(list(cycle_req.keys()), list(cycle_req.values()), label="request")
+    # plt.bar(list(cycle_resp.keys()), list(cycle_resp.values()), label="response")
+    # plt.xlabel("cycle")
+    # plt.ylabel("total bytes")
+    # plt.title("Bytes Per Cycle in the interconnect")
+    # plt.legend(loc="best")
     plt.show()
 
 
@@ -257,6 +259,118 @@ def dominant_factor(x):
     plt.show()
 
 
+def interconnect_latency(x):
+    latency_packets = {}
+    chiplet3 = chiplet2 = chiplet1 = 0
+    chiplet33 = chiplet22 = chiplet11 = 0
+    chiplet3_latency = {}
+    chiplet2_latency = {}
+    chiplet1_latency = {}
+    chiplet33_latency = {}
+    chiplet22_latency = {}
+    chiplet11_latency = {}
+    for i in x.keys():
+        src = dst = 0
+        if 186944 < i < 243604:
+            if int(x[i][0][2].split(": ")[1]) == 195 and int(x[i][0][3].split(": ")[1]) == 192:
+                chiplet3 += 1
+                for j in range(len(x[i])):
+                    if x[i][j][0] == "IN_ICNT_TO_MEM":
+                        src = int(x[i][j][5].split(": ")[1])
+                        continue
+                    if x[i][j][0] == "icnt_pop_llc_push":
+                        dst = int(x[i][j][5].split(": ")[1])
+                        break
+                if (dst-src) in chiplet3_latency.keys():
+                    chiplet3_latency[dst-src] += 1
+                else:
+                    chiplet3_latency[dst-src] = 1
+            elif int(x[i][0][2].split(": ")[1]) == 194 and int(x[i][0][3].split(": ")[1]) == 192:
+                chiplet2 += 1
+                for j in range(len(x[i])):
+                    if x[i][j][0] == "forward_waiting_pop":
+                        src = int(x[i][j][5].split(": ")[1])
+                        continue
+                    if x[i][j][0] == "icnt_pop_llc_push":
+                        dst = int(x[i][j][5].split(": ")[1])
+                        break
+                if (dst-src) in chiplet2_latency.keys():
+                    chiplet2_latency[dst-src] += 1
+                else:
+                    chiplet2_latency[dst-src] = 1
+            elif int(x[i][0][2].split(": ")[1]) == 193 and int(x[i][0][3].split(": ")[1]) == 192:
+                chiplet1 += 1
+                for j in range(len(x[i])):
+                    if x[i][j][0] == "IN_ICNT_TO_MEM":
+                        src = int(x[i][j][5].split(": ")[1])
+                        continue
+                    if x[i][j][0] == "icnt_pop_llc_push":
+                        dst = int(x[i][j][5].split(": ")[1])
+                        break
+                if (dst - src) in chiplet1_latency.keys():
+                    chiplet1_latency[dst - src] += 1
+                else:
+                    chiplet1_latency[dst - src] = 1
+        else:
+            if int(x[i][0][2].split(": ")[1]) == 195 and int(x[i][0][3].split(": ")[1]) == 192:
+                chiplet33 += 1
+                for j in range(len(x[i])):
+                    if x[i][j][0] == "IN_ICNT_TO_MEM":
+                        src = int(x[i][j][5].split(": ")[1])
+                        continue
+                    if x[i][j][0] == "icnt_pop_llc_push":
+                        dst = int(x[i][j][5].split(": ")[1])
+                        break
+                if (dst-src) in chiplet33_latency.keys():
+                    chiplet33_latency[dst-src] += 1
+                else:
+                    chiplet33_latency[dst-src] = 1
+            elif int(x[i][0][2].split(": ")[1]) == 194 and int(x[i][0][3].split(": ")[1]) == 192:
+                chiplet22 += 1
+                for j in range(len(x[i])):
+                    if x[i][j][0] == "forward_waiting_pop":
+                        src = int(x[i][j][5].split(": ")[1])
+                        continue
+                    if x[i][j][0] == "icnt_pop_llc_push":
+                        dst = int(x[i][j][5].split(": ")[1])
+                        break
+                if (dst-src) in chiplet22_latency.keys():
+                    chiplet22_latency[dst-src] += 1
+                else:
+                    chiplet22_latency[dst-src] = 1
+            elif int(x[i][0][2].split(": ")[1]) == 193 and int(x[i][0][3].split(": ")[1]) == 192:
+                chiplet11 += 1
+                for j in range(len(x[i])):
+                    if x[i][j][0] == "IN_ICNT_TO_MEM":
+                        src = int(x[i][j][5].split(": ")[1])
+                        continue
+                    if x[i][j][0] == "icnt_pop_llc_push":
+                        dst = int(x[i][j][5].split(": ")[1])
+                        break
+                if (dst - src) in chiplet11_latency.keys():
+                    chiplet11_latency[dst - src] += 1
+                else:
+                    chiplet11_latency[dst - src] = 1
+    print(chiplet3) #6649
+    print(chiplet2) #25
+    print(chiplet1) #6488
+    print("------")
+    print(chiplet33) #1442
+    print(chiplet22) #7824
+    print(chiplet11) #1592
+    print("------")
+    print(chiplet3 + chiplet2 + chiplet1 + chiplet11 + chiplet33 + chiplet22)# 24020
+
+    plt.plot(chiplet33_latency.keys(), chiplet33_latency.values(), "rs-", label="chiplet3_to_0")
+    plt.plot(chiplet22_latency.keys(), chiplet22_latency.values(), "g*-", label="chiplet2_to_0")
+    plt.plot(chiplet11_latency.keys(), chiplet11_latency.values(), "b^-", label="chiplet1_to_0")
+    plt.legend(loc="best")
+    plt.xlabel("Packet RTC Latency")
+    plt.ylabel("Frequency")
+    plt.title("")
+    plt.show()
+
+
 if __name__ == '__main__':
     file = open("report.txt", "r")
     raw_content = ""
@@ -289,8 +403,7 @@ if __name__ == '__main__':
                 packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
                 flag = 0
 
-    for i in range(len(packet[250151])):
-        print(packet[250151][i])
-    #total_distribution(packet)
-    #bytes_distribution(lined_list)
-    #dominant_factor(packet)
+    # total_distribution(packet)
+    # bytes_distribution(lined_list)
+    # dominant_factor(packet)
+    interconnect_latency(packet)

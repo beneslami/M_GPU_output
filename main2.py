@@ -111,7 +111,7 @@ def llc_boundary(lined_list):
 
     plt.plot(xpoints, ypoints, "bo-")
     plt.show()
-"""""
+    """""
     for i in range(len(lined_list)):
         if int(lined_list[i][3].split(": ")[1]) == 0:
             if lined_list[i][0] == "inter_icnt_pop_llc_push":
@@ -134,8 +134,8 @@ def llc_boundary(lined_list):
     plt.ylabel("waiting time in cycle")
     plt.title("Incoming packet waiting time in LLC boundary buffer in chiplet 0")
     plt.show()
-"""""
-"""
+    """""
+    """
     input_rate = {}
     output_rate = {}
     for i in range(len(input_list)):
@@ -169,6 +169,28 @@ def llc_boundary(lined_list):
     plt.show()
     """
 
+
+def llc_boundary_arrival_rate(lined_list):
+    cycle = {}
+    for i in range(len(lined_list)):
+        if lined_list[i][0] == "forward_waiting_pop":
+            if int(lined_list[i][3].split(": ")[1]) == 0:
+                if int(lined_list[i][2].split(": ")[1]) in cycle.keys():
+                    cycle[int(lined_list[i][2].split(": ")[1])] += 1
+                else:
+                    cycle[int(lined_list[i][2].split(": ")[1])] = 1
+    x = [0, 10000]
+    y = [mean(cycle.values()), mean(cycle.values())]
+    plt.bar(list(cycle.keys()), list(cycle.values()))
+    plt.xlabel("Cycle Time")
+    plt.ylabel("number of packets")
+    plt.title("The number of packets arrived in LLC boundary Q")
+    plt.text(250, 250, "mean")
+    plt.plot(x, y)
+    plt.show()
+
+
+
 if __name__ == '__main__':
     file = open("boundary.txt", "r")
     raw_content = ""
@@ -187,4 +209,5 @@ if __name__ == '__main__':
     # print(lined_list[3].split(": ")[1])   chiplet
 
     #component_plot(lined_list)
-    llc_boundary(lined_list)
+    #llc_boundary(lined_list)
+    #llc_boundary_arrival_rate(lined_list)
