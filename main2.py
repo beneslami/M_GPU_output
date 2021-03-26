@@ -190,7 +190,6 @@ def llc_boundary_arrival_rate(lined_list):
     plt.show()
 
 
-
 if __name__ == '__main__':
     file = open("boundary.txt", "r")
     raw_content = ""

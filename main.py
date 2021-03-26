@@ -1,6 +1,3 @@
-from statistics import mean
-from typing import TextIO
-
 import matplotlib.pyplot as plt
 
 chiplet = []
@@ -56,8 +53,7 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
     for i in range(len(chiplet)):
         if int(x[2].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[2].split(": ")[1]) in chiplet[i]["LLC_ID"] or int(
                 x[2].split(": ")[1]) == chiplet[i]["port"]:
-            if int(x[3].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[3].split(": ")[1]) in chiplet[i][
-                "LLC_ID"] or int(x[3].split(": ")[1]) == chiplet[i]["port"]:
+            if int(x[3].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[3].split(": ")[1]) in chiplet[i]["LLC_ID"] or int(x[3].split(": ")[1]) == chiplet[i]["port"]:
                 return 0
             return 1
 
@@ -390,20 +386,23 @@ if __name__ == '__main__':
     # print(lined_list[0][3].split(":")[1])   # destination
     # print(lined_list[0][4].split(":")[1])   # packet number
     # print(lined_list[0][5].split(":")[1])   # cycle
+    # print(lined_list[0][6].split(":")[1])   # size
+    # print(lined_list[0][7].split(":")[1])   # explain
 
     lined_list.sort(key=lambda x: (int(x[4].split(": ")[1]), int(x[5].split(": ")[1])))
     packet = {}
     cycles = {}
-    flag = 0
-    for i in range(0, len(lined_list)):
+    for i in range(len(lined_list)):
         if check_local_or_remote(lined_list[i]):
             if int(lined_list[i][4].split(": ")[1]) in packet.keys():
                 packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
             else:
                 packet.setdefault(int(lined_list[i][4].split(": ")[1]), []).append(lined_list[i])
-                flag = 0
 
+    for i in range(len(packet[248577])):
+        print(packet[248577][i])
+        print("\n")
     # total_distribution(packet)
     # bytes_distribution(lined_list)
     # dominant_factor(packet)
-    interconnect_latency(packet)
+    # interconnect_latency(packet)
