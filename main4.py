@@ -79,7 +79,7 @@ if __name__ == '__main__':
     t3 = t2 = t1 = 0
     x1 = x2 = 0
     f1 = f2 = 0
-
+    """""
     req_cycle = {}
     resp_cycle = {}
     for i in packet.keys():
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     plt.title("Distribution of Bytes per Cycle")
     plt.legend(loc="best")
     plt.show()
-
+    """""
     """""
     for i in packet.keys():
         for j in range(len(packet[i])):
