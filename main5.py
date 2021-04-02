@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
-
+import lux
+import pandas as pd
 chiplet = []
 chiplet_0 = dict(
     SM_ID=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
@@ -377,14 +378,16 @@ if __name__ == '__main__':
             }
         }
     }
+    queue_length = {}
     for i in range(len(lined_list)):
         if check_local_or_remote(lined_list[i]):
-            file2.write(str(lined_list[i]))
-            file2.write("\n")
+            # file2.write(str(lined_list[i]))
+            # file2.write("\n")
             if lined_list[i][0].split(": ")[0] == "push_input_queue":
                 chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["push"].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
             elif lined_list[i][0].split(": ")[0] == "pop_input_queue":
                 chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["pop"].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
+                # chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["pop"].setdefault(int(lined_list[i][1].split(": ")[1]), []).append(int(lined_list[i][3].split(": ")[1]))
             elif lined_list[i][0].split(": ")[0] == "push_ejection_buffer":
                 chip[int(lined_list[i][7].split(": ")[1])]["ejection_buffer"]["push"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
             elif lined_list[i][0].split(": ")[0] == "pop_ejection_buffer":
@@ -394,6 +397,17 @@ if __name__ == '__main__':
             elif lined_list[i][0].split(": ")[0] == "pop_boundary_buffer":
                 chip[int(lined_list[i][7].split(": ")[1])]["boundary_buffer"]["pop"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
 
+    for i in chip.keys():
+        if i == 3:
+            for j in chip[i]["input_queue"]["pop"].keys():
+                queue_length[j] = chip[i]["input_queue"]["pop"][j][0]
+            break
+
+    plt.bar(list(queue_length.keys()), list(queue_length.values()), width=2)
+    plt.xlabel("Cycle Time")
+    plt.ylabel("Queue Size")
+    plt.title("Queue Size for input queue in chiplet 3")
+    plt.show()
     """""
     waiting_time = {}
     chip_num = 1
