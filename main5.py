@@ -49,7 +49,7 @@ def chip_select(x):
 
 if __name__ == '__main__':
     file = open("queue.txt", "r")
-    file2 = open("q.csv", "w")
+    # file2 = open("q.csv", "w")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -81,6 +81,9 @@ if __name__ == '__main__':
             },
             "ejection_buffer": {
                 "push": {
+                    0: {
+
+                    },
                     1: {
 
                     },
@@ -89,9 +92,15 @@ if __name__ == '__main__':
                     },
                     3: {
 
-                    }
+                    },
+                    4: {
+
+                    },
                 },
                 "pop": {
+                    0: {
+
+                    },
                     1: {
 
                     },
@@ -100,14 +109,14 @@ if __name__ == '__main__':
                     },
                     3: {
 
-                    }
+                    },
+                    4: {
+
+                    },
                 }
             },
             "boundary_buffer": {
                 "push": {
-                    0: {
-
-                    },
                     1: {
 
                     },
@@ -115,6 +124,9 @@ if __name__ == '__main__':
 
                     },
                     3: {
+
+                    },
+                    4: {
 
                     },
                     14: {
@@ -125,9 +137,6 @@ if __name__ == '__main__':
                     }
                 },
                 "pop": {
-                    0: {
-
-                    },
                     1: {
 
                     },
@@ -137,10 +146,7 @@ if __name__ == '__main__':
                     3: {
 
                     },
-                    14: {
-
-                    },
-                    15: {
+                    4: {
 
                     }
                 }
@@ -157,6 +163,9 @@ if __name__ == '__main__':
             },
             "ejection_buffer": {
                 "push": {
+                    0: {
+
+                    },
                     1: {
 
                     },
@@ -164,10 +173,16 @@ if __name__ == '__main__':
 
                     },
                     3: {
+
+                    },
+                    4: {
 
                     }
                 },
                 "pop": {
+                    0: {
+
+                    },
                     1: {
 
                     },
@@ -175,6 +190,9 @@ if __name__ == '__main__':
 
                     },
                     3: {
+
+                    },
+                    4: {
 
                     }
                 }
@@ -191,6 +209,9 @@ if __name__ == '__main__':
 
                     },
                     3: {
+
+                    },
+                    4: {
 
                     },
                     14: {
@@ -211,6 +232,9 @@ if __name__ == '__main__':
 
                     },
                     3: {
+
+                    },
+                    4: {
 
                     },
                     14: {
@@ -233,6 +257,9 @@ if __name__ == '__main__':
             },
             "ejection_buffer": {
                 "push": {
+                    0: {
+
+                    },
                     1: {
 
                     },
@@ -241,9 +268,15 @@ if __name__ == '__main__':
                     },
                     3: {
 
-                    }
+                    },
+                    4: {
+
+                    },
                 },
                 "pop": {
+                    0: {
+
+                    },
                     1: {
 
                     },
@@ -251,6 +284,9 @@ if __name__ == '__main__':
 
                     },
                     3: {
+
+                    },
+                    4: {
 
                     }
                 }
@@ -267,6 +303,9 @@ if __name__ == '__main__':
 
                     },
                     3: {
+
+                    },
+                    4: {
 
                     },
                     14: {
@@ -287,6 +326,9 @@ if __name__ == '__main__':
 
                     },
                     3: {
+
+                    },
+                    4: {
 
                     },
                     14: {
@@ -321,37 +363,13 @@ if __name__ == '__main__':
                     3: {
 
                     },
+                    4: {
+
+                    },
                     14: {
 
                     },
                     15: {
-
-                    }
-                },
-                "pop": {
-                    1: {
-
-                    },
-                    2: {
-
-                    },
-                    3: {
-
-                    },
-                    15: {
-
-                    }
-                }
-            },
-            "boundary_buffer": {
-                "push": {
-                    1: {
-
-                    },
-                    2: {
-
-                    },
-                    3: {
 
                     }
                 },
@@ -368,6 +386,48 @@ if __name__ == '__main__':
                     3: {
 
                     },
+                    4: {
+
+                    },
+                    15: {
+
+                    }
+                }
+            },
+            "boundary_buffer": {
+                "push": {
+                    0: {
+
+                    },
+                    1: {
+
+                    },
+                    2: {
+
+                    },
+                    3: {
+
+                    },
+                    4: {
+
+                    }
+                },
+                "pop": {
+                    0: {
+
+                    },
+                    1: {
+
+                    },
+                    2: {
+
+                    },
+                    3: {
+
+                    },
+                    4: {
+
+                    },
                     14: {
 
                     },
@@ -378,58 +438,48 @@ if __name__ == '__main__':
             }
         }
     }
-    queue_length = {}
+
     for i in range(len(lined_list)):
         if check_local_or_remote(lined_list[i]):
-            # file2.write(str(lined_list[i]))
-            # file2.write("\n")
+
             if lined_list[i][0].split(": ")[0] == "push_input_queue":
-                chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["push"].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
+                # chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["push"].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1])) # cycle
+                chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["push"][int(lined_list[i][1].split(": ")[1])] = int(lined_list[i][3].split(": ")[1])  # occupancy
+
             elif lined_list[i][0].split(": ")[0] == "pop_input_queue":
-                chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["pop"].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
-                # chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["pop"].setdefault(int(lined_list[i][1].split(": ")[1]), []).append(int(lined_list[i][3].split(": ")[1]))
+                # chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["pop"].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1])) # cycle
+                chip[int(lined_list[i][8].split(": ")[1])]["input_queue"]["pop"][int(lined_list[i][1].split(": ")[1])] = int(lined_list[i][3].split(": ")[1])  # occupancy
+
             elif lined_list[i][0].split(": ")[0] == "push_ejection_buffer":
-                chip[int(lined_list[i][7].split(": ")[1])]["ejection_buffer"]["push"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
+                # chip[int(lined_list[i][7].split(": ")[1])]["ejection_buffer"]["push"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1])) # cycle
+                chip[int(lined_list[i][7].split(": ")[1])]["ejection_buffer"]["push"][int(lined_list[i][0].split(": ")[1])][int(lined_list[i][1].split(": ")[1])] = int(lined_list[i][3].split(": ")[1])  # occupancy
+
             elif lined_list[i][0].split(": ")[0] == "pop_ejection_buffer":
-                chip[int(lined_list[i][7].split(": ")[1])]["ejection_buffer"]["pop"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
+                # chip[int(lined_list[i][7].split(": ")[1])]["ejection_buffer"]["pop"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1])) # cycle
+                chip[int(lined_list[i][7].split(": ")[1])]["ejection_buffer"]["pop"][int(lined_list[i][0].split(": ")[1])][int(lined_list[i][1].split(": ")[1])] = int(lined_list[i][3].split(": ")[1])  # occupancy
+
             elif lined_list[i][0].split(": ")[0] == "push_boundary_buffer":
-                chip[int(lined_list[i][7].split(": ")[1])]["boundary_buffer"]["push"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
+                # chip[int(lined_list[i][7].split(": ")[1])]["boundary_buffer"]["push"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1])) # cycle
+                chip[int(lined_list[i][7].split(": ")[1])]["boundary_buffer"]["push"][int(lined_list[i][0].split(": ")[1])][int(lined_list[i][1].split(": ")[1])] = int(lined_list[i][3].split(": ")[1])  # occupancy
+
             elif lined_list[i][0].split(": ")[0] == "pop_boundary_buffer":
-                chip[int(lined_list[i][7].split(": ")[1])]["boundary_buffer"]["pop"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1]))
+                # chip[int(lined_list[i][7].split(": ")[1])]["boundary_buffer"]["pop"][int(lined_list[i][0].split(": ")[1])].setdefault(int(lined_list[i][2].split(": ")[1]), []).append(int(lined_list[i][1].split(": ")[1])) # cycle
+                chip[int(lined_list[i][7].split(": ")[1])]["boundary_buffer"]["pop"][int(lined_list[i][0].split(": ")[1])][int(lined_list[i][1].split(": ")[1])] = int(lined_list[i][3].split(": ")[1])  # occupancy
 
-    for i in chip.keys():
-        if i == 3:
-            for j in chip[i]["input_queue"]["pop"].keys():
-                queue_length[j] = chip[i]["input_queue"]["pop"][j][0]
-            break
-
-    plt.bar(list(queue_length.keys()), list(queue_length.values()), width=2)
-    plt.xlabel("Cycle Time")
-    plt.ylabel("Queue Size")
-    plt.title("Queue Size for input queue in chiplet 3")
-    plt.show()
     """""
-    waiting_time = {}
-    chip_num = 1
-    queue_num = "boundary_buffer"
-    vc_num = 15
-    for i in chip[chip_num][queue_num]["push"][vc_num].keys():
-        for j in chip[chip_num][queue_num]["pop"][vc_num].keys():
-            if i == j:
-                waiting_time[i] = chip[chip_num][queue_num]["pop"][vc_num][j][0] - chip[chip_num][queue_num]["push"][vc_num][i][0]
-                break
+    c = 3
+    buf_name = "ejection_buffer"
+    vc = 1
+    plt.plot(list(chip[c][buf_name]["push"][vc].keys()), list(chip[c][buf_name]["push"][vc].values()), "r--")
+    plt.plot(list(chip[c][buf_name]["pop"][vc].keys()), list(chip[c][buf_name]["pop"][vc].values()), "b--")
+    plt.show()
     
-    waiting_time = {}
-    x1 = x2 = 0
-    push = chip[1]["input_queue"]["push"]
-    pop = chip[1]["input_queue"]["pop"]
-
-    for i in push.keys():
-        waiting_time[i] = pop[i][0] - push[i][0]
-
-    plt.bar(list(waiting_time.keys()), list(waiting_time.values()), width=20)
-    plt.xlabel("packet ID")
-    plt.ylabel("Waiting Time")
-    plt.title("packet waiting time in ejection_buffer of chiplet 1")
+    c = 3
+    buf_name = "input_queue"
+    title = str(buf_name) + " in chiplet " + str(c)
+    plt.bar(list(chip[c][buf_name]["push"].keys()), chip[c][buf_name]["push"].values(), width=2, label="psuh")
+    plt.bar(list(chip[c][buf_name]["pop"].keys()), chip[c][buf_name]["pop"].values(), width=2, label="pop")
+    plt.legend(loc="best")
+    plt.title(title)
     plt.show()
     """""

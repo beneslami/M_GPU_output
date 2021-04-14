@@ -79,6 +79,7 @@ if __name__ == '__main__':
     t3 = t2 = t1 = 0
     x1 = x2 = 0
     f1 = f2 = 0
+
     """""
     req_cycle = {}
     resp_cycle = {}
@@ -124,7 +125,7 @@ if __name__ == '__main__':
     plt.legend(loc="best")
     plt.show()
     """""
-    """""
+
     for i in packet.keys():
         for j in range(len(packet[i])):
             if packet[i][j][0] == "input_queue_push" and int(packet[i][j][4].split(": ")[1]) == 0:
@@ -134,9 +135,11 @@ if __name__ == '__main__':
                     if packet[i][k][0] == "Boundary_Buffer_pop" and int(packet[i][k][4].split(": ")[1]) == 0:
                         x2 = int(packet[i][k][5].split(": ")[1])
                         if x2 - x1 in delay_req.keys():
-                            delay_req[x2 - x1] += 1
+                            delay_req[int(packet[i][j][3].split(": ")[1])] = x2 - x1
+                            #delay_req[x2 - x1] += 1
                         else:
-                            delay_req[x2 - x1] = 1
+                            #delay_req[x2 - x1] = 1
+                            delay_req[int(packet[i][j][3].split(": ")[1])] = x2 - x1
                         req_num += 1
                         break
             elif packet[i][j][0] == "input_queue_push" and int(packet[i][j][4].split(": ")[1]) == 2:
@@ -146,11 +149,18 @@ if __name__ == '__main__':
                     if packet[i][k][0] == "Boundary_Buffer_pop" and int(packet[i][k][4].split(": ")[1]) == 2:
                         x2 = int(packet[i][k][5].split(": ")[1])
                         if x2 - x1 in delay_resp.keys():
-                            delay_resp[x2 - x1] += 1
+                            delay_resp[int(packet[i][j][3].split(": ")[1])] = x2 - x1
+                            #delay_resp[x2 - x1] += 1
                         else:
-                            delay_resp[x2 - x1] = 1
+                            delay_resp[int(packet[i][j][3].split(": ")[1])] = x2 - x1
+                            #delay_resp[x2 - x1] = 1
                         resp_num += 1
                         break
+
+    plt.bar(list(delay_req.keys()), list(delay_req.values()), width=4, color="red", label="request")
+    plt.bar(list(delay_resp.keys()), list(delay_resp.values()), width=5, color="blue", label="response")
+    plt.legend(loc="best")
+    """""
     for i in delay_req.keys():
         delay_req[i] = delay_req[i]/req_num
     for i in delay_resp.keys():
@@ -158,12 +168,13 @@ if __name__ == '__main__':
 
     plt.bar(list(delay_req.keys()), list(delay_req.values()), width=2, color="red", label="request")
     plt.bar(list(delay_resp.keys()), list(delay_resp.values()), width=1, color="blue", label="response")
-    plt.legend(loc="best")
+    
     plt.xlabel("Latency in Cycle")
     plt.ylabel("Probability")
     plt.title("Distribution of the latency of packets")
-    plt.show()
     """""
+    plt.show()
+
     """""
         for j in range(len(packet[i])):
             if packet[i][j][0] == "input_queue_push":
