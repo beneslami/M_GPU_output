@@ -140,6 +140,21 @@ def injection_rate(packet):
     plt.show()
 
 
+def hop_fraction(packet):
+    one_hop = 0
+    two_hop = 0
+    sum = 0
+    for i in packet.keys():
+        if chip_select(int(packet[i][0][1].split(": ")[1])) != chip_select(int(packet[i][0][2].split(": ")[1])):
+            if abs(int(packet[i][0][1].split(": ")[1]) - int(packet[i][0][2].split(": ")[1])) == 1 or abs(int(packet[i][0][1].split(": ")[1]) - int(packet[i][0][2].split(": ")[1])) == len(chiplet) - 1:
+                one_hop += 1
+            else:
+                two_hop += 1
+            sum += 1
+    print("one hop: " + str(one_hop / sum))
+    print("two hop: " + str(two_hop / sum))
+
+
 if __name__ == "__main__":
     file = open("report.txt", "r")
     raw_content = ""
@@ -159,5 +174,8 @@ if __name__ == "__main__":
         else:
             packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
-    injeciton_flow(packet)
+    # injeciton_flow(packet)
     # injection_rate(packet)
+    hop_fraction(packet)
+    for i in range(len(packet[12789591])):
+        print(packet[12789591][i])
