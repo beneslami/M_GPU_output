@@ -6,22 +6,22 @@ chiplet_0 = dict(
     SM_ID=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
            28, 29, 30, 31],
     LLC_ID=[128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143], port=192)
-link_01 = 0
+
 chiplet_1 = dict(
     SM_ID=[32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58,
            59, 60, 61, 62, 63],
     LLC_ID=[144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159], port=193)
-link_12 = 0
+
 chiplet_2 = dict(
     SM_ID=[64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
            91, 92, 93, 94, 95],
     LLC_ID=[160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175], port=194)
-link_23 = 0
+
 chiplet_3 = dict(
     SM_ID=[96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
            118, 119, 120, 121, 122, 123, 124, 125, 126, 127],
     LLC_ID=[176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191], port=195)
-link_30 = 0
+
 chiplet.append(chiplet_0)
 chiplet.append(chiplet_1)
 chiplet.append(chiplet_2)
@@ -30,6 +30,8 @@ chiplet.append(chiplet_3)
 
 def chip_select(num):
     out = -1
+    if num < 4:
+        return num
     for i in range(len(chiplet)):
         if num in chiplet[i]["SM_ID"]:
             out = i
@@ -45,8 +47,8 @@ def chip_select(num):
 
 def check_local_or_remote(x):  # 0 for local, 1 for remote
     for i in range(len(chiplet)):
-        if int(x[5].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[5].split(": ")[1]) in chiplet[i]["LLC_ID"]:
-            if int(x[6].split(": ")[1]) in chiplet[i]["SM_ID"] or int(x[6].split(": ")[1]) in chiplet[i]["LLC_ID"]:
+        if (int(x[1].split(": ")[1]) in chiplet[i]["SM_ID"]) or (int(x[1].split(": ")[1]) in chiplet[i]["LLC_ID"]):
+            if (int(x[2].split(": ")[1]) in chiplet[i]["SM_ID"]) or (int(x[2].split(": ")[1]) in chiplet[i]["LLC_ID"]):
                 return 0
         return 1
 
@@ -58,17 +60,11 @@ def injeciton_flow(packet):
             if packet[i][j][0] == "injection buffer" and int(packet[i][j][4].split(": ")[1]) == 0:
                 src = chip_select(int(packet[i][j][1].split(": ")[1]))
                 dst = chip_select(int(packet[i][j][2].split(": ")[1]))
-                if src == -1 or dst == -1:
-                    print(int(packet[i][j][1].split(": ")[1]))
-                    print(int(packet[i][j][2].split(": ")[1]))
                 arr[3 - src][dst] += 1
                 continue
             elif packet[i][j][0] == "L2_icnt_pop" and int(packet[i][j][4].split(": ")[1]) == 2:
                 src = chip_select(int(packet[i][j][1].split(": ")[1]))
                 dst = chip_select(int(packet[i][j][2].split(": ")[1]))
-                if src == -1 or dst == -1:
-                    print(int(packet[i][j][1].split(": ")[1]))
-                    print(int(packet[i][j][2].split(": ")[1]))
                 arr[3 - src][dst] += 1
                 break
 
@@ -78,17 +74,71 @@ def injeciton_flow(packet):
     plt.yticks(ticks=np.arange(len(Cols)), labels=Cols)
     hm = plt.imshow(arr, cmap='gray_r', interpolation="nearest")
     plt.colorbar(hm)
-    plt.xlabel("Module")
-    plt.ylabel("Module")
+    plt.xlabel("Source")
+    plt.ylabel("Destination")
     plt.title("spatial Distribution of Injection Flows")
     plt.show()
 
 
 def injection_rate(packet):
- # TODO: injection interarrival time
+    arr = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+    dst = -1
+    src = -1
+    for i in packet.keys():
+        if chip_select(int(packet[i][0][1].split(": ")[1])) != chip_select(int(packet[i][0][2].split(": ")[1])):
+            for j in range(len(packet[i])):
+                if packet[i][j][0] == "injection buffer" and int(packet[i][j][4].split(": ")[1]) == 0:
+                    src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    for k in range(j, len(packet[i])):
+                        if packet[i][k][0] == "inter_icnt_pop_llc_push" and int(packet[i][k][4].split(": ")[1]) == 0:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            arr[3 - src][dst] += 1
+                            break
+                        elif packet[i][k][0] == "forward_waiting_push" and int(packet[i][k][4].split(": ")[1]) == 0:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            arr[3 - src][dst] += 1
+                            break
 
-def hop_latency_dist(packet):
-    # todo: temporal distribution of injection between each neighbors
+                if packet[i][j][0] == "forward_waiting_push" and int(packet[i][j][4].split(": ")[1]) == 0:
+                    src = chip_select(int(packet[i][j][6].split(": ")[1]))
+                    for k in range(j, len(packet[i])):
+                        if packet[i][k][0] == "inter_icnt_pop_llc_push" and int(packet[i][k][4].split(": ")[1]) == 0:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            arr[3 - src][dst] += 1
+                            break
+
+                if packet[i][j][0] == "L2_icnt_pop" and int(packet[i][j][4].split(": ")[1]) == 2:
+                    src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "forward_waiting_push" and int(packet[i][k][4].split(": ")[1]) == 2:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            arr[3 - src][dst] += 1
+                            break
+                        elif packet[i][k][0] == "SM boundary buffer push" and int(packet[i][k][4].split(": ")[1]) == 2:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            arr[3 - src][dst] += 1
+                            break
+
+                if packet[i][j][0] == "forward_waiting_push" and int(packet[i][j][4].split(": ")[1]) == 2:
+                    src = chip_select(int(packet[i][j][6].split(": ")[1]))
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "SM boundary buffer push" and int(packet[i][k][4].split(": ")[1]) == 2:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            arr[3 - src][dst] += 1
+                            break
+    print(arr)
+# {6: 56226, 8: 31585, 7: 72748, 4: 49984, 9: 38302, 5: 8, 3: 36, 2: 18}
+    Index = [0, 1, 2, 3]
+    Cols = [3, 2, 1, 0]
+    plt.xticks(ticks=np.arange(len(Index)), labels=Index)
+    plt.yticks(ticks=np.arange(len(Cols)), labels=Cols)
+    hm = plt.imshow(arr, cmap='gray_r', interpolation="nearest")
+    plt.colorbar(hm)
+    plt.xlabel("Source")
+    plt.ylabel("Destination")
+    plt.title("spatial Distribution of traffics among links")
+    plt.show()
+
 
 if __name__ == "__main__":
     file = open("report.txt", "r")
@@ -108,9 +158,6 @@ if __name__ == "__main__":
                 packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
         else:
             packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-    """
-    for i in range(len(packet[15803589])):
-        print(packet[15803589][i])
-    """
-    injeciton_flow(packet)
 
+    injeciton_flow(packet)
+    # injection_rate(packet)
