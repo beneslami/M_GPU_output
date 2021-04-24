@@ -1,5 +1,9 @@
+from _csv import writer
+
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import animation
+from mpl_toolkits import mplot3d
 
 chiplet = []
 chiplet_0 = dict(
@@ -155,6 +159,71 @@ def hop_fraction(packet):
     print("two hop: " + str(two_hop / sum))
 
 
+def byte_flow(packet):
+
+    read_req_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
+    read_rep_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
+    write_req_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
+    write_rep_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
+    arr = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
+    dst = -1
+    src = -1
+    for i in packet.keys():
+        if chip_select(int(packet[i][0][1].split(": ")[1])) != chip_select(int(packet[i][0][2].split(": ")[1])):
+            for j in range(len(packet[i])):
+                if packet[i][j][0] == "injection buffer":
+                    src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    dst = chip_select(int(packet[i][j][2].split(": ")[1]))
+                    arr[3 - src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                    if int(packet[i][j][4].split(": ")[1]) == 0:
+                        read_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                    elif int(packet[i][j][4].split(": ")[1]) == 1:
+                        write_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                    elif int(packet[i][j][4].split(": ")[1]) == 2:
+                        read_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                    elif int(packet[i][j][4].split(": ")[1]) == 3:
+                        write_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                    continue
+                elif packet[i][j][0] == "L2_icnt_pop":
+                    src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    dst = chip_select(int(packet[i][j][2].split(": ")[1]))
+                    arr[3 - src][dst].append(int(packet[i][j][7].split(":")[1]))
+                    if int(packet[i][j][4].split(": ")[1]) == 0:
+                        read_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                    elif int(packet[i][j][4].split(": ")[1]) == 1:
+                        write_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                    elif int(packet[i][j][4].split(": ")[1]) == 2:
+                        read_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                    elif int(packet[i][j][4].split(": ")[1]) == 3:
+                        write_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                    continue
+    D_arr2 = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
+
+    D_arr = [[], [], [], []]
+    for i in range(len(read_rep_chip_flow)):
+        for j in range(len(read_rep_chip_flow[i])):
+            if len(read_rep_chip_flow[i][j]) != 0:
+                D_arr[i].append(np.mean(read_rep_chip_flow[i][j]))
+            else:
+                D_arr[i].append(0)
+    
+    # 3D 
+    ax = plt.axes(projection='3d')
+    data_array = np.array(D_arr)
+    x_data, y_data = np.meshgrid(np.arange(data_array.shape[1]), np.arange(data_array.shape[0]))
+    for i in range(len(x_data)):
+        x_data[i] = x_data[i][::-1]
+    x_data = x_data.flatten()
+    y_data = y_data.flatten()
+    z_data = data_array.flatten()
+    ax.bar3d(x_data, y_data, np.zeros(len(z_data)), 0.7, 0.7, z_data, alpha=0.9)
+    ax.set_xlabel('Source')
+    ax.set_ylabel('Destination')
+    ax.set_zlabel('Mean read_req Flow')
+    plt.show()
+
+
+
 if __name__ == "__main__":
     file = open("report.txt", "r")
     raw_content = ""
@@ -174,8 +243,7 @@ if __name__ == "__main__":
         else:
             packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
-    # injeciton_flow(packet)
-    # injection_rate(packet)
-    hop_fraction(packet)
-    for i in range(len(packet[12789591])):
-        print(packet[12789591][i])
+    #injeciton_flow(packet)
+    #injection_rate(packet)
+    #hop_fraction(packet)
+    byte_flow(packet)
