@@ -1,4 +1,5 @@
 from _csv import writer
+import pandas as pd
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -57,7 +58,7 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
         return 1
 
 
-def injeciton_flow(packet):
+def injection_flow(packet):
     arr = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
     for i in packet.keys():
         for j in range(len(packet[i])):
@@ -166,6 +167,20 @@ def byte_flow(packet):
     write_req_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
     write_rep_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
     arr = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
+    modules = {
+        0: {
+
+        },
+        1: {
+
+        },
+        2: {
+
+        },
+        3: {
+
+        }
+    }
     dst = -1
     src = -1
     for i in packet.keys():
@@ -175,39 +190,86 @@ def byte_flow(packet):
                     src = chip_select(int(packet[i][j][1].split(": ")[1]))
                     dst = chip_select(int(packet[i][j][2].split(": ")[1]))
                     arr[3 - src][dst].append(int(packet[i][j][7].split(": ")[1]))
+
                     if int(packet[i][j][4].split(": ")[1]) == 0:
                         read_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                        if int(packet[i][j][7].split(": ")[1]) in modules[src]:
+                            modules[src][int(packet[i][j][7].split(": ")[1])] += 1
+                        else:
+                            modules[src][int(packet[i][j][7].split(": ")[1])] = 1
+
                     elif int(packet[i][j][4].split(": ")[1]) == 1:
                         write_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+
+                        if int(packet[i][j][7].split(": ")[1]) in modules[src]:
+                            modules[src][int(packet[i][j][7].split(": ")[1])] += 1
+                        else:
+                            modules[src][int(packet[i][j][7].split(": ")[1])] = 1
+
                     elif int(packet[i][j][4].split(": ")[1]) == 2:
                         read_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+
+                        if int(packet[i][j][7].split(": ")[1]) in modules[src]:
+                            modules[src][int(packet[i][j][7].split(": ")[1])] += 1
+                        else:
+                            modules[src][int(packet[i][j][7].split(": ")[1])] = 1
+
                     elif int(packet[i][j][4].split(": ")[1]) == 3:
                         write_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+
+                        if int(packet[i][j][7].split(": ")[1]) in modules[src]:
+                            modules[src][int(packet[i][j][7].split(": ")[1])] += 1
+                        else:
+                            modules[src][int(packet[i][j][7].split(": ")[1])] = 1
                     continue
+
                 elif packet[i][j][0] == "L2_icnt_pop":
                     src = chip_select(int(packet[i][j][1].split(": ")[1]))
                     dst = chip_select(int(packet[i][j][2].split(": ")[1]))
                     arr[3 - src][dst].append(int(packet[i][j][7].split(":")[1]))
                     if int(packet[i][j][4].split(": ")[1]) == 0:
                         read_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                        if int(packet[i][j][7].split(":")[1]) in modules[src]:
+                            modules[src][int(packet[i][j][7].split(":")[1])] += 1
+                        else:
+                            modules[src][int(packet[i][j][7].split(":")[1])] = 1
                     elif int(packet[i][j][4].split(": ")[1]) == 1:
                         write_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
-                    elif int(packet[i][j][4].split(": ")[1]) == 2:
+                        if int(packet[i][j][7].split(":")[1]) in modules[src]:
+                            modules[src][int(packet[i][j][7].split(":")[1])] += 1
+                        else:
+                            modules[src][int(packet[i][j][7].split(":")[1])] = 1
+                    elif int(packet[i][j][4].split(":")[1]) == 2:
                         read_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
-                    elif int(packet[i][j][4].split(": ")[1]) == 3:
+                        if int(packet[i][j][7].split(":")[1]) in modules[src]:
+                            modules[src][int(packet[i][j][7].split(":")[1])] += 1
+                        else:
+                            modules[src][int(packet[i][j][7].split(":")[1])] = 1
+                    elif int(packet[i][j][4].split(":")[1]) == 3:
                         write_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                        if int(packet[i][j][7].split(":")[1]) in modules[src]:
+                            modules[src][int(packet[i][j][7].split(":")[1])] += 1
+                        else:
+                            modules[src][int(packet[i][j][7].split(":")[1])] = 1
                     continue
-    D_arr2 = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
 
+    """#3D distribution
+    data = {}
+    for i in modules.keys():
+        for j in sorted(modules[i].keys()):
+                data.setdefault(j, []).append(modules[i][j])
+    df = pd.DataFrame(data, index=["chip0", "chip1", "chip2", "chip3"])
+    ax = df.plot.bar()
+    plt.show()"""
+
+    # 3D
     D_arr = [[], [], [], []]
-    for i in range(len(read_rep_chip_flow)):
-        for j in range(len(read_rep_chip_flow[i])):
-            if len(read_rep_chip_flow[i][j]) != 0:
-                D_arr[i].append(np.mean(read_rep_chip_flow[i][j]))
+    for i in range(len(arr)):
+        for j in range(len(arr[i])):
+            if len(arr[i][j]) != 0:
+                D_arr[i].append(np.mean(arr[i][j]))
             else:
                 D_arr[i].append(0)
-    
-    # 3D 
     ax = plt.axes(projection='3d')
     data_array = np.array(D_arr)
     x_data, y_data = np.meshgrid(np.arange(data_array.shape[1]), np.arange(data_array.shape[0]))
@@ -219,13 +281,184 @@ def byte_flow(packet):
     ax.bar3d(x_data, y_data, np.zeros(len(z_data)), 0.7, 0.7, z_data, alpha=0.9)
     ax.set_xlabel('Source')
     ax.set_ylabel('Destination')
-    ax.set_zlabel('Mean read_req Flow')
+    ax.set_zlabel('Mean Injection Flow')
+
     plt.show()
 
 
+def link_rate(packet):
+    arr = [
+        [0, {}, {}, {}],
+        [{}, 0, {}, {}],
+        [{}, {}, 0, {}],
+        [{}, {}, {}, 0]
+    ]
+    dst = -1
+    src = -1
+    temp = {}
+    for i in packet.keys():
+        if chip_select(int(packet[i][0][1].split(": ")[1])) != chip_select(int(packet[i][0][2].split(": ")[1])):
+            for j in range(len(packet[i])):
+                if packet[i][j][0] == "injection buffer" and int(packet[i][j][4].split(": ")[1]) == 0:
+                    src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    for k in range(j, len(packet[i])):
+                        if packet[i][k][0] == "inter_icnt_pop_llc_push" and int(packet[i][k][4].split(": ")[1]) == 0:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][j][7].split(": ")[1]) in temp.keys():
+                                    temp[int(packet[i][j][7].split(": ")[1])] += 1
+                                else:
+                                    temp[int(packet[i][j][7].split(": ")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+                        elif packet[i][k][0] == "forward_waiting_push" and int(packet[i][k][4].split(": ")[1]) == 0:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][j][7].split(": ")[1]) in temp.keys():
+                                    temp[int(packet[i][j][7].split(": ")[1])] += 1
+                                else:
+                                    temp[int(packet[i][j][7].split(": ")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+
+                if packet[i][j][0] == "injection buffer" and int(packet[i][j][4].split(": ")[1]) == 1:
+                    src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    for k in range(j, len(packet[i])):
+                        if packet[i][k][0] == "inter_icnt_pop_llc_push" and int(packet[i][k][4].split(": ")[1]) == 1:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][j][7].split(": ")[1]) in temp.keys():
+                                    temp[int(packet[i][j][7].split(":")[1])] += 1
+                                else:
+                                    temp[int(packet[i][j][7].split(":")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+                        elif packet[i][k][0] == "forward_waiting_push" and int(packet[i][k][4].split(": ")[1]) == 1:
+                            dst = chip_select(int(packet[i][j][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][k][7].split(": ")[1]) in temp.keys():
+                                    temp[int(packet[i][j][7].split(": ")[1])] += 1
+                                else:
+                                    temp[int(packet[i][j][7].split(": ")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+
+                if packet[i][j][0] == "forward_waiting_push" and int(packet[i][j][4].split(": ")[1]) == 0:
+                    src = chip_select(int(packet[i][j][6].split(": ")[1]))
+                    for k in range(j, len(packet[i])):
+                        if packet[i][k][0] == "inter_icnt_pop_llc_push" and int(packet[i][k][4].split(": ")[1]) == 0:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if 8 in temp.keys():
+                                    temp[8] += 1
+                                else:
+                                    temp[8] = 1
+                            arr[src][dst] = temp
+                            break
+
+                if packet[i][j][0] == "forward_waiting_push" and int(packet[i][j][4].split(": ")[1]) == 1:
+                    src = chip_select(int(packet[i][j][6].split(": ")[1]))
+                    for k in range(j, len(packet[i])):
+                        if packet[i][k][0] == "inter_icnt_pop_llc_push" and int(packet[i][k][4].split(": ")[1]) == 1:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if 136 in temp.keys():
+                                    temp[136] += 1
+                                else:
+                                    temp[136] = 1
+                            arr[src][dst] = temp
+                            break
+
+                if packet[i][j][0] == "L2_icnt_pop" and int(packet[i][j][4].split(": ")[1]) == 2:
+                    src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "forward_waiting_push" and int(packet[i][k][4].split(": ")[1]) == 2:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][j][7].split(":")[1]) in temp.keys():
+                                    temp[int(packet[i][j][7].split(":")[1])] += 1
+                                else:
+                                    temp[int(packet[i][j][7].split(":")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+                        elif packet[i][k][0] == "SM boundary buffer push" and int(packet[i][k][4].split(": ")[1]) == 2:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][k][7].split(": ")[1]) in temp.keys():
+                                    temp[int(packet[i][k][7].split(": ")[1])] += 1
+                                else:
+                                    temp[int(packet[i][k][7].split(": ")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+
+                if packet[i][j][0] == "L2_icnt_pop" and int(packet[i][j][4].split(": ")[1]) == 3:
+                    src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "forward_waiting_push" and int(packet[i][k][4].split(": ")[1]) == 3:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][j][7].split(":")[1]) in temp.keys():
+                                    temp[int(packet[i][j][7].split(":")[1])] += 1
+                                else:
+                                    temp[int(packet[i][j][7].split(":")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+                        elif packet[i][k][0] == "SM boundary buffer push" and int(packet[i][k][4].split(": ")[1]) == 3:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][k][7].split(": ")[1]) in temp.keys():
+                                    temp[int(packet[i][k][7].split(": ")[1])] += 1
+                                else:
+                                    temp[int(packet[i][k][7].split(": ")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+
+                if packet[i][j][0] == "forward_waiting_push" and int(packet[i][j][4].split(": ")[1]) == 2:
+                    src = chip_select(int(packet[i][j][6].split(": ")[1]))
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "SM boundary buffer push" and int(packet[i][k][4].split(": ")[1]) == 2:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][k][7].split(": ")[1]) in temp.keys():
+                                    temp[int(packet[i][k][7].split(": ")[1])] += 1
+                                else:
+                                    temp[int(packet[i][k][7].split(": ")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+
+                if packet[i][j][0] == "forward_waiting_push" and int(packet[i][j][4].split(": ")[1]) == 3:
+                    src = chip_select(int(packet[i][j][6].split(": ")[1]))
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "SM boundary buffer push" and int(packet[i][k][4].split(": ")[1]) == 3:
+                            dst = chip_select(int(packet[i][k][6].split(": ")[1]))
+                            temp = arr[src][dst]
+                            if type(temp) is dict:
+                                if int(packet[i][k][7].split(": ")[1]) in temp.keys():
+                                    temp[int(packet[i][k][7].split(": ")[1])] += 1
+                                else:
+                                    temp[int(packet[i][k][7].split(": ")[1])] = 1
+                            arr[src][dst] = temp
+                            break
+
+    for i in range(len(arr)):
+        print(i)
+        for j in range(len(arr[i])):
+            print(arr[i][j])
+
 
 if __name__ == "__main__":
-    file = open("report.txt", "r")
+    file = open("report_random.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -243,7 +476,8 @@ if __name__ == "__main__":
         else:
             packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
-    #injeciton_flow(packet)
+    #injection_flow(packet)
     #injection_rate(packet)
     #hop_fraction(packet)
     byte_flow(packet)
+    #link_rate(packet)
