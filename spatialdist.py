@@ -259,8 +259,8 @@ def byte_flow(packet):
         for j in sorted(modules[i].keys()):
                 data.setdefault(j, []).append(modules[i][j])
     df = pd.DataFrame(data, index=["chip0", "chip1", "chip2", "chip3"])
-    ax = df.plot.bar()
-    plt.show()"""
+    ax = df.plot.bar()"""
+
 
     # 3D
     D_arr = [[], [], [], []]
@@ -458,7 +458,7 @@ def link_rate(packet):
 
 
 if __name__ == "__main__":
-    file = open("report_random.txt", "r")
+    file = open("report_syrk.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
