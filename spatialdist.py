@@ -132,7 +132,7 @@ def injection_rate(packet):
                             arr[3 - src][dst] += 1
                             break
     print(arr)
-# {6: 56226, 8: 31585, 7: 72748, 4: 49984, 9: 38302, 5: 8, 3: 36, 2: 18}
+    # {6: 56226, 8: 31585, 7: 72748, 4: 49984, 9: 38302, 5: 8, 3: 36, 2: 18}
     Index = [0, 1, 2, 3]
     Cols = [3, 2, 1, 0]
     plt.xticks(ticks=np.arange(len(Index)), labels=Index)
@@ -151,7 +151,8 @@ def hop_fraction(packet):
     sum = 0
     for i in packet.keys():
         if chip_select(int(packet[i][0][1].split(": ")[1])) != chip_select(int(packet[i][0][2].split(": ")[1])):
-            if abs(int(packet[i][0][1].split(": ")[1]) - int(packet[i][0][2].split(": ")[1])) == 1 or abs(int(packet[i][0][1].split(": ")[1]) - int(packet[i][0][2].split(": ")[1])) == len(chiplet) - 1:
+            if abs(int(packet[i][0][1].split(": ")[1]) - int(packet[i][0][2].split(": ")[1])) == 1 or abs(
+                    int(packet[i][0][1].split(": ")[1]) - int(packet[i][0][2].split(": ")[1])) == len(chiplet) - 1:
                 one_hop += 1
             else:
                 two_hop += 1
@@ -161,7 +162,6 @@ def hop_fraction(packet):
 
 
 def byte_flow(packet):
-
     read_req_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
     read_rep_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
     write_req_chip_flow = [[[], [], [], []], [[], [], [], []], [[], [], [], []], [[], [], [], []]]
@@ -192,14 +192,14 @@ def byte_flow(packet):
                     arr[3 - src][dst].append(int(packet[i][j][7].split(": ")[1]))
 
                     if int(packet[i][j][4].split(": ")[1]) == 0:
-                        read_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                        read_req_chip_flow[3 - src][dst].append(int(packet[i][j][7].split(": ")[1]))
                         if int(packet[i][j][7].split(": ")[1]) in modules[src]:
                             modules[src][int(packet[i][j][7].split(": ")[1])] += 1
                         else:
                             modules[src][int(packet[i][j][7].split(": ")[1])] = 1
 
                     elif int(packet[i][j][4].split(": ")[1]) == 1:
-                        write_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                        write_req_chip_flow[3 - src][dst].append(int(packet[i][j][7].split(": ")[1]))
 
                         if int(packet[i][j][7].split(": ")[1]) in modules[src]:
                             modules[src][int(packet[i][j][7].split(": ")[1])] += 1
@@ -207,7 +207,7 @@ def byte_flow(packet):
                             modules[src][int(packet[i][j][7].split(": ")[1])] = 1
 
                     elif int(packet[i][j][4].split(": ")[1]) == 2:
-                        read_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                        read_rep_chip_flow[3 - src][dst].append(int(packet[i][j][7].split(": ")[1]))
 
                         if int(packet[i][j][7].split(": ")[1]) in modules[src]:
                             modules[src][int(packet[i][j][7].split(": ")[1])] += 1
@@ -215,7 +215,7 @@ def byte_flow(packet):
                             modules[src][int(packet[i][j][7].split(": ")[1])] = 1
 
                     elif int(packet[i][j][4].split(": ")[1]) == 3:
-                        write_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(": ")[1]))
+                        write_rep_chip_flow[3 - src][dst].append(int(packet[i][j][7].split(": ")[1]))
 
                         if int(packet[i][j][7].split(": ")[1]) in modules[src]:
                             modules[src][int(packet[i][j][7].split(": ")[1])] += 1
@@ -228,25 +228,25 @@ def byte_flow(packet):
                     dst = chip_select(int(packet[i][j][2].split(": ")[1]))
                     arr[3 - src][dst].append(int(packet[i][j][7].split(":")[1]))
                     if int(packet[i][j][4].split(": ")[1]) == 0:
-                        read_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                        read_req_chip_flow[3 - src][dst].append(int(packet[i][j][7].split(":")[1]))
                         if int(packet[i][j][7].split(":")[1]) in modules[src]:
                             modules[src][int(packet[i][j][7].split(":")[1])] += 1
                         else:
                             modules[src][int(packet[i][j][7].split(":")[1])] = 1
                     elif int(packet[i][j][4].split(": ")[1]) == 1:
-                        write_req_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                        write_req_chip_flow[3 - src][dst].append(int(packet[i][j][7].split(":")[1]))
                         if int(packet[i][j][7].split(":")[1]) in modules[src]:
                             modules[src][int(packet[i][j][7].split(":")[1])] += 1
                         else:
                             modules[src][int(packet[i][j][7].split(":")[1])] = 1
                     elif int(packet[i][j][4].split(":")[1]) == 2:
-                        read_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                        read_rep_chip_flow[3 - src][dst].append(int(packet[i][j][7].split(":")[1]))
                         if int(packet[i][j][7].split(":")[1]) in modules[src]:
                             modules[src][int(packet[i][j][7].split(":")[1])] += 1
                         else:
                             modules[src][int(packet[i][j][7].split(":")[1])] = 1
                     elif int(packet[i][j][4].split(":")[1]) == 3:
-                        write_rep_chip_flow[3-src][dst].append(int(packet[i][j][7].split(":")[1]))
+                        write_rep_chip_flow[3 - src][dst].append(int(packet[i][j][7].split(":")[1]))
                         if int(packet[i][j][7].split(":")[1]) in modules[src]:
                             modules[src][int(packet[i][j][7].split(":")[1])] += 1
                         else:
@@ -260,7 +260,6 @@ def byte_flow(packet):
                 data.setdefault(j, []).append(modules[i][j])
     df = pd.DataFrame(data, index=["chip0", "chip1", "chip2", "chip3"])
     ax = df.plot.bar()"""
-
 
     # 3D
     D_arr = [[], [], [], []]
@@ -457,8 +456,84 @@ def link_rate(packet):
             print(arr[i][j])
 
 
+def find_source_node_distribution(packet):
+    arr = {}
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "injection buffer":
+                if chip_select(int(packet[i][j][1].split(": ")[1])) != chip_select(int(packet[i][j][2].split(": ")[1])):
+                    if chip_select(int(packet[i][j][1].split(": ")[1])) in arr.keys():
+                        arr[chip_select(int(packet[i][j][1].split(": ")[1]))] += 1
+                    else:
+                        arr[chip_select(int(packet[i][j][1].split(": ")[1]))] = 1
+
+    plt.bar(list(arr.keys()), list(arr.values()))
+    plt.xticks([0, 1, 2, 3], [0, 1, 2, 3])
+    plt.xlabel("source node")
+    plt.ylabel("Frequency of generating request")
+    plt.show()
+
+
+def find_message_type_distribution(packet):
+    message = {
+        0: {},
+        1: {},
+        2: {},
+        3: {}
+    }
+    for i in packet.keys():
+        if chip_select(int(packet[i][0][1].split(": ")[1])) != chip_select(int(packet[i][0][2].split(": ")[1])):
+            for j in range(len(packet[i])):
+                if "injection buffer" == packet[i][j][0]:
+                    if chip_select(int(packet[i][j][1].split(": ")[1])) in message.keys():
+                        if int(packet[i][j][4].split(": ")[1]) in message[
+                            chip_select(int(packet[i][j][1].split(": ")[1]))].keys():
+                            message[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                                int(packet[i][j][4].split(": ")[1])] += 1
+                        else:
+                            message[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                                int(packet[i][j][4].split(": ")[1])] = 1
+
+                elif "L2_icnt_pop" == packet[i][j][0]:
+                    if int(packet[i][j][4].split(": ")[1]) in message[
+                        chip_select(int(packet[i][j][1].split(": ")[1]))].keys():
+                        message[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            int(packet[i][j][4].split(": ")[1])] += 1
+                    else:
+                        message[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            int(packet[i][j][4].split(": ")[1])] = 1
+
+    mylabels = ["Read Request", "Write Request", "Read Reply", "Write Reply"]
+    data = {}
+    for i in message.keys():
+        for j in sorted(message[i].keys()):
+            data.setdefault(j, []).append(message[i][j])
+    df = pd.DataFrame(data, index=["chip0", "chip1", "chip2", "chip3"])
+    ax = df.plot.bar()
+    ax.legend(labels=mylabels)
+    plt.show()
+
+
+def find_destination_node_distribution(packet):
+    arr = {}
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if chip_select(int(packet[i][j][1].split(": ")[1])) != chip_select(int(packet[i][j][2].split(": ")[1])):
+                if packet[i][j][0] == "injection buffer":
+                    if chip_select(int(packet[i][j][2].split(": ")[1])) in arr.keys():
+                        arr[chip_select(int(packet[i][j][2].split(": ")[1]))] += 1
+                    else:
+                        arr[chip_select(int(packet[i][j][2].split(": ")[1]))] = 1
+
+    plt.bar(list(arr.keys()), list(arr.values()))
+    plt.xticks([0, 1, 2, 3], [0, 1, 2, 3])
+    plt.xlabel("destination node")
+    plt.ylabel("Frequency of generating request")
+    plt.show()
+
+
 if __name__ == "__main__":
-    file = open("report_syrk.txt", "r")
+    file = open("report_random.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -476,8 +551,13 @@ if __name__ == "__main__":
         else:
             packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
-    #injection_flow(packet)
-    #injection_rate(packet)
-    #hop_fraction(packet)
-    byte_flow(packet)
-    #link_rate(packet)
+    """for i in range(len(packet[48740])):
+        print(packet[48740][i])"""
+    # injection_flow(packet)
+    # injection_rate(packet)
+    # hop_fraction(packet)
+    # byte_flow(packet)
+    # link_rate(packet)
+    # find_source_node_distribution(packet)
+    # find_message_type_distribution(packet)
+    find_destination_node_distribution(packet)
