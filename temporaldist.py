@@ -1,4 +1,7 @@
+from statistics import mean
+
 import matplotlib.pyplot as plt
+import csv
 
 chiplet = []
 chiplet_0 = dict(
@@ -43,6 +46,13 @@ def chip_select(num):
             break
     return out
 
+
+def check_local_or_remote(x):  # 0 for local, 1 for remote
+    for i in range(len(chiplet)):
+        if (int(x[1].split(": ")[1]) in chiplet[i]["SM_ID"]) or (int(x[1].split(": ")[1]) in chiplet[i]["LLC_ID"]):
+            if (int(x[2].split(": ")[1]) in chiplet[i]["SM_ID"]) or (int(x[2].split(": ")[1]) in chiplet[i]["LLC_ID"]):
+                return 0
+        return 1
 
 def inter_packet_distribution(packet):
     arr = {
@@ -178,12 +188,13 @@ def injection_per_cycle(packet):
     plt.ylabel("Number of packet")
     plt.legend(loc="best")
     plt.show()
+
     plt.plot(list(ingress_byte.keys()), list(ingress_byte.values()), "b", label="ingress")
     plt.plot(list(egress_byte.keys()), list(egress_byte.values()), "r", label="egress")
     plt.xlabel("Time (Cycle)")
     plt.ylabel("Number of bytes")
     plt.legend(loc="best")
-    plt.show()"""
+    plt.show()
 
     byte_distribution = {}
     for i in ingress_byte.keys():
@@ -196,11 +207,56 @@ def injection_per_cycle(packet):
     plt.xlim([-100., 6000.])
     plt.ylim([0., 7000.])
     plt.ylabel("Distribution")
+    plt.show()"""
+
+
+def self_similarity(packet):
+
+    ingress_byte = 0
+    count = 0
+    prev_cycle = 0
+    prev_byte = 0
+    scale = 1
+    ingress_byte_scaled = {}
+    for i in packet.keys():
+        if 110000 <= i <= 111000:
+            for j in range(len(packet[i])):
+                if check_local_or_remote(packet[i][j]):
+                    if packet[i][j][0] == "L2_icnt_pop":
+                        if i not in ingress_byte_scaled.keys():
+                            ingress_byte_scaled[i] = int(packet[i][j][7].split(":")[1])
+                        else:
+                            ingress_byte_scaled[i] += int(packet[i][j][7].split(":")[1])
+                    elif packet[i][j][0] == "injection buffer":
+                        if i not in ingress_byte_scaled.keys():
+                            ingress_byte_scaled[i] = int(packet[i][j][7].split(":")[1])
+                        else:
+                            ingress_byte_scaled[i] += int(packet[i][j][7].split(":")[1])
+                    elif packet[i][j][0] == "inter_icnt_pop_llc_push":
+                        if i not in ingress_byte_scaled.keys():
+                            ingress_byte_scaled[i] = -int(packet[i][j][7].split(": ")[1])
+                        else:
+                            ingress_byte_scaled[i] += -int(packet[i][j][7].split(": ")[1])
+                    elif packet[i][j][0] == "SM boundary buffer push":
+                        if i not in ingress_byte_scaled.keys():
+                            ingress_byte_scaled[i] = -int(packet[i][j][7].split(": ")[1])
+                        else:
+                            ingress_byte_scaled[i] += -int(packet[i][j][7].split(": ")[1])
+
+    plt.plot(list(ingress_byte_scaled.keys()), list(ingress_byte_scaled.values()))
+    plt.xlabel("Time (Cycle)")
+    plt.ylabel("ingress/egress bytes")
     plt.show()
+    with open(" out_110_111.csv", "w", newline='') as file_csv:
+        field = ['cycle', 'byte']
+        writer = csv.DictWriter(file_csv, fieldnames=field)
+        writer.writeheader()
+        for i in ingress_byte_scaled.keys():
+            writer.writerow({"cycle": i, "byte": ingress_byte_scaled[i]})
 
 
 if __name__ == "__main__":
-    file = open("report_random.txt", "r")
+    file = open("report_nn-ispass.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -228,4 +284,5 @@ if __name__ == "__main__":
                     packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
 
     # inter_packet_distribution(packet)
-    injection_per_cycle(packet)
+    # injection_per_cycle(packet)
+    self_similarity(packet)
