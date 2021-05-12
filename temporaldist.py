@@ -54,6 +54,7 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
                 return 0
         return 1
 
+
 def inter_packet_distribution(packet):
     arr = {
         0: {
@@ -77,14 +78,7 @@ def inter_packet_distribution(packet):
     previous_arrival = [1, 1, 1, 1]
     for i in packet.keys():
         for j in range(len(packet[i])):
-            if packet[i][j][0] == "injection buffer":   # for sending request
-                temp = int(packet[i][j][5].split(": ")[1]) - previous_departure[chip_select(int(packet[i][j][1].split(": ")[1]))]
-                if temp in arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["departure"].keys():
-                    arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["departure"][temp] += 1
-                else:
-                    arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["departure"][temp] = 1
-                previous_departure[chip_select(int(packet[i][j][1].split(": ")[1]))] = int(packet[i][j][5].split(": ")[1])
-            elif packet[i][j][0] == "L2_icnt_pop":    # for sending response
+            if packet[i][j][0] == "injection buffer":  # for sending request
                 temp = int(packet[i][j][5].split(": ")[1]) - previous_departure[
                     chip_select(int(packet[i][j][1].split(": ")[1]))]
                 if temp in arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["departure"].keys():
@@ -93,7 +87,16 @@ def inter_packet_distribution(packet):
                     arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["departure"][temp] = 1
                 previous_departure[chip_select(int(packet[i][j][1].split(": ")[1]))] = int(
                     packet[i][j][5].split(": ")[1])
-            elif packet[i][j][0] == "SM boundary buffer push": # for receiving response
+            elif packet[i][j][0] == "L2_icnt_pop":  # for sending response
+                temp = int(packet[i][j][5].split(": ")[1]) - previous_departure[
+                    chip_select(int(packet[i][j][1].split(": ")[1]))]
+                if temp in arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["departure"].keys():
+                    arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["departure"][temp] += 1
+                else:
+                    arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["departure"][temp] = 1
+                previous_departure[chip_select(int(packet[i][j][1].split(": ")[1]))] = int(
+                    packet[i][j][5].split(": ")[1])
+            elif packet[i][j][0] == "SM boundary buffer push":  # for receiving response
                 temp = int(packet[i][j][5].split(": ")[1]) - previous_arrival[
                     chip_select(int(packet[i][j][1].split(": ")[1]))]
                 if temp in arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["arrival"].keys():
@@ -145,7 +148,7 @@ def inter_packet_distribution(packet):
         for j in arr[i]["arrival"]:
             sum += arr[i]["arrival"][j] * j
             coef += arr[i]["arrival"][j]
-        Mean_interval_time.append(sum/coef)
+        Mean_interval_time.append(sum / coef)
     print(Mean_interval_time)
 
 
@@ -210,44 +213,71 @@ def injection_per_cycle(packet):
     plt.show()"""
 
 
-def self_similarity(packet):
+def ingress_egress_per_packet(packet):
+    gress_byte = {}
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if check_local_or_remote(packet[i][j]):
+                if packet[i][j][0] == "L2_icnt_pop":
+                    if int(packet[i][j][5].split(": ")[1]) in gress_byte.keys():
+                        gress_byte[int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(":")[1])
+                    else:
+                        gress_byte[int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(":")[1])
+                elif packet[i][j][0] == "injection buffer":
+                    if int(packet[i][j][5].split(": ")[1]) in gress_byte.keys():
+                        gress_byte[int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(": ")[1])
+                    else:
+                        gress_byte[int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(": ")[1])
+                elif packet[i][j][0] == "inter_icnt_pop_llc_push":
+                    if int(packet[i][j][5].split(": ")[1]) in gress_byte.keys():
+                        gress_byte[int(packet[i][j][5].split(": ")[1])] += -int(packet[i][j][7].split(": ")[1])
+                    else:
+                        gress_byte[int(packet[i][j][5].split(": ")[1])] = -int(packet[i][j][7].split(": ")[1])
+                elif packet[i][j][0] == "SM boundary buffer push":
+                    if int(packet[i][j][5].split(": ")[1]) in gress_byte.keys():
+                        gress_byte[int(packet[i][j][5].split(": ")[1])] += -int(packet[i][j][7].split(": ")[1])
+                    else:
+                        gress_byte[int(packet[i][j][5].split(": ")[1])] = -int(packet[i][j][7].split(": ")[1])
 
+    sort_orders = sorted(gress_byte.items(), key=lambda x: x[0])
+    with open(" nn_ispass.csv", "w", newline='') as file_csv:
+        field = ['cycle', 'byte']
+        writer = csv.DictWriter(file_csv, fieldnames=field)
+        writer.writeheader()
+        for i in range(len(sort_orders)):
+            writer.writerow({"cycle": sort_orders[i][0], "byte": sort_orders[i][1]})
+
+
+def self_similarity(packet):
     ingress_byte = 0
     count = 0
     prev_cycle = 0
     prev_byte = 0
-    scale = 1
+    scale = 1000
     ingress_byte_scaled = {}
     for i in packet.keys():
-        if 110000 <= i <= 111000:
-            for j in range(len(packet[i])):
-                if check_local_or_remote(packet[i][j]):
-                    if packet[i][j][0] == "L2_icnt_pop":
-                        if i not in ingress_byte_scaled.keys():
-                            ingress_byte_scaled[i] = int(packet[i][j][7].split(":")[1])
-                        else:
-                            ingress_byte_scaled[i] += int(packet[i][j][7].split(":")[1])
-                    elif packet[i][j][0] == "injection buffer":
-                        if i not in ingress_byte_scaled.keys():
-                            ingress_byte_scaled[i] = int(packet[i][j][7].split(":")[1])
-                        else:
-                            ingress_byte_scaled[i] += int(packet[i][j][7].split(":")[1])
-                    elif packet[i][j][0] == "inter_icnt_pop_llc_push":
-                        if i not in ingress_byte_scaled.keys():
-                            ingress_byte_scaled[i] = -int(packet[i][j][7].split(": ")[1])
-                        else:
-                            ingress_byte_scaled[i] += -int(packet[i][j][7].split(": ")[1])
-                    elif packet[i][j][0] == "SM boundary buffer push":
-                        if i not in ingress_byte_scaled.keys():
-                            ingress_byte_scaled[i] = -int(packet[i][j][7].split(": ")[1])
-                        else:
-                            ingress_byte_scaled[i] += -int(packet[i][j][7].split(": ")[1])
+        for j in range(len(packet[i])):
+            if check_local_or_remote(packet[i][j]):
+                if packet[i][j][0] == "L2_icnt_pop":
+                    ingress_byte += int(packet[i][j][7].split(":")[1])
+                elif packet[i][j][0] == "injection buffer":
+                    ingress_byte += int(packet[i][j][7].split(":")[1])
+                elif packet[i][j][0] == "inter_icnt_pop_llc_push":
+                    ingress_byte += -int(packet[i][j][7].split(": ")[1])
+                elif packet[i][j][0] == "SM boundary buffer push":
+                    ingress_byte += -int(packet[i][j][7].split(": ")[1])
+        if i - prev_cycle >= scale:
+            ingress_byte_scaled[i] = ingress_byte
+            prev_cycle = i
+            ingress_byte = 0
+        else:
+            continue
 
     plt.plot(list(ingress_byte_scaled.keys()), list(ingress_byte_scaled.values()))
     plt.xlabel("Time (Cycle)")
     plt.ylabel("ingress/egress bytes")
     plt.show()
-    with open(" out_110_111.csv", "w", newline='') as file_csv:
+    with open(" out_1000.csv", "w", newline='') as file_csv:
         field = ['cycle', 'byte']
         writer = csv.DictWriter(file_csv, fieldnames=field)
         writer.writeheader()
@@ -267,14 +297,14 @@ if __name__ == "__main__":
 
     packet = {}
 
-    """for i in range(len(lined_list)):  # packet based classification
+    for i in range(len(lined_list)):  # packet based classification
         if int(lined_list[i][3].split(": ")[1]) in packet.keys():
             if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
                 packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
         else:
-            packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
+            packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
-    for i in range(len(lined_list)):  # cycle based classification
+    """for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":
             if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
                 if int(lined_list[i][5].split(": ")[1]) in packet.keys():
@@ -282,7 +312,8 @@ if __name__ == "__main__":
                         packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
                 else:
                     packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-
+    """
     # inter_packet_distribution(packet)
     # injection_per_cycle(packet)
-    self_similarity(packet)
+    # self_similarity(packet)
+    ingress_egress_per_packet(packet)
