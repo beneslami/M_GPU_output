@@ -240,7 +240,7 @@ def ingress_egress_per_packet(packet):
                         gress_byte[int(packet[i][j][5].split(": ")[1])] = -int(packet[i][j][7].split(": ")[1])
 
     sort_orders = sorted(gress_byte.items(), key=lambda x: x[0])
-    with open(" nn_ispass.csv", "w", newline='') as file_csv:
+    with open("atax.csv", "w", newline='') as file_csv:
         field = ['cycle', 'byte']
         writer = csv.DictWriter(file_csv, fieldnames=field)
         writer.writeheader()
@@ -253,7 +253,7 @@ def self_similarity(packet):
     count = 0
     prev_cycle = 0
     prev_byte = 0
-    scale = 1000
+    scale = 1
     ingress_byte_scaled = {}
     for i in packet.keys():
         for j in range(len(packet[i])):
@@ -277,16 +277,16 @@ def self_similarity(packet):
     plt.xlabel("Time (Cycle)")
     plt.ylabel("ingress/egress bytes")
     plt.show()
-    with open(" out_1000.csv", "w", newline='') as file_csv:
+    """with open(" out_1000.csv", "w", newline='') as file_csv:
         field = ['cycle', 'byte']
         writer = csv.DictWriter(file_csv, fieldnames=field)
         writer.writeheader()
         for i in ingress_byte_scaled.keys():
-            writer.writerow({"cycle": i, "byte": ingress_byte_scaled[i]})
+            writer.writerow({"cycle": i, "byte": ingress_byte_scaled[i]})"""
 
 
 if __name__ == "__main__":
-    file = open("report_nn-ispass.txt", "r")
+    file = open("report_atax.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -297,14 +297,14 @@ if __name__ == "__main__":
 
     packet = {}
 
-    for i in range(len(lined_list)):  # packet based classification
+    """for i in range(len(lined_list)):  # packet based classification
         if int(lined_list[i][3].split(": ")[1]) in packet.keys():
             if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
                 packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
         else:
-            packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+            packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
 
-    """for i in range(len(lined_list)):  # cycle based classification
+    for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":
             if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
                 if int(lined_list[i][5].split(": ")[1]) in packet.keys():
@@ -312,8 +312,8 @@ if __name__ == "__main__":
                         packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
                 else:
                     packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-    """
+
     # inter_packet_distribution(packet)
     # injection_per_cycle(packet)
-    # self_similarity(packet)
-    ingress_egress_per_packet(packet)
+    self_similarity(packet)
+    # ingress_egress_per_packet(packet)
