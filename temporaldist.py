@@ -1,5 +1,7 @@
-from statistics import mean
+from statistics import variance
 
+import numpy as np
+from numpy import average
 import matplotlib.pyplot as plt
 import csv
 
@@ -249,44 +251,52 @@ def ingress_egress_per_packet(packet):
 
 
 def self_similarity(packet):
-    ingress_byte = 0
-    count = 0
+    gress_byte = 0
     prev_cycle = 0
-    prev_byte = 0
     scale = 1
     ingress_byte_scaled = {}
     for i in packet.keys():
         for j in range(len(packet[i])):
             if check_local_or_remote(packet[i][j]):
                 if packet[i][j][0] == "L2_icnt_pop":
-                    ingress_byte += int(packet[i][j][7].split(":")[1])
+                    gress_byte += int(packet[i][j][7].split(":")[1])
                 elif packet[i][j][0] == "injection buffer":
-                    ingress_byte += int(packet[i][j][7].split(":")[1])
+                    gress_byte += int(packet[i][j][7].split(": ")[1])
                 elif packet[i][j][0] == "inter_icnt_pop_llc_push":
-                    ingress_byte += -int(packet[i][j][7].split(": ")[1])
+                    gress_byte += -int(packet[i][j][7].split(": ")[1])
                 elif packet[i][j][0] == "SM boundary buffer push":
-                    ingress_byte += -int(packet[i][j][7].split(": ")[1])
+                    gress_byte += -int(packet[i][j][7].split(": ")[1])
         if i - prev_cycle >= scale:
-            ingress_byte_scaled[i] = ingress_byte
+            if i in ingress_byte_scaled.keys():
+                ingress_byte_scaled[i] += gress_byte
+            else:
+                ingress_byte_scaled[i] = gress_byte
             prev_cycle = i
-            ingress_byte = 0
+            gress_byte = 0
         else:
             continue
-
+    traffic_mean = average(list(ingress_byte_scaled.values()))
+    traffic_vars = variance(list(ingress_byte_scaled.values()))
+    traffic_std = np.sqrt(traffic_vars)
     plt.plot(list(ingress_byte_scaled.keys()), list(ingress_byte_scaled.values()))
+    string = "mean: " + str(traffic_mean) + "\n" + "variance: " + str(traffic_vars) + "\n" + "stdev: " + str(
+        traffic_std)
+    plt.text(100000, -8000, string, bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
     plt.xlabel("Time (Cycle)")
     plt.ylabel("ingress/egress bytes")
     plt.show()
-    """with open(" out_1000.csv", "w", newline='') as file_csv:
+    """
+    with open(" out_1000.csv", "w", newline='') as file_csv:
         field = ['cycle', 'byte']
         writer = csv.DictWriter(file_csv, fieldnames=field)
         writer.writeheader()
         for i in ingress_byte_scaled.keys():
-            writer.writerow({"cycle": i, "byte": ingress_byte_scaled[i]})"""
+            writer.writerow({"cycle": i, "byte": ingress_byte_scaled[i]})
+    """
 
 
 if __name__ == "__main__":
-    file = open("report_atax.txt", "r")
+    file = open("report_nn-ispass.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
