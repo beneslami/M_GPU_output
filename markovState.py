@@ -9,7 +9,7 @@ def state_stay(lined_list):
     burst = {}
     burst_byte = {}
     alternation = 0
-    threshold = 800
+    threshold = 2000
     constant_start = constant_end = 0
     burst_start = burst_end = 0
     if int(lined_list[1][0].split(",")[1]) > threshold or int(lined_list[1][0].split(",")[1]) < threshold:
@@ -53,7 +53,7 @@ def state_stay(lined_list):
     constant_vars = average((list(constant.keys()) - constant_mean) ** 2, weights=list(constant.values()))
     constant_std = np.sqrt(constant_vars)
 
-    """string = "mean: " + str(constant_mean) + "\n" + "variance: " + str(constant_vars) + "\n" + "stdev: " + str(
+    string = "mean: " + str(constant_mean) + "\n" + "variance: " + str(constant_vars) + "\n" + "stdev: " + str(
         constant_std) + "\nthreshold: " + str(threshold)
     plt.bar(list(constant.keys()), list(constant.values()), width=1)
     plt.title("non-Burst state duration distribution")
@@ -61,16 +61,16 @@ def state_stay(lined_list):
     plt.xlabel("period in cycle")
     plt.text(85, 1000, string, bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
     plt.xlim(-10, 200)
-    plt.show()"""
+    plt.show()
 
-    string = "mean: " + str(burst_mean) + "\n" + "variance: " + str(burst_vars) + "\n" + "stdev: " + str(burst_std) + "\nthreshold: " + str(threshold)
+    """string = "mean: " + str(burst_mean) + "\n" + "variance: " + str(burst_vars) + "\n" + "stdev: " + str(burst_std) + "\nthreshold: " + str(threshold)
     plt.bar(list(burst.keys()), list(burst.values()), width=1)
     plt.ylabel("Occurence")
     plt.xlabel("period in cycle")
     plt.title("Burst state duration distribution")
     plt.text(40, 2500, string, bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
     plt.xlim(-10, 100)
-    plt.show()
+    plt.show()"""
 
 
 def state_transition(lined_list):
@@ -99,7 +99,7 @@ def state_transition(lined_list):
 def byte_state_distribution(lined_list):
     constant = {}
     burst = {}
-    threshold = 800
+    threshold = 3000
     for i in range(1, len(lined_list)):
         if -threshold <= int(lined_list[i][0].split(",")[1]) <= threshold:
             if abs(int(lined_list[i][0].split(",")[1])) in constant.keys():
@@ -129,7 +129,7 @@ def byte_state_distribution(lined_list):
 
 
 if __name__ == "__main__":
-    with open(' nn_ispass.csv', 'r') as file:
+    with open('atax.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
