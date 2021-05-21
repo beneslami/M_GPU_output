@@ -3,6 +3,128 @@ import matplotlib.pyplot as plt
 from numpy import average
 
 
+def state_zero(lined_list):
+    start = end = 0
+    flag = 1
+    with open("state_zero.txt", "a") as file:
+        for i in range(1, len(lined_list)):
+            if int(lined_list[i][0].split(",")[1]) < 8:
+                if flag == 1:
+                    continue
+                else:
+                    start = int(lined_list[i][0].split(",")[0])
+                    flag = 1
+            else:
+                if flag == 1:
+                    end = int(lined_list[i][0].split(",")[0])
+                    file.write(str(end - start) + "\n")
+                    flag = 0
+
+
+def state_zero_distribution():
+    arr = {}
+    with open('state_zero.txt', 'r') as file:
+        reader = file.readlines()
+    for num in reader:
+        if int(num) in arr.keys():
+            arr[int(num)] += 1
+        else:
+            arr[int(num)] = 1
+    mean = average(list(arr.keys()), weights=list(arr.values()))
+    print(mean)    #3.2839665665322895
+    #actual = np.random.exponential(mean)
+    #print((1/mean)*np.exp(-(1/mean)*actual))
+    """plt.bar(list(arr.keys()), list(arr.values()))
+    plt.xlim(0, 100)
+    plt.show()"""
+
+
+def state_non_burst(lined_list):
+    start = end = 0
+    flag = 1
+    with open("state_non_burst.txt", "a") as file:
+        for i in range(1, len(lined_list)):
+            if 8 <= int(lined_list[i][0].split(",")[1]) <= 800 or -800 <= int(lined_list[i][0].split(",")[1]) <= -8:
+                if flag == 1:
+                    continue
+                else:
+                    start = int(lined_list[i][0].split(",")[0])
+                    flag = 1
+            else:
+                if flag == 1:
+                    end = int(lined_list[i][0].split(",")[0])
+                    file.write(str(end - start) + "\n")
+                    flag = 0
+
+
+def state_non_burst_distribution():
+    arr = {}
+    with open('state_non_burst.txt', 'r') as file:
+        reader = file.readlines()
+    for num in reader:
+        if int(num) in arr.keys():
+            arr[int(num)] += 1
+        else:
+            arr[int(num)] = 1
+    mean = average(list(arr.keys()), weights=list(arr.values()))
+    print(mean)  # 8.751150415177769
+    plt.bar(list(arr.keys()), list(arr.values()))
+    #plt.xlim(0, 100)
+    plt.show()
+
+
+def state_burst(lined_list):
+    start = end = 0
+    flag = 1
+    with open("state_burst.txt", "a") as file:
+        for i in range(1, len(lined_list)):
+            if int(lined_list[i][0].split(",")[1]) > 800 or int(lined_list[i][0].split(",")[1]) < -800:
+                if flag == 1:
+                    continue
+                else:
+                    start = int(lined_list[i][0].split(",")[0])
+                    flag = 1
+            else:
+                if flag == 1:
+                    end = int(lined_list[i][0].split(",")[0])
+                    file.write(str(end - start) + "\n")
+                    flag = 0
+
+
+def state_burst_distribution():
+    arr = {}
+    with open('state_burst.txt', 'r') as file:
+        reader = file.readlines()
+    for num in reader:
+        if int(num) in arr.keys():
+            arr[int(num)] += 1
+        else:
+            arr[int(num)] = 1
+    mean = average(list(arr.keys()), weights=list(arr.values()))
+    print(mean)  #1.5290773500986523
+    plt.bar(list(arr.keys()), list(arr.values()))
+    plt.xlim(0, 100)
+    plt.show()
+
+
+def time_byte(lined_list):
+    arr= {int(lined_list[1][0].split(",")[0]): int(lined_list[1][0].split(",")[1])}
+    prev_time_slot = int(lined_list[1][0].split(",")[0])
+    for i in range(2, len(lined_list)):
+        if int(lined_list[i][0].split(",")[0]) == prev_time_slot + 1:
+            arr[int(lined_list[i][0].split(",")[0])] = int(lined_list[i][0].split(",")[1])
+            prev_time_slot = int(lined_list[i][0].split(",")[0])
+        else:
+            for j in range(prev_time_slot + 1, int(lined_list[i][0].split(",")[0]) + 1):
+                arr[j] = 0
+            arr[int(lined_list[i][0].split(",")[0])] = int(lined_list[i][0].split(",")[1])
+            prev_time_slot = int(lined_list[i][0].split(",")[0])
+
+    plt.plot(list(arr.keys()), list(arr.values()))
+    plt.xlim(52000, 54000)
+    plt.show()
+
+
 def state_stay(lined_list):
     constant = {}
     constant_byte = {}
@@ -75,7 +197,7 @@ def state_stay(lined_list):
 
 def state_transition(lined_list):
     bernuli = {0: 0, 1: 0}
-    threshold = 800
+    threshold = 400
 
     for i in range(1, len(lined_list)):
         if int(lined_list[i][0].split(",")[1]) > threshold or int(lined_list[i][0].split(",")[1]) < -threshold:
@@ -128,8 +250,23 @@ def byte_state_distribution(lined_list):
     plt.show()
 
 
+def markov_chain():
+    states = ["zero", "n_burst", "burst"]
+    transitions = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    state_probability = [
+        [(1/3.2839665665322895)*np.exp(-(1/3.2839665665322895)*np.random.exponential(3.2839665665322895))],
+        [(1 / 8.751150415177769) * np.exp(-(1 / 8.751150415177769) * np.random.exponential(8.751150415177769))],
+        [(1 / 1.5290773500986523) * np.exp(-(1 / 1.5290773500986523) * np.random.exponential(1.5290773500986523))]
+    ]
+    transitions[0][1] = state_probability[0][1] / state_probability[0][2] - state_probability[0][1]
+    transitions[0][0] = -transitions[0][1]
+
+    transitions[2][1] = state_probability[0][3] / state_probability[0][2] - state_probability[0][3]
+    transitions[2][2] = -transitions[2][1]
+
+
 if __name__ == "__main__":
-    with open('atax.csv', 'r') as file:
+    with open(' nn_ispass.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
@@ -138,4 +275,11 @@ if __name__ == "__main__":
 
     #state_stay(lined_list)
     #state_transition(lined_list)
-    byte_state_distribution(lined_list)
+    #byte_state_distribution(lined_list)
+    #time_byte(lined_list)
+    #state_zero(lined_list)
+    #state_zero_distribution()
+    #state_non_burst(lined_list)
+    #state_non_burst_distribution()
+    #state_burst(lined_list)
+    #state_burst_distribution()
