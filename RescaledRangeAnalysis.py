@@ -112,14 +112,14 @@ def RS(lined_list):
         arr.append(slope*i + intercept)
     plt.scatter(list(E.keys()), list(E.values()))
     plt.plot(list(E.keys()), arr, color="red", linewidth=2)
-    plt.text(1, 4.1, "slope = " + str("{:.3f}".format(slope)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
+    plt.text(1, 2.7, "slope = " + str("{:.3f}".format(slope)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
     plt.xlabel("log-window")
     plt.ylabel("log-R/S")
     plt.show()
 
 
 if __name__ == "__main__":
-    with open('atax.csv', 'r') as file:
+    with open('bicg.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
