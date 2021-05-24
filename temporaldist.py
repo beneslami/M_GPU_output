@@ -281,22 +281,21 @@ def self_similarity(packet):
     plt.plot(list(ingress_byte_scaled.keys()), list(ingress_byte_scaled.values()))
     string = "mean: " + str(traffic_mean) + "\n" + "variance: " + str(traffic_vars) + "\n" + "stdev: " + str(
         traffic_std)
-    plt.text(100000, -8000, string, bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
+    plt.text(100000, -3200, string, bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
     plt.xlabel("Time (Cycle)")
     plt.ylabel("ingress/egress bytes")
     plt.show()
-    """
-    with open(" out_1000.csv", "w", newline='') as file_csv:
+
+    with open("syrk.csv", "w", newline='') as file_csv:
         field = ['cycle', 'byte']
         writer = csv.DictWriter(file_csv, fieldnames=field)
         writer.writeheader()
         for i in ingress_byte_scaled.keys():
             writer.writerow({"cycle": i, "byte": ingress_byte_scaled[i]})
-    """
 
 
 if __name__ == "__main__":
-    file = open("report_nn-ispass.txt", "r")
+    file = open("report_syrk.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()

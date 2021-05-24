@@ -1,6 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import average
+import pymc3 as pm
+import seaborn as sns
+import scipy.stats
+from scipy.stats import multinomial
+from scipy.stats import norm
+import pandas as pd
 
 
 def state_zero(lined_list):
@@ -34,9 +40,12 @@ def state_zero_distribution():
     print(mean)    #3.2839665665322895
     #actual = np.random.exponential(mean)
     #print((1/mean)*np.exp(-(1/mean)*actual))
-    """plt.bar(list(arr.keys()), list(arr.values()))
+    plt.bar(list(arr.keys()), list(arr.values()))
+    plt.text(20, 10000, str(mean), bbox={'facecolor': 'blue', 'alpha': 0.5, 'pad': 10})
+    plt.xlabel("burst time duration")
+    plt.ylabel("Occurrence")
     plt.xlim(0, 100)
-    plt.show()"""
+    plt.show()
 
 
 def state_non_burst(lined_list):
@@ -44,7 +53,7 @@ def state_non_burst(lined_list):
     flag = 1
     with open("state_non_burst.txt", "a") as file:
         for i in range(1, len(lined_list)):
-            if 8 <= int(lined_list[i][0].split(",")[1]) <= 800 or -800 <= int(lined_list[i][0].split(",")[1]) <= -8:
+            if 4*8 <= int(lined_list[i][0].split(",")[1]) <= 4*136 or -4*136 <= int(lined_list[i][0].split(",")[1]) <= -4*8:
                 if flag == 1:
                     continue
                 else:
@@ -69,7 +78,10 @@ def state_non_burst_distribution():
     mean = average(list(arr.keys()), weights=list(arr.values()))
     print(mean)  # 8.751150415177769
     plt.bar(list(arr.keys()), list(arr.values()))
-    #plt.xlim(0, 100)
+    plt.text(20, 10000, str(mean), bbox={'facecolor': 'blue', 'alpha': 0.5, 'pad': 10})
+    plt.xlim(0, 100)
+    plt.xlabel("burst time duration")
+    plt.ylabel("Occurrence")
     plt.show()
 
 
@@ -78,7 +90,7 @@ def state_burst(lined_list):
     flag = 1
     with open("state_burst.txt", "a") as file:
         for i in range(1, len(lined_list)):
-            if int(lined_list[i][0].split(",")[1]) > 800 or int(lined_list[i][0].split(",")[1]) < -800:
+            if int(lined_list[i][0].split(",")[1]) > 4*136 or int(lined_list[i][0].split(",")[1]) < -4*136:
                 if flag == 1:
                     continue
                 else:
@@ -104,6 +116,9 @@ def state_burst_distribution():
     print(mean)  #1.5290773500986523
     plt.bar(list(arr.keys()), list(arr.values()))
     plt.xlim(0, 100)
+    plt.xlabel("burst time duration")
+    plt.ylabel("Occurrence")
+    plt.text(20, 10000, str(mean), bbox={'facecolor': 'blue', 'alpha': 0.5, 'pad': 10})
     plt.show()
 
 
@@ -250,19 +265,53 @@ def byte_state_distribution(lined_list):
     plt.show()
 
 
-def markov_chain():
-    states = ["zero", "n_burst", "burst"]
-    transitions = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
-    state_probability = [
-        [(1/3.2839665665322895)*np.exp(-(1/3.2839665665322895)*np.random.exponential(3.2839665665322895))],
-        [(1 / 8.751150415177769) * np.exp(-(1 / 8.751150415177769) * np.random.exponential(8.751150415177769))],
-        [(1 / 1.5290773500986523) * np.exp(-(1 / 1.5290773500986523) * np.random.exponential(1.5290773500986523))]
-    ]
-    transitions[0][1] = state_probability[0][1] / state_probability[0][2] - state_probability[0][1]
-    transitions[0][0] = -transitions[0][1]
+def equilibrium_distribution(p_transition):
+    n_states = p_transition.shape[0]
+    A = np.append(arr=p_transition.T - np.eye(n_states), values=np.ones(n_states).reshape(1, -1), axis=0)
+    b = np.transpose(np.array([0] * n_states + [1]))
+    p_eq = np.linalg.solve(a=np.transpose(A).dot(A), b=np.transpose(A).dot(b))
+    return p_eq
 
-    transitions[2][1] = state_probability[0][3] / state_probability[0][2] - state_probability[0][3]
-    transitions[2][2] = -transitions[2][1]
+
+def markov_chain():
+    p_init = np.array([1, 0., 0.])
+    p_transition = np.array(
+        [[0.90, 0.05, 0.],
+         [0.01, 0.80, 0.19],
+         [0., 0.5, 0.5]]
+    )
+    p_state_t = [p_init]
+
+    for i in range(2000): # calculate the state matrix for each time step
+        p_state_t.append(p_state_t[-1] @ p_transition)
+    state_distributions = pd.DataFrame(p_state_t)
+    state_distributions.plot()
+
+    equilibrium_distribution(p_transition)
+
+    # Generate a Markov sequence based on p_init and p_transition
+    initial_state = list(multinomial.rvs(1, p_init)).index(1)
+    states = [initial_state]
+    for i in range(2000 - 1):
+        p_tr = p_transition[states[-1]]
+        new_state = list(multinomial.rvs(1, p_tr)).index(1)
+        states.append(new_state)
+
+    emissions = []
+    mus = [1, 0, -1]
+    sigmas = [0.2, 0.5, 0.1]
+    for state in states:
+        loc = mus[state]
+        scale = sigmas[state]
+        e = norm.rvs(loc=loc, scale=scale)
+        emissions.append(e)
+
+    fig, ax = plt.subplots(2, 1, figsize=(12, 4))
+    ax[0].plot(states)
+    ax[1].plot(emissions)
+    plt.xlabel("time step")
+    sns.despine()
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -277,9 +326,10 @@ if __name__ == "__main__":
     #state_transition(lined_list)
     #byte_state_distribution(lined_list)
     #time_byte(lined_list)
-    #state_zero(lined_list)
-    #state_zero_distribution()
+    state_zero(lined_list)
+    state_zero_distribution()
     #state_non_burst(lined_list)
     #state_non_burst_distribution()
     #state_burst(lined_list)
     #state_burst_distribution()
+    #markov_chain()
