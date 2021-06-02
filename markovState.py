@@ -1,11 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy import average
+from numpy import average, random
 import pymc3 as pm
 import seaborn as sns
 import scipy.stats
 from scipy.stats import multinomial
-from scipy.stats import norm
+from scipy.stats import norm, uniform
 import pandas as pd
 
 
@@ -123,7 +123,7 @@ def state_burst_distribution():
 
 
 def time_byte(lined_list):
-    arr= {int(lined_list[1][0].split(",")[0]): int(lined_list[1][0].split(",")[1])}
+    arr = {int(lined_list[1][0].split(",")[0]): int(lined_list[1][0].split(",")[1])}
     prev_time_slot = int(lined_list[1][0].split(",")[0])
     for i in range(2, len(lined_list)):
         if int(lined_list[i][0].split(",")[0]) == prev_time_slot + 1:
@@ -236,32 +236,57 @@ def state_transition(lined_list):
 def byte_state_distribution(lined_list):
     constant = {}
     burst = {}
-    threshold = 3000
+    zero = {}
+    min_threshold = 4*8
+    max_threshold = 4*136
+    s_0 = s_1 = s_2 = total = 0
     for i in range(1, len(lined_list)):
-        if -threshold <= int(lined_list[i][0].split(",")[1]) <= threshold:
-            if abs(int(lined_list[i][0].split(",")[1])) in constant.keys():
-                constant[abs(int(lined_list[i][0].split(",")[1]))] += 1
+        if -max_threshold <= int(lined_list[i][0].split(",")[1]) <= -min_threshold:
+            if int(lined_list[i][0].split(",")[1]) in constant.keys():
+                constant[int(lined_list[i][0].split(",")[1])] += 1
+            else:
+                constant[int(lined_list[i][0].split(",")[1])] = 1
+            s_1 += 1
+            total += 1
+        elif min_threshold <= int(lined_list[i][0].split(",")[1]) <= max_threshold:
+            if int(lined_list[i][0].split(",")[1]) in constant.keys():
+                constant[int(lined_list[i][0].split(",")[1])] += 1
             else:
                 constant[abs(int(lined_list[i][0].split(",")[1]))] = 1
-        elif int(lined_list[i][0].split(",")[1]) > threshold or int(lined_list[i][0].split(",")[1]) < -threshold:
-            if abs(int(lined_list[i][0].split(",")[1])) in burst.keys():
-                burst[abs(int(lined_list[i][0].split(",")[1]))] += 1
+            s_1 += 1
+            total += 1
+        elif int(lined_list[i][0].split(",")[1]) > max_threshold or int(lined_list[i][0].split(",")[1]) < -max_threshold:
+            if int(lined_list[i][0].split(",")[1]) in burst.keys():
+                burst[int(lined_list[i][0].split(",")[1])] += 1
             else:
-                burst[abs(int(lined_list[i][0].split(",")[1]))] = 1
+                burst[int(lined_list[i][0].split(",")[1])] = 1
+            s_2 += 1
+            total += 1
+        elif -min_threshold <= int(lined_list[i][0].split(",")[1]) <= min_threshold:
+            if int(lined_list[i][0].split(",")[1]) in zero.keys():
+                zero[int(lined_list[i][0].split(",")[1])] += 1
+            else:
+                zero[int(lined_list[i][0].split(",")[1])] = 1
+            s_0 += 1
+            total += 1
+    print("state 0: " + str(s_0/total) + "\nstate 1: " + str(s_1/total) + "\nstate 2: " + str(s_2/total))
     burst_mean = average(list(burst.keys()), weights=list(burst.values()))
     burst_vars = average((list(burst.keys()) - burst_mean) ** 2, weights=list(burst.values()))
     burst_std = np.sqrt(burst_vars)
     constant_mean = average(list(constant.keys()), weights=list(constant.values()))
     constant_vars = average((list(constant.keys()) - constant_mean) ** 2, weights=list(constant.values()))
     constant_std = np.sqrt(constant_vars)
+    zero_mean = average(list(zero.keys()), weights=list(zero.values()))
+    zero_vars = average((list(zero.keys()) - zero_mean) ** 2, weights=list(zero.values()))
+    zero_std = np.sqrt(zero_vars)
 
-    plt.bar(list(constant.keys()), list(constant.values()), width=4)
-    string = "mean: " + str(constant_mean) + "\n" + "variance: " + str(constant_vars) + "\n" + "stdev: " + str(
-        constant_std) + "\nthreshold: " + str(threshold)
-    plt.text(400, 15000, string, bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
+    plt.bar(list(burst.keys()), list(burst.values()), width=4)
+    string = "mean: " + str(zero_mean) + "\n" + "variance: " + str(zero_vars) + "\n" + "stdev: " + str(
+        zero_std) + "\nmin_threshold: " + str(min_threshold) + "\nmax_threshold: " + str(max_threshold)
+    plt.text(3000, 150, string, bbox={'facecolor': 'red', 'alpha': 0.5, 'pad': 10})
     plt.xlabel("byte")
     plt.ylabel("Occurrence")
-    plt.title("Byte distribution of non-bursty traffic")
+    plt.title("Byte distribution of zero traffic")
     plt.show()
 
 
@@ -314,8 +339,24 @@ def markov_chain():
     plt.show()
 
 
+def state_change_example():
+    init_state = [1, 0, 0]
+    state = {}
+    for i in range(1000):
+        x = random.uniform()
+        if 0. <= x <= 0.015:
+            state[i] = 0
+        elif 0.0151 <= x <= 0.495:
+            state[i] = 1
+        elif 0.496 <= x <= 1.:
+            state[i] = 2
+    plt.plot(list(state.keys()), list(state.values()))
+    plt.yticks([0, 1, 2])
+    plt.show()
+
+
 if __name__ == "__main__":
-    with open(' nn_ispass.csv', 'r') as file:
+    with open('atax.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
@@ -326,10 +367,11 @@ if __name__ == "__main__":
     #state_transition(lined_list)
     #byte_state_distribution(lined_list)
     #time_byte(lined_list)
-    state_zero(lined_list)
-    state_zero_distribution()
+    #state_zero(lined_list)
+    #state_zero_distribution()
     #state_non_burst(lined_list)
     #state_non_burst_distribution()
     #state_burst(lined_list)
     #state_burst_distribution()
     #markov_chain()
+    state_change_example()
