@@ -1,3 +1,4 @@
+import csv
 import multiprocessing
 from fbm import MBM
 import matplotlib.pyplot as plt
@@ -16,7 +17,7 @@ def h_90(t):
 
 
 def h_75(t):
-    return 0.75
+    return 0.001
 
 
 def h_5(t):
@@ -24,12 +25,12 @@ def h_5(t):
 
 
 def thread_fgn_9():
-    print(threading.current_thread().getName())
     x_vec = []
     y_vec = []
+    sample_arr = {}
     i = 1
     while True:
-        mutex.acquire()
+        """mutex.acquire()
         f = MBM(n=1, hurst=h_5, length=1, method='riemannliouville')
         fgn_sample = f.mgn()
         x_vec.append(i)
@@ -37,41 +38,23 @@ def thread_fgn_9():
         i += 1
         ax.plot(x_vec, y_vec, "r-")
         plt.pause(0.0001)
-        mutex.release()
-
-"""
-def thread_fgn_75():
-    print(threading.current_thread().getName())
-    x_vec_ = []
-    y_vec_ = []
-    i = 1
-    while True:
-        mutex.acquire()
-        f = MBM(n=1, hurst=h_75, length=1, method='riemannliouville')
-        fgn_sample = f.mgn()
-        x_vec_.append(i)
-        y_vec_.append(fgn_sample[0])
-        i += 1
-        ax2.plot(x_vec_, y_vec_, "y-o")
-        plt.pause(0.0001)
-        mutex.release()
-
-
-def thread_fgn_5():
-    print(threading.current_thread().getName())
-    x_vec_ = []
-    y_vec_ = []
-    i = 1
-    while True:
-        mutex.acquire()
-        f = MBM(n=1, hurst=h_5, length=1, method='riemannliouville')
-        fgn_sample = f.mgn()
-        x_vec_.append(i)
-        y_vec_.append(fgn_sample[0])
-        i += 1
-        ax3.plot(x_vec_, y_vec_, "r-")
-        plt.pause(0.0001)
         mutex.release()"""
+        f = MBM(n=1, hurst=h_75, length=1)
+        fgn_sample = f.mgn()
+        sample_arr[i] = fgn_sample[0]
+        i += 1
+        if i == 1000001:
+            break
+    fig, ax = plt.subplots(1, 1, figsize=(18, 5), dpi=100)
+    ax.plot(list(sample_arr.keys()), list(sample_arr.values()))
+    plt.xlim(100, 200)
+    plt.show()
+    """with open('synthetic.csv', 'w') as file:
+        field = ['cycle', 'byte']
+        writer = csv.DictWriter(file, fieldnames=field)
+        writer.writeheader()
+        for i in sample_arr.keys():
+            writer.writerow({"cycle": i, "byte": sample_arr[i]})"""
 
 
 if __name__ == "__main__":
