@@ -1,5 +1,6 @@
-import csv
-import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
 
 chiplet = []
 chiplet_0 = dict(
@@ -55,12 +56,64 @@ def time_byte_plot():
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
 
-    time_byte_plt = pd.DataFrame(file)
-    time_byte_plt.plot()
+    arr = {int(lined_list[1][0].split(",")[0]): int(lined_list[1][0].split(",")[1])}
+    prev_time_slot = int(lined_list[1][0].split(",")[0])
+    for i in range(2, len(lined_list)):
+        if int(lined_list[i][0].split(",")[0]) == prev_time_slot + 1:
+            arr[int(lined_list[i][0].split(",")[0])] = int(lined_list[i][0].split(",")[1])
+            prev_time_slot = int(lined_list[i][0].split(",")[0])
+        else:
+            for j in range(prev_time_slot + 1, int(lined_list[i][0].split(",")[0]) + 1):
+                arr[j] = 0
+            arr[int(lined_list[i][0].split(",")[0])] = int(lined_list[i][0].split(",")[1])
+            prev_time_slot = int(lined_list[i][0].split(",")[0])
+    fig, ax = plt.subplots(1, 1, figsize=(18, 5), dpi=100)
+    ax.plot(list(arr.keys()), list(arr.values()))
+    plt.axes([0, 11, 1, 1])
+    #ax.set_aspect(aspect=50)
+    plt.xlabel("Cycle")
+    plt.ylabel("Bytes")
+    plt.show()
+
+
+def cross_correlation():
+    with open('normalized_rodinia.csv', 'r') as file:
+        reader = file.readlines()
+    lined_list = []
+    for line in reader:
+        item = [x for x in line.split("\t") if x not in ['', '\t']]
+        lined_list.append(item)
+    process1 = {}
+    for i in range(1, len(lined_list)):
+        process1[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
+
+    with open('synthetic.csv', 'r') as file:
+        reader = file.readlines()
+    lined_list = []
+    for line in reader:
+        item = [x for x in line.split("\t") if x not in ['', '\t']]
+        lined_list.append(item)
+    process2 = {}
+    for i in range(1, len(lined_list)):
+        process2[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
+
+    for i in process2.keys():
+        if i in process1.keys():
+            continue
+        else:
+            process1[i] = 0
+
+    p1_mean = np.mean(list(process1.values()))
+    p1_std = np.std(list(process1.values()))
+    p2_mean = np.mean(list(process2.values()))
+    p2_std = np.std(list(process2.values()))
+    fig, ax = plt.subplots(1, 1)
+    ax.xcorr(list(process1.values()), list(process2.values()), maxlags=50)
+    plt.show()
 
 
 if __name__ == '__main__':
-    file = open("report.txt", "r")
+    """file = open("report.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -111,6 +164,5 @@ if __name__ == '__main__':
         writer = csv.DictWriter(file_csv, fieldnames=field)
         writer.writeheader()
         for i in range(len(sort_orders)):
-            writer.writerow({"cycle": sort_orders[i][0], "byte": sort_orders[i][1]})
-
-    time_byte_plot()
+            writer.writerow({"cycle": sort_orders[i][0], "byte": sort_orders[i][1]})"""
+    cross_correlation()

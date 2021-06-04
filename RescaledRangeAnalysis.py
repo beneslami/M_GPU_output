@@ -7,7 +7,7 @@ import numpy as np
 def RS(lined_list):
     time_byte = {}
     windows = {}
-    duration = 200000
+    duration = 1000000
     M = math.ceil(math.log(duration, 2))
 
     for i in range(1, len(lined_list)):
@@ -112,14 +112,14 @@ def RS(lined_list):
         arr.append(slope*i + intercept)
     plt.scatter(list(E.keys()), list(E.values()))
     plt.plot(list(E.keys()), arr, color="red", linewidth=2)
-    plt.text(1, 2.7, "slope = " + str("{:.3f}".format(slope)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
+    plt.text(0, 4.01, "slope = " + str("{:.3f}".format(slope)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
     plt.xlabel("log-window")
     plt.ylabel("log-R/S")
     plt.show()
 
 
 if __name__ == "__main__":
-    with open('bicg.csv', 'r') as file:
+    with open('rodinia.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
