@@ -2,7 +2,8 @@ import math
 import matplotlib.pyplot as plt
 from scipy.stats import stats
 import numpy as np
-
+import pandas as pd
+from hurst import compute_Hc
 
 def RS(lined_list):
     time_byte = {}
@@ -12,9 +13,9 @@ def RS(lined_list):
 
     for i in range(1, len(lined_list)):
         if int(lined_list[i][0].split(",")[0]) in time_byte.keys():
-            time_byte[int(lined_list[i][0].split(",")[0])] += int(lined_list[i][0].split(",")[1])
+            time_byte[int(lined_list[i][0].split(",")[0])] += float(lined_list[i][0].split(",")[1])
         else:
-            time_byte[int(lined_list[i][0].split(",")[0])] = int(lined_list[i][0].split(",")[1])
+            time_byte[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
 
     j = 1
     for wnd in range(1, M):
@@ -108,22 +109,48 @@ def RS(lined_list):
 
     slope, intercept, r, p, std_err = stats.linregress(list(E.keys()), list(E.values()))
     arr = []
+    x1 = np.linspace(0, 2.7, 20)
+    y1 = x1
+    y2 = x1/2
     for i in E.keys():
         arr.append(slope*i + intercept)
     plt.scatter(list(E.keys()), list(E.values()))
-    plt.plot(list(E.keys()), arr, color="red", linewidth=2)
-    plt.text(0, 4.01, "slope = " + str("{:.3f}".format(slope)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
+    #plt.plot(list(E.keys()), arr, color="red", linewidth=2)
+    plt.plot(x1, y1)
+    plt.plot(x1, y2)
+    plt.text(0, 4.250, "slope = " + str("{:.3f}".format(slope)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
     plt.xlabel("log-window")
     plt.ylabel("log-R/S")
     plt.show()
 
 
+def hurst(lined_list):
+    time_byte = {}
+    for i in range(1, len(lined_list)):
+        if int(lined_list[i][0].split(",")[0]) in time_byte.keys():
+            time_byte[int(lined_list[i][0].split(",")[0])] += float(lined_list[i][0].split(",")[1])
+        else:
+            time_byte[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
+    H, c, data = compute_Hc(list(time_byte.values()))
+    f, ax = plt.subplots()
+    ax.plot(data[0], c * data[0] ** H, color="deepskyblue")
+    ax.scatter(data[0], data[1], color="purple")
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    plt.text(100000, 5, "slope = " + str("{:.3f}".format(H)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
+    ax.set_xlabel('Time interval')
+    ax.set_ylabel('R/S ratio')
+    #ax.grid(True)
+    plt.show()
+    print("H={:.4f}, c={:.4f}".format(H, c))
+
+
 if __name__ == "__main__":
-    with open('rodinia.csv', 'r') as file:
+    with open('syrk.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
 
-    RS(lined_list)
+    hurst(lined_list)
