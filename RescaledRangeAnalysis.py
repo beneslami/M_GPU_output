@@ -1,9 +1,11 @@
+import csv
 import math
 import matplotlib.pyplot as plt
 from scipy.stats import stats
 import numpy as np
 import pandas as pd
-from hurst import compute_Hc
+from hurst import compute_Hc, random_walk
+
 
 def RS(lined_list):
     time_byte = {}
@@ -131,13 +133,13 @@ def hurst(lined_list):
             time_byte[int(lined_list[i][0].split(",")[0])] += float(lined_list[i][0].split(",")[1])
         else:
             time_byte[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
-    H, c, data = compute_Hc(list(time_byte.values()))
+    H, c, data = compute_Hc(list(time_byte.values()), simplified=True)
     f, ax = plt.subplots()
     ax.plot(data[0], c * data[0] ** H, color="deepskyblue")
     ax.scatter(data[0], data[1], color="purple")
     ax.set_xscale('log')
     ax.set_yscale('log')
-    plt.text(100000, 5, "slope = " + str("{:.3f}".format(H)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
+    plt.text(10000, 5, "slope = " + str("{:.3f}".format(H)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
     ax.set_xlabel('Time interval')
     ax.set_ylabel('R/S ratio')
     #ax.grid(True)
@@ -146,11 +148,16 @@ def hurst(lined_list):
 
 
 if __name__ == "__main__":
-    with open('syrk.csv', 'r') as file:
+    with open('synthetic.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
+    arr = {}
+    for i in range(1, len(lined_list)):
+        arr[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
 
-    hurst(lined_list)
+    plt.figure(figsize=(25, 5))
+    plt.plot(list(arr.keys()), list(arr.values()))
+    plt.show()

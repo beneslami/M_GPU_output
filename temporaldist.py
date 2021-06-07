@@ -117,6 +117,7 @@ def inter_packet_distribution(packet):
                 previous_arrival[chip_select(int(packet[i][j][1].split(": ")[1]))] = int(
                     packet[i][j][5].split(": ")[1])
 
+
     for i in arr.keys():
         key = []
         value = []

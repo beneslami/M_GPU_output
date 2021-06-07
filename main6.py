@@ -77,7 +77,7 @@ def time_byte_plot():
 
 
 def cross_correlation():
-    with open('normalized_rodinia.csv', 'r') as file:
+    with open('synthetic.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
@@ -87,7 +87,7 @@ def cross_correlation():
     for i in range(1, len(lined_list)):
         process1[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
 
-    with open('synthetic.csv', 'r') as file:
+    with open('atax.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
@@ -97,12 +97,16 @@ def cross_correlation():
     for i in range(1, len(lined_list)):
         process2[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
 
-    for i in process2.keys():
-        if i in process1.keys():
-            continue
+    x = len(process1)
+    for i in range(1, x):
+        if i not in process2.keys():
+            process1.pop(i)
         else:
-            process1[i] = 0
+            continue
 
+    process1.pop(len(process1))
+    print(len(process1))
+    print(len(process2))
     p1_mean = np.mean(list(process1.values()))
     p1_std = np.std(list(process1.values()))
     p2_mean = np.mean(list(process2.values()))

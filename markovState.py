@@ -135,8 +135,9 @@ def time_byte(lined_list):
             arr[int(lined_list[i][0].split(",")[0])] = int(lined_list[i][0].split(",")[1])
             prev_time_slot = int(lined_list[i][0].split(",")[0])
 
-    plt.plot(list(arr.keys()), list(arr.values()))
-    plt.xlim(52000, 54000)
+    fig, ax = plt.subplots(1, 1, figsize=(20, 5))
+    ax.plot(list(arr.keys()), list(arr.values()))
+    #plt.xlim(52000, 54000)
     plt.show()
 
 
@@ -356,7 +357,7 @@ def state_change_example():
 
 
 if __name__ == "__main__":
-    with open('atax.csv', 'r') as file:
+    with open('syrk.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
@@ -366,7 +367,7 @@ if __name__ == "__main__":
     #state_stay(lined_list)
     #state_transition(lined_list)
     #byte_state_distribution(lined_list)
-    #time_byte(lined_list)
+    time_byte(lined_list)
     #state_zero(lined_list)
     #state_zero_distribution()
     #state_non_burst(lined_list)
@@ -374,4 +375,4 @@ if __name__ == "__main__":
     #state_burst(lined_list)
     #state_burst_distribution()
     #markov_chain()
-    state_change_example()
+    #state_change_example()
