@@ -287,7 +287,7 @@ def self_similarity(packet):
     plt.ylabel("ingress/egress bytes")
     plt.show()
 
-    with open("syrk.csv", "w", newline='') as file_csv:
+    with open("random.csv", "w", newline='') as file_csv:
         field = ['cycle', 'byte']
         writer = csv.DictWriter(file_csv, fieldnames=field)
         writer.writeheader()
@@ -296,7 +296,7 @@ def self_similarity(packet):
 
 
 if __name__ == "__main__":
-    file = open("report_syrk.txt", "r")
+    file = open("report_random.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()

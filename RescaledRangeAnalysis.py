@@ -1,10 +1,9 @@
-import csv
 import math
 import matplotlib.pyplot as plt
+import scipy
 from scipy.stats import stats
 import numpy as np
-import pandas as pd
-from hurst import compute_Hc, random_walk
+from hurst import compute_Hc
 
 
 def RS(lined_list):
@@ -147,6 +146,32 @@ def hurst(lined_list):
     print("H={:.4f}, c={:.4f}".format(H, c))
 
 
+def KS():
+    with open('synthetic.csv', 'r') as file:
+        reader = file.readlines()
+    observed = []
+    for line in reader:
+        item = [x for x in line.split("\t") if x not in ['', '\t']]
+        if item[0].split(",")[0] == "cycle":
+            pass
+        else:
+            observed.append(math.floor(float(item[0].split(",")[1])))
+
+    with open('bicg.csv', 'r') as file:
+        reader = file.readlines()
+    expected = []
+    for line in reader:
+        item = [x for x in line.split("\t") if x not in ['', '\t']]
+        if item[0].split(",")[0] == "cycle":
+            pass
+        else:
+            expected.append(math.floor(float(item[0].split(",")[1])))
+
+    stat, p = scipy.stats.ttest_rel(observed, expected)
+    print(stat)
+    print(p)
+
+
 if __name__ == "__main__":
     with open('synthetic.csv', 'r') as file:
         reader = file.readlines()
@@ -154,10 +179,5 @@ if __name__ == "__main__":
     for line in reader:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
-    arr = {}
-    for i in range(1, len(lined_list)):
-        arr[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
-
-    plt.figure(figsize=(25, 5))
-    plt.plot(list(arr.keys()), list(arr.values()))
-    plt.show()
+    hurst(lined_list)
+    KS()
