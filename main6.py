@@ -49,7 +49,7 @@ def chip_select(x):
 
 
 def time_byte_plot():
-    with open('rodinia.csv', 'r') as file:
+    with open(' nn_ispass.csv', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
@@ -97,13 +97,14 @@ def cross_correlation():
     for i in range(1, len(lined_list)):
         process2[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
 
-    """x = len(process1)
-    for i in range(1, x):
+    x = len(process1)
+    for i in range(x):
         if i not in process2.keys():
             process1.pop(i)
         else:
-            continue"""
-
+            continue
+    print(len(process1))
+    print(len(process2))
     p1_mean = np.mean(list(process1.values()))
     p1_std = np.std(list(process1.values()))
     p2_mean = np.mean(list(process2.values()))
@@ -114,7 +115,7 @@ def cross_correlation():
 
 
 if __name__ == '__main__':
-    """file = open("report.txt", "r")
+    file = open("report_syrk.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -127,13 +128,17 @@ if __name__ == '__main__':
     for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":
             if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
-                if int(lined_list[i][5].split(": ")[1]) in packet.keys():
-                    if lined_list[i] not in packet[int(lined_list[i][5].split(": ")[1])]:
-                        packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+                if int(lined_list[i][3].split(": ")[1]) in packet.keys():
+                    if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
+                        packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
                 else:
-                    packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+    for i in packet.keys():
+        if i == 8515911:
+            for j in range(len(packet[8524261])):
+                print(packet[8524261][j])
 
-
+    """
     gress_byte = {}
     for i in packet.keys():
         for j in range(len(packet[i])):
@@ -166,4 +171,3 @@ if __name__ == '__main__':
         writer.writeheader()
         for i in range(len(sort_orders)):
             writer.writerow({"cycle": sort_orders[i][0], "byte": sort_orders[i][1]})"""
-    cross_correlation()

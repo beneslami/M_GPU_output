@@ -368,7 +368,7 @@ def interconnect_latency(x):
 
 
 if __name__ == '__main__':
-    file = open("report.txt", "r")
+    file = open("report_syrk.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -389,7 +389,6 @@ if __name__ == '__main__':
     # print(lined_list[0][6].split(":")[1])   # size
     # print(lined_list[0][7].split(":")[1])   # explain
 
-    lined_list.sort(key=lambda x: (int(x[4].split(": ")[1]), int(x[5].split(": ")[1])))
     packet = {}
     cycles = {}
     for i in range(len(lined_list)):
