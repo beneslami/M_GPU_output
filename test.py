@@ -1,5 +1,14 @@
+from random import choices
+
 import matplotlib.pyplot as plt
 from hurst import compute_Hc
+import seaborn as sns
+import numpy as np
+import statistics
+from scipy.stats import skew, kurtosis, truncnorm, norm, uniform, ttest_ind
+import statsmodels.api as sm
+import kalepy as kale
+from kalepy.plot import nbshow
 
 chiplet = []
 chiplet_0 = dict(
@@ -30,6 +39,8 @@ chiplet.append(chiplet_3)
 
 def chip_select(num):
     out = -1
+    if num < 4:
+        return num
     for i in range(len(chiplet)):
         if num in chiplet[i]["SM_ID"]:
             out = i
@@ -42,8 +53,15 @@ def chip_select(num):
             break
     return out
 
-#      ax.plot(data[0], c * data[0] ** H, color="deepskyblue")
-#      ax.scatter(data[0], data[1], color="purple")
+
+def check_local_or_remote(x):  # 0 for local, 1 for remote
+    for i in range(len(chiplet)):
+        if (int(x[1].split(": ")[1]) in chiplet[i]["SM_ID"]) or (int(x[1].split(": ")[1]) in chiplet[i]["LLC_ID"]):
+            if (int(x[2].split(": ")[1]) in chiplet[i]["SM_ID"]) or (int(x[2].split(": ")[1]) in chiplet[i]["LLC_ID"]):
+                return 0
+        return 1
+
+
 def hurst(out):
     H_192, c_192, data_192 = compute_Hc(list(out[192].values()))
     H_193, c_193, data_193 = compute_Hc(list(out[193].values()))
@@ -79,46 +97,54 @@ def hurst(out):
 
 
 if __name__ == '__main__':
-    with open('report_bicg.tx', 'r') as file:
-        reader = file.readlines()
+    file2 = open("report_syrk.txt", "r")
+    raw_content = ""
+    if file2.mode == "r":
+        raw_content = file2.readlines()
     lined_list = []
-    out = {
-        192: {},
-        193: {},
-        194: {},
-        195: {}
-    }
-    packet = {}
-
-    for line in reader:
+    for line in raw_content:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
+    packet = {}
 
-    for i in range(len(lined_list)):  # packet based classification
-        if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
-            if int(lined_list[i][3].split(": ")[1]) in packet.keys():
-                if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
+    """for i in range(len(lined_list)):  # packet based classification
+        if lined_list[i][0] != "Instruction cache miss":
+            if check_local_or_remote(lined_list[i]):
+                if int(lined_list[i][3].split(": ")[1]) in packet.keys():
                     packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-            else:
-                packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                else:
+                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
 
+    for i in range(len(lined_list)):  # cycle based classification
+        if lined_list[i][0] != "Instruction cache miss":
+            if check_local_or_remote(lined_list[i]):
+                if int(lined_list[i][5].split(": ")[1]) in packet.keys():
+                    packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+                else:
+                    packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+
+
+    start = end = 0
+    lat = 0
+    latency = {}
     for i in packet.keys():
         for j in range(len(packet[i])):
             if packet[i][j][0] == "injection buffer":
-                if int(packet[i][j][5].split(": ")[1]) not in out[int(packet[i][j][1].split(": ")[1])].keys():
-                    out[int(packet[i][j][1].split(": ")[1])][int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(": ")[1])
+                if int(packet[i][j][5].split(": ")[1]) not in latency.keys():
+                    latency[int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(": ")[1])
                 else:
-                    out[int(packet[i][j][1].split(": ")[1])][int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(": ")[1])
-
-    fig, ax = plt.subplots(2, 2, figsize=(18, 5))
-    ax[0, 0].plot(list(out[192].keys()), list(out[192].values()), label="192", color="red")
-    ax[0, 0].title.set_text("chip0")
-    ax[0, 1].plot(list(out[193].keys()), list(out[193].values()), label="193", color="blue")
-    ax[0, 1].title.set_text("chip1")
-    ax[1, 0].plot(list(out[194].keys()), list(out[194].values()), label="194", color="yellow")
-    ax[1, 0].title.set_text("chip2")
-    ax[1, 1].plot(list(out[195].keys()), list(out[195].values()), label="195", color="green")
-    ax[1, 1].title.set_text("chip3")
+                    latency[int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(": ")[1])
+            elif packet[i][j][0] == "forward waiting pop":
+                if int(packet[i][j][5].split(": ")[1]) not in latency.keys():
+                    latency[int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(": ")[1])
+                else:
+                    latency[int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(": ")[1])
+            elif packet[i][j][0] == "L2_icnt_pop":
+                if int(packet[i][j][5].split(": ")[1]) not in latency.keys():
+                    latency[int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(":")[1])
+                else:
+                    latency[int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(":")[1])
+    plt.bar(list(latency.keys()), list(latency.values()))
     plt.show()
-    hurst(out)
 
+    print(latency)

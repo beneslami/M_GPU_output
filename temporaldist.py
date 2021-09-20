@@ -1,9 +1,11 @@
-from statistics import variance
-
+from statistics import variance, mean
+import seaborn as sns
 import numpy as np
 from numpy import average
 import matplotlib.pyplot as plt
 import csv
+import kalepy as kale
+from scipy.stats import describe
 
 chiplet = []
 chiplet_0 = dict(
@@ -57,6 +59,23 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
         return 1
 
 
+def state_change_distribution():
+    with open("example2.txt", "r") as file:
+        reader = file.readlines()
+    lined_list = []
+    pair2 = {}
+    for line in reader:
+        item = line.split(",")
+        lined_list.append(item)
+    for i in range(len(lined_list)):
+        if int(lined_list[i][0]) in pair2.keys():
+            pair2[int(lined_list[i][0])] += int(lined_list[i][1])
+        else:
+            pair2[int(lined_list[i][0])] = int(lined_list[i][1])
+
+
+
+
 def inter_packet_distribution(packet):
     arr = {
         0: {
@@ -100,59 +119,29 @@ def inter_packet_distribution(packet):
                     packet[i][j][5].split(": ")[1])
             elif packet[i][j][0] == "SM boundary buffer push":  # for receiving response
                 temp = int(packet[i][j][5].split(": ")[1]) - previous_arrival[
-                    chip_select(int(packet[i][j][1].split(": ")[1]))]
-                if temp in arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["arrival"].keys():
-                    arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["arrival"][temp] += 1
+                    chip_select(int(packet[i][j][2].split(": ")[1]))]
+                if temp in arr[chip_select(int(packet[i][j][2].split(": ")[1]))]["arrival"].keys():
+                    arr[chip_select(int(packet[i][j][2].split(": ")[1]))]["arrival"][temp] += 1
                 else:
-                    arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["arrival"][temp] = 1
-                previous_arrival[chip_select(int(packet[i][j][1].split(": ")[1]))] = int(
+                    arr[chip_select(int(packet[i][j][2].split(": ")[1]))]["arrival"][temp] = 1
+                previous_arrival[chip_select(int(packet[i][j][2].split(": ")[1]))] = int(
                     packet[i][j][5].split(": ")[1])
             elif packet[i][j][0] == "inter_icnt_pop_llc_push":  # for receiving request
                 temp = int(packet[i][j][5].split(": ")[1]) - previous_arrival[
                     chip_select(int(packet[i][j][1].split(": ")[1]))]
-                if temp in arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["arrival"].keys():
-                    arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["arrival"][temp] += 1
+                if temp in arr[chip_select(int(packet[i][j][2].split(": ")[1]))]["arrival"].keys():
+                    arr[chip_select(int(packet[i][j][2].split(": ")[1]))]["arrival"][temp] += 1
                 else:
-                    arr[chip_select(int(packet[i][j][1].split(": ")[1]))]["arrival"][temp] = 1
-                previous_arrival[chip_select(int(packet[i][j][1].split(": ")[1]))] = int(
+                    arr[chip_select(int(packet[i][j][2].split(": ")[1]))]["arrival"][temp] = 1
+                previous_arrival[chip_select(int(packet[i][j][2].split(": ")[1]))] = int(
                     packet[i][j][5].split(": ")[1])
 
-
-    for i in arr.keys():
-        key = []
-        value = []
-        sort_orders = sorted(arr[i]["departure"].items(), key=lambda x: x[0])
-        for j in range(len(sort_orders)):
-            key.append(sort_orders[j][0])
-            value.append(sort_orders[j][1])
-        plt.plot(key, value, "r--", label="departure-time")
-        key.clear()
-        value.clear()
-        sort_orders = sorted(arr[i]["arrival"].items(), key=lambda x: x[0])
-        for j in range(len(sort_orders)):
-            key.append(sort_orders[j][0])
-            value.append(sort_orders[j][1])
-        plt.plot(key, value, "k--", label="arrival-time")
-        key.clear()
-        value.clear()
-        string = "chiplet " + str(i)
-        plt.title(string)
-        plt.xlabel("time")
-        plt.ylabel("Frequency")
-        plt.legend(loc="best")
-        plt.show()
-    sum = 0
-    coef = 0
-    Mean_interval_time = []
-    for i in arr.keys():
-        for j in arr[i]["departure"]:
-            sum += arr[i]["departure"][j] * j
-            coef += arr[i]["departure"][j]
-        for j in arr[i]["arrival"]:
-            sum += arr[i]["arrival"][j] * j
-            coef += arr[i]["arrival"][j]
-        Mean_interval_time.append(sum / coef)
-    print(Mean_interval_time)
+    sns.distplot(list(arr[0]["departure"]), label="departure")
+    sns.distplot(list(arr[0]["arrival"]), label="arrival")
+    describe(list(arr[0]["departure"]))
+    describe(list(arr[0]["arrival"]))
+    plt.legend(loc="best")
+    plt.show()
 
 
 def injection_per_cycle(packet):
@@ -296,7 +285,7 @@ def self_similarity(packet):
 
 
 if __name__ == "__main__":
-    file = open("report_random.txt", "r")
+    file = open("report_syrk.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -314,16 +303,12 @@ if __name__ == "__main__":
         else:
             packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
 
-    for i in range(len(lined_list)):  # cycle based classification
+    """for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":
             if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
                 if int(lined_list[i][5].split(": ")[1]) in packet.keys():
                     if lined_list[i] not in packet[int(lined_list[i][5].split(": ")[1])]:
                         packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
                 else:
-                    packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+                    packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])"""
 
-    # inter_packet_distribution(packet)
-    # injection_per_cycle(packet)
-    self_similarity(packet)
-    # ingress_egress_per_packet(packet)

@@ -149,25 +149,29 @@ def hurst(lined_list):
 def KS():
     with open('synthetic.csv', 'r') as file:
         reader = file.readlines()
-    observed = []
+    observed = {}
     for line in reader:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         if item[0].split(",")[0] == "cycle":
             pass
         else:
-            observed.append(math.floor(float(item[0].split(",")[1])))
+            observed[int(item[0].split(",")[0])] = (math.floor(float(item[0].split(",")[1])))
 
     with open('bicg.csv', 'r') as file:
         reader = file.readlines()
-    expected = []
+    expected = {}
     for line in reader:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         if item[0].split(",")[0] == "cycle":
             pass
         else:
-            expected.append(math.floor(float(item[0].split(",")[1])))
+            expected[int(item[0].split(",")[0])] = (math.floor(float(item[0].split(",")[1])))
+    l = list(observed.keys())
+    for i in l:
+        if i not in expected.keys():
+            observed.pop(i)
 
-    stat, p = scipy.stats.ttest_rel(observed, expected)
+    stat, p = scipy.stats.ttest_ind(list(observed.values()), list(expected.values()))
     print(stat)
     print(p)
 

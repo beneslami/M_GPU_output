@@ -1,10 +1,16 @@
+import csv
 from _csv import writer
+from statistics import mode, multimode
+from scipy.stats import describe
 import pandas as pd
-
+import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
 from mpl_toolkits import mplot3d
+import pints.toy
+from scipy.stats import ttest_ind
+import seaborn as sns
 
 chiplet = []
 chiplet_0 = dict(
@@ -58,22 +64,205 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
         return 1
 
 
+def find_distribution(l):
+    dist = {}
+    print(describe(l))
+    for i in range(len(l)):
+        if l[i] in dist.keys():
+            dist[l[i]] += 1
+        else:
+            dist[l[i]] = 1
+    sns.displot(l, kind="hist")
+    plt.show()
+
+
+def byte_injection_distribution_per_core(p):
+    packet = {
+        0: {
+            1: {},
+            2: {},
+            3: {}
+        },
+        1: {
+            0: {},
+            2: {},
+            3: {}
+        },
+        2: {
+            0: {},
+            1: {},
+            3: {}
+        },
+        3: {
+            0: {},
+            1: {},
+            2: {}
+        }
+    }
+
+    for i in p.keys():
+        for j in range(len(p[i])):
+            if p[i][j][0] == "injection buffer":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if int(p[i][j][5].split(": ")[1]) in packet[chip_select(int(p[i][j][1].split(": ")[1]))][
+                            chip_select(int(p[i][j][2].split(": ")[1]))].keys():
+                            packet[chip_select(int(p[i][j][1].split(": ")[1]))][
+                                chip_select(int(p[i][j][2].split(": ")[1]))][int(p[i][j][5].split(": ")[1])] += int(
+                                p[i][j][7].split(": ")[1])
+                        else:
+                            packet[chip_select(int(p[i][j][1].split(": ")[1]))][
+                                chip_select(int(p[i][j][2].split(": ")[1]))][int(p[i][j][5].split(": ")[1])] = int(
+                                p[i][j][7].split(": ")[1])
+            elif p[i][j][0] == "L2_icnt_pop":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if int(p[i][j][5].split(": ")[1]) in packet[chip_select(int(p[i][j][1].split(": ")[1]))][
+                            chip_select(int(p[i][j][2].split(": ")[1]))].keys():
+                            packet[chip_select(int(p[i][j][1].split(": ")[1]))][
+                                chip_select(int(p[i][j][2].split(": ")[1]))][int(p[i][j][5].split(": ")[1])] += int(
+                                p[i][j][7].split(":")[1])
+                        else:
+                            packet[chip_select(int(p[i][j][1].split(": ")[1]))][
+                                chip_select(int(p[i][j][2].split(": ")[1]))][int(p[i][j][5].split(": ")[1])] = int(
+                                p[i][j][7].split(":")[1])
+    chip_0 = {1: packet[0][1], 2: packet[0][2], 3: packet[0][3]}
+    chip_1 = {0: packet[0][1], 2: packet[0][2], 3: packet[0][3]}
+    # table = pd.DataFrame(chip_0)
+    # table.plot()
+
+    s = sns.kdeplot(list(chip_0[1].values()), shade=True, label="to chip 1")
+    s = sns.kdeplot(list(chip_0[2].values()), shade=True, label="to chip 2")
+    s = sns.kdeplot(list(chip_0[3].values()), shade=True, label="to chip 3")
+    plt.legend(loc="best")
+    #plt.xlim(-1000, 20000)
+    plt.show()
+
+
+def byte_injection_ejection_per_core(p):
+    packet = {0: {}, 1: {}, 2: {}, 3: {}}
+    for i in p.keys():
+        for j in range(len(p[i])):
+            if p[i][j][0] == "injection buffer":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if i in packet[chip_select(int(p[i][j][1].split(": ")[1]))].keys():
+                            packet[chip_select(int(p[i][j][1].split(": ")[1]))][i] += int(p[i][j][7].split(": ")[1])
+                        else:
+                            packet[chip_select(int(p[i][j][1].split(": ")[1]))][i] = int(p[i][j][7].split(": ")[1])
+            elif p[i][j][0] == "L2_icnt_pop":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if i in packet[chip_select(int(p[i][j][1].split(": ")[1]))].keys():
+                            packet[chip_select(int(p[i][j][1].split(": ")[1]))][i] += int(p[i][j][7].split(":")[1])
+                        else:
+                            packet[chip_select(int(p[i][j][1].split(": ")[1]))][i] = int(p[i][j][7].split(":")[1])
+            elif p[i][j][0] == "SM boundary buffer push":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if i in packet[chip_select(int(p[i][j][6].split(": ")[1]))].keys():
+                            packet[chip_select(int(p[i][j][6].split(": ")[1]))][i] += -int(p[i][j][7].split(": ")[1])
+                        else:
+                            packet[chip_select(int(p[i][j][6].split(": ")[1]))][i] = -int(p[i][j][7].split(": ")[1])
+            elif p[i][j][0] == "inter_icnt_pop_llc_push":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if i in packet[chip_select(int(p[i][j][2].split(": ")[1]))].keys():
+                            packet[chip_select(int(p[i][j][6].split(": ")[1]))][i] += -int(p[i][j][7].split(": ")[1])
+                        else:
+                            packet[chip_select(int(p[i][j][6].split(": ")[1]))][i] = -int(p[i][j][7].split(": ")[1])
+
+    fix, ax = plt.subplots(1, 1, figsize=(18, 4))
+    with open("syrk_chip_0.txt", "w") as file:
+        for i in packet[0].keys():
+            string = str(i) + "," + str(packet[0][i])
+            file.write(string + "\n")
+    ax.plot(list(packet[0].keys()), list(packet[0].values()))
+    plt.show()
+    find_distribution(list(packet[0].values()))
+    return packet[0]
+
+
+def byte_injection_ejection_NoC(p):
+    packet = {}
+    for i in p.keys():
+        for j in range(len(p[i])):
+            if p[i][j][0] == "injection buffer":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if int(p[i][j][5].split(": ")[1]) in packet.keys():
+                            packet[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                        else:
+                            packet[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
+            elif p[i][j][0] == "L2_icnt_pop":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if int(p[i][j][5].split(": ")[1]) in packet.keys():
+                            packet[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(":")[1])
+                        else:
+                            packet[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(":")[1])
+            elif p[i][j][0] == "SM boundary buffer push":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if int(p[i][j][5].split(": ")[1]) in packet.keys():
+                            packet[int(p[i][j][5].split(": ")[1])] += -int(p[i][j][7].split(": ")[1])
+                        else:
+                            packet[int(p[i][j][5].split(": ")[1])] = -int(p[i][j][7].split(": ")[1])
+            elif p[i][j][0] == "inter_icnt_pop_llc_push":
+                if check_local_or_remote(p[i][j]):
+                    if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                        if int(p[i][j][5].split(": ")[1]) in packet.keys():
+                            packet[int(p[i][j][5].split(": ")[1])] += -int(p[i][j][7].split(": ")[1])
+                        else:
+                            packet[int(p[i][j][5].split(": ")[1])] = -int(p[i][j][7].split(": ")[1])
+    for i in packet.keys():
+        packet[i] = packet[i]/4
+    fig, ax = plt.subplots(1, 1, figsize=(18, 4))
+    ax.plot(list(packet.keys()), list(packet.values()))
+    plt.show()
+    return packet
+
+
 def injection_flow(packet):
-    arr = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+    arr = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]  # for heatmap plot
+    arr2 = [["", 0, 0, 0, 0], ["", 0, 0, 0, 0], ["", 0, 0, 0, 0], ["", 0, 0, 0, 0]]  # for stacked plot
+    arr3 = {0: {1: {0: [], 1: [], 2: [], 3: []},
+                2: {0: [], 1: [], 2: [], 3: []},
+                3: {0: [], 1: [], 2: [], 3: []}
+                },
+            1: {0: {0: [], 1: [], 2: [], 3: []},
+                2: {0: [], 1: [], 2: [], 3: []},
+                3: {0: [], 1: [], 2: [], 3: []}
+                },
+            2: {0: {0: [], 1: [], 2: [], 3: []},
+                1: {0: [], 1: [], 2: [], 3: []},
+                3: {0: [], 1: [], 2: [], 3: []}
+                },
+            3: {0: {0: [], 1: [], 2: [], 3: []},
+                1: {0: [], 1: [], 2: [], 3: []},
+                2: {0: [], 1: [], 2: [], 3: []}
+                }
+    } # message type distribution
     for i in packet.keys():
         for j in range(len(packet[i])):
-            if packet[i][j][0] == "injection buffer" and int(packet[i][j][4].split(": ")[1]) == 0:
-                src = chip_select(int(packet[i][j][1].split(": ")[1]))
-                dst = chip_select(int(packet[i][j][2].split(": ")[1]))
-                arr[3 - src][dst] += 1
-                continue
-            elif packet[i][j][0] == "L2_icnt_pop" and int(packet[i][j][4].split(": ")[1]) == 2:
-                src = chip_select(int(packet[i][j][1].split(": ")[1]))
-                dst = chip_select(int(packet[i][j][2].split(": ")[1]))
-                arr[3 - src][dst] += 1
-                break
+            if check_local_or_remote(p[i][j]):
+                if chip_select(int(p[i][j][1].split(": ")[1])) != chip_select(int(p[i][j][2].split(": ")[1])):
+                    if packet[i][j][0] == "injection buffer":
+                        src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                        dst = chip_select(int(packet[i][j][2].split(": ")[1]))
+                        #arr[3 - src][dst] += 1
+                        #arr2[src][dst+1] += 1
+                        arr3[src][dst][int(packet[i][j][4].split(": ")[1])].append(int(packet[i][j][7].split(": ")[1]))
+                        continue
+                    elif packet[i][j][0] == "L2_icnt_pop":
+                        src = chip_select(int(packet[i][j][1].split(": ")[1]))
+                        dst = chip_select(int(packet[i][j][2].split(": ")[1]))
+                        #arr[3 - src][dst] += 1
+                        #arr2[src][dst+1] += 1
+                        arr3[src][dst][int(packet[i][j][4].split(": ")[1])].append(int(packet[i][j][7].split(":")[1]))
+                        break
 
-    Index = [0, 1, 2, 3]
+    """Index = [0, 1, 2, 3]  # heatmap begin
     Cols = [3, 2, 1, 0]
     plt.xticks(ticks=np.arange(len(Index)), labels=Index)
     plt.yticks(ticks=np.arange(len(Cols)), labels=Cols)
@@ -82,7 +271,165 @@ def injection_flow(packet):
     plt.xlabel("Source")
     plt.ylabel("Destination")
     plt.title("spatial Distribution of Injection Flows")
+    plt.show()   # heatmap end"""
+
+    """df = pd.DataFrame(arr2, columns=["chip", "0", "1", "2", "3"])  # stacked bar chart
+    print(df)
+    df.plot(x="chip", kind="bar", stacked=True)
+    plt.xticks([0, 1, 2, 3], [0, 1, 2, 3])
+    plt.show()"""
+
+    chips_mean = {
+                0: {1: {0: np.mean(arr3[0][1][0]), 1: np.mean(arr3[0][1][1]), 2: np.mean(arr3[0][1][2]), 3: np.mean(arr3[0][1][3])},
+                    2: {0: np.mean(arr3[0][2][0]), 1: np.mean(arr3[0][2][1]), 2: np.mean(arr3[0][2][2]), 3: np.mean(arr3[0][2][3])},
+                    3: {0: np.mean(arr3[0][3][0]), 1: np.mean(arr3[0][3][1]), 2: np.mean(arr3[0][3][2]), 3: np.mean(arr3[0][3][3])}
+                    }
+                }
+    chips_variance = {
+        0: {1: {0: np.var(arr3[0][1][0]), 1: np.var(arr3[0][1][1]), 2: np.var(arr3[0][1][2]),
+                3: np.var(arr3[0][1][3])},
+            2: {0: np.var(arr3[0][2][0]), 1: np.var(arr3[0][2][1]), 2: np.var(arr3[0][2][2]),
+                3: np.var(arr3[0][2][3])},
+            3: {0: np.var(arr3[0][3][0]), 1: np.var(arr3[0][3][1]), 2: np.var(arr3[0][3][2]),
+                3: np.var(arr3[0][3][3])}
+            }
+    }
+
+    df = {"Read Req": arr3[0][1][0], "Write Req": arr3[0][1][1], "Read Rep": arr3[0][1][2], "Write Rep": arr3[0][1][3]}
+    sns.displot(df)
+    plt.savefig("/Users/Ben/Desktop/0_1_random.png")
+
+    df = {"Read Req": arr3[1][2][0], "Write Req": arr3[1][2][1], "Read Rep": arr3[1][2][2], "Write Rep": arr3[1][2][3]}
+    sns.displot(df)
+    plt.savefig("/Users/Ben/Desktop/1_2_random.png")
+
+    df = {"Read Req": arr3[3][0][0], "Write Req": arr3[3][0][1], "Read Rep": arr3[3][0][2], "Write Rep": arr3[3][0][3]}
+    sns.displot(df)
+    plt.savefig("/Users/Ben/Desktop/3_0_random.png")
+
+    df = {"Read Req": arr3[2][3][0], "Write Req": arr3[2][3][1], "Read Rep": arr3[2][3][2], "Write Rep": arr3[2][3][3]}
+    sns.displot(df)
+    plt.savefig("/Users/Ben/Desktop/2_3_random.png")
     plt.show()
+
+
+def traffic_share(packet):
+    chips = {0: 0, 1: 0, 2: 0, 3: 0}
+    cycle = {}
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if check_local_or_remote(packet[i][j]):
+                if chip_select(int(packet[i][j][1].split(": ")[1])) != chip_select(int(packet[i][j][2].split(": ")[1])):
+                    if packet[i][j][0] == "injection buffer" or packet[i][j][0] == "L2_icnt_pop":
+                        if 1300 <= int(packet[i][j][5].split(": ")[1]) <= 1400:
+                            if check_local_or_remote(packet[i][j]):
+                                if chip_select(int(packet[i][j][1].split(": ")[1])) != chip_select(int(packet[i][j][2].split(": ")[1])):
+                                    if int(packet[i][j][5].split(": ")[1]) in cycle.keys():
+                                        if packet[i][j][0] == "injection buffer":
+                                            cycle[int(packet[i][j][5].split(": ")[1])][chip_select(int(packet[i][j][1].split(": ")[1]))] += int(packet[i][j][7].split(": ")[1])
+                                        else:
+                                            cycle[int(packet[i][j][5].split(": ")[1])][
+                                                chip_select(int(packet[i][j][1].split(": ")[1]))] += int(
+                                                packet[i][j][7].split(":")[1])
+                                    else:
+                                        chips = {0: 0, 1: 0, 2: 0, 3: 0}
+                                        if packet[i][j][0] == "injection buffer":
+                                            chips[chip_select(int(packet[i][j][1].split(": ")[1]))] += int(
+                                                packet[i][j][7].split(": ")[1])
+                                        else:
+                                            chips[chip_select(int(packet[i][j][1].split(": ")[1]))] += int(packet[i][j][7].split(":")[1])
+                                        cycle[int(packet[i][j][5].split(": ")[1])] = chips
+                    elif packet[i][j][0] == "SM boundary buffer push" or packet[i][j][0] == "inter_icnt_pop_llc_push":
+                        if 1300 <= int(packet[i][j][5].split(": ")[1]) <= 1400:
+                            if check_local_or_remote(packet[i][j]):
+                                if chip_select(int(packet[i][j][1].split(": ")[1])) != chip_select(int(packet[i][j][2].split(": ")[1])):
+                                    if int(packet[i][j][5].split(": ")[1]) in cycle.keys():
+                                        cycle[int(packet[i][j][5].split(": ")[1])][chip_select(int(packet[i][j][1].split(": ")[1]))] += -(int(packet[i][j][7].split(": ")[1]))
+                                    else:
+                                        chips = {0: 0, 1: 0, 2: 0, 3: 0}
+                                        chips[chip_select(int(packet[i][j][1].split(": ")[1]))] += -(int(packet[i][j][7].split(": ")[1]))
+                                        cycle[int(packet[i][j][5].split(": ")[1])] = chips
+    zero = {}
+    one = {}
+    two = {}
+    three = {}
+    for i in cycle.keys():
+        zero[i] = cycle[i][0]
+        one[i] = cycle[i][1]
+        two[i] = cycle[i][2]
+        three[i] = cycle[i][3]
+
+    plt.bar(list(cycle.keys()), list(zero.values()), label="chip_0")
+    plt.bar(list(cycle.keys()), list(one.values()), bottom=list(zero.values()), label="chip_1")
+    plt.bar(list(cycle.keys()), list(two.values()), bottom=list(one.values()), label="chip_2")
+    plt.bar(list(cycle.keys()), list(three.values()), bottom=list(two.values()), label="chip_3")
+    plt.legend(loc="best")
+    plt.show()
+
+
+def byte_distribution(packet):
+    index = 5
+    temp = {0: [], 1: [], 2: [], 3: []}
+    chips_mean = {0: {}, 1: {}, 2: {}, 3: {}}
+    chips_std = {0: {}, 1: {}, 2: {}, 3: {}}
+    remainder = {0: 0, 1: 0, 2: 0, 3: 0}
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "injection buffer":
+                temp[chip_select(int(packet[i][j][1].split(": ")[1]))].append(int(packet[i][j][7].split(": ")[1]))
+                remainder.pop(chip_select(int(packet[i][j][1].split(": ")[1])))
+                for i in remainder.keys():
+                    temp[i].append(0)
+            elif packet[i][j][0] == "L2_icnt_pop":
+                temp[chip_select(int(packet[i][j][1].split(": ")[1]))].append(int(packet[i][j][7].split(":")[1]))
+                remainder.pop(chip_select(int(packet[i][j][1].split(": ")[1])))
+                for i in remainder.keys():
+                    temp[i].append(0)
+            elif packet[i][j][0] == "SM boundary buffer push":
+                temp[chip_select(int(packet[i][j][1].split(": ")[1]))].append(-int(packet[i][j][7].split(": ")[1]))
+                remainder.pop(chip_select(int(packet[i][j][1].split(": ")[1])))
+                for i in remainder.keys():
+                    temp[i].append(0)
+            elif packet[i][j][0] == "inter_icnt_pop_llc_push":
+                temp[chip_select(int(packet[i][j][1].split(": ")[1]))].append(-int(packet[i][j][7].split(": ")[1]))
+                remainder.pop(chip_select(int(packet[i][j][1].split(": ")[1])))
+                for i in remainder.keys():
+                    temp[i].append(0)
+            remainder = {0: 0, 1: 0, 2: 0, 3: 0}
+
+    for i in temp.keys():
+        tmp = []
+        for j in range(len(temp[i])):
+            if j + index <= len(temp[i]):
+                for k in range(index):
+                    tmp.append(temp[i][j+k])
+                if np.mean(tmp) != 0:
+                    chips_mean[i][j] = np.mean(tmp)
+                    chips_std[i][j] = np.sqrt(np.var(tmp))
+                else:
+                    chips_mean[i][j] = 0
+                    chips_std[i][j] = 0
+                j += index
+                tmp.clear()
+            else:
+                for k in range(len(temp[i]) - j):
+                    tmp.append(temp[i][j+k])
+                chips_mean[i][j] = np.mean(tmp)
+                chips_std[i][j] = np.sqrt(np.var(tmp))
+    mean_dist = {0: {}, 1: {}, 2: {}, 3: {}}
+    for i in chips_mean.keys():
+        for j in chips_mean[i].keys():
+            if chips_mean[i][j] in mean_dist[i].keys():
+                mean_dist[i][chips_mean[i][j]] += 1
+            else:
+                mean_dist[i][chips_mean[i][j]] = 1
+    print(mean_dist[0].keys())
+    print(mean_dist[0].values())
+    plt.bar(list(mean_dist[0].keys()), list(mean_dist[0].values()))
+    plt.show()
+    #sns.displot(data=list(chips_mean[2].values()), kind="kde", fill=True)
+    #sns.distplot(list(chips_mean[0].values()))
+    #plt.show()
 
 
 def injection_rate(packet):
@@ -456,24 +803,6 @@ def link_rate(packet):
             print(arr[i][j])
 
 
-def find_source_node_distribution(packet):
-    arr = {}
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if packet[i][j][0] == "injection buffer":
-                if chip_select(int(packet[i][j][1].split(": ")[1])) != chip_select(int(packet[i][j][2].split(": ")[1])):
-                    if chip_select(int(packet[i][j][1].split(": ")[1])) in arr.keys():
-                        arr[chip_select(int(packet[i][j][1].split(": ")[1]))] += 1
-                    else:
-                        arr[chip_select(int(packet[i][j][1].split(": ")[1]))] = 1
-
-    plt.bar(list(arr.keys()), list(arr.values()))
-    plt.xticks([0, 1, 2, 3], [0, 1, 2, 3])
-    plt.xlabel("source node")
-    plt.ylabel("Frequency of generating request")
-    plt.show()
-
-
 def find_message_type_distribution(packet):
     message = {
         0: {},
@@ -533,7 +862,7 @@ def find_destination_node_distribution(packet):
 
 
 if __name__ == "__main__":
-    file = open("report_random.txt", "r")
+    file = open("report_syrk.txt", "r")
     raw_content = ""
     if file.mode == "r":
         raw_content = file.readlines()
@@ -541,23 +870,79 @@ if __name__ == "__main__":
     for line in raw_content:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
+    p = {}
+    zer = {}
+    """for i in range(len(lined_list)):  # packet based classification
+        if check_local_or_remote(lined_list[i]):
+            if int(lined_list[i][3].split(": ")[1]) in p.keys():
+                p.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+            else:
+                p.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
 
-    packet = {}
+    for i in range(len(lined_list)):  # cycle based classification
+        if lined_list[i][0] != "Instruction cache miss":
+            if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
+                if int(lined_list[i][5].split(": ")[1]) in p.keys():
+                    if lined_list[i] not in p[int(lined_list[i][5].split(": ")[1])]:
+                        p.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+                else:
+                    p.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+    win = 0
+    zer = {}
+    counter = 1
+    temp_overall = {}
+    overall = {}
+    zero = {}
+    temp_zero = {}
+    one = {}
+    temp_one = {}
+    two = {}
+    temp_two = {}
+    three = {}
+    temp_three = {}
+    for i in p.keys():
+        for j in range(len(p[i])):
+            if p[i][j][0] == "injection buffer" and int(p[i][j][1].split(": ")[1]) == 192:
+                if int(p[i][j][5].split(": ")[1]) in temp_overall.keys():
+                    temp_overall[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                else:
+                    temp_overall[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
 
-    for i in range(len(lined_list)):
-        if int(lined_list[i][3].split(": ")[1]) in packet.keys():
-            if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
-                packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-        else:
-            packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                if int(p[i][j][5].split(": ")[1]) in temp_zero.keys():
+                    temp_zero[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                else:
+                    temp_zero[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
 
-    """for i in range(len(packet[48740])):
-        print(packet[48740][i])"""
-    # injection_flow(packet)
-    # injection_rate(packet)
-    # hop_fraction(packet)
-    # byte_flow(packet)
-    # link_rate(packet)
-    # find_source_node_distribution(packet)
-    # find_message_type_distribution(packet)
-    find_destination_node_distribution(packet)
+            elif p[i][j][0] == "injection buffer" and int(p[i][j][1].split(": ")[1]) == 193:
+                if int(p[i][j][5].split(": ")[1]) in temp_one.keys():
+                    temp_one[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                else:
+                    temp_one[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
+                if int(p[i][j][5].split(": ")[1]) in temp_overall.keys():
+                    temp_overall[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                else:
+                    temp_overall[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
+
+            elif p[i][j][0] == "injection buffer" and int(p[i][j][1].split(": ")[1]) == 194:
+                if int(p[i][j][5].split(": ")[1]) in temp_two.keys():
+                    temp_two[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                else:
+                    temp_two[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
+                if int(p[i][j][5].split(": ")[1]) in temp_overall.keys():
+                    temp_overall[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                else:
+                    temp_overall[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
+
+            elif p[i][j][0] == "injection buffer" and int(p[i][j][1].split(": ")[1]) == 195:
+                if int(p[i][j][5].split(": ")[1]) in temp_three.keys():
+                    temp_three[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                else:
+                    temp_three[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
+                if int(p[i][j][5].split(": ")[1]) in temp_overall.keys():
+                    temp_overall[int(p[i][j][5].split(": ")[1])] += int(p[i][j][7].split(": ")[1])
+                else:
+                    temp_overall[int(p[i][j][5].split(": ")[1])] = int(p[i][j][7].split(": ")[1])
+
+    with open("example2.txt", "w") as file:
+        for i in temp_one.keys():
+            file.write(str(i) + "," + str(temp_one[i]) + "\n")

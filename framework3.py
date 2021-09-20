@@ -314,7 +314,18 @@ if __name__ == "__main__":
         for j in range(len(packet[i])):
             if packet[i][j][0] == "injection buffer":
                 for k in range(j + 1, len(packet[i])):
-                    if packet[i][k][0] == "rop push" or packet[i][k][0] == "forward waiting pop":
+                    if packet[i][k][0] == "inter_icnt_pop_llc_pop" or packet[i][k][0] == "forward_waiting_pop":
+                        if int(packet[i][k][1].split(": ")[1]) == int(packet[i][j][1].split(": ")[1]):
+                            duration = int(packet[i][k][5].split(": ")[1]) - int(packet[i][j][5].split(": ")[1])
+                            if duration in one_hop_cycle.keys():
+                                one_hop_cycle[duration] += 1
+                            else:
+                                one_hop_cycle[duration] = 1
+                            one_hop_cycle_list.append(duration)
+                        break
+            elif packet[i][j][0] == "L2_icnt_pop":
+                for k in range(j + 1, len(packet[i])):
+                    if packet[i][k][0] == "SM boundary buffer pop" or packet[i][k][0] == "forward_waiting_pop":
                         if int(packet[i][k][1].split(": ")[1]) == int(packet[i][j][1].split(": ")[1]):
                             duration = int(packet[i][k][5].split(": ")[1]) - int(packet[i][j][5].split(": ")[1])
                             if duration in one_hop_cycle.keys():
@@ -413,11 +424,6 @@ if __name__ == "__main__":
         for k, v in one_hop_cycle.items():
             file.write(str(k) + " " + str(v) + "\n")
         file.write("one_hop_delay_end\n\n")
-
-        file.write("forwarding_delay_begin\n")
-        for k, v in forwarding_cycle.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("forwarding_delay_end\n\n")
 
         file.write("processing_delay_begin\n")
         for k, v in processing_cycle.items():
