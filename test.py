@@ -1,14 +1,5 @@
-from random import choices
-
 import matplotlib.pyplot as plt
-from hurst import compute_Hc
-import seaborn as sns
-import numpy as np
-import statistics
-from scipy.stats import skew, kurtosis, truncnorm, norm, uniform, ttest_ind
-import statsmodels.api as sm
-import kalepy as kale
-from kalepy.plot import nbshow
+
 
 chiplet = []
 chiplet_0 = dict(
@@ -39,8 +30,6 @@ chiplet.append(chiplet_3)
 
 def chip_select(num):
     out = -1
-    if num < 4:
-        return num
     for i in range(len(chiplet)):
         if num in chiplet[i]["SM_ID"]:
             out = i
@@ -55,11 +44,15 @@ def chip_select(num):
 
 
 def check_local_or_remote(x):  # 0 for local, 1 for remote
-    for i in range(len(chiplet)):
+    """for i in range(len(chiplet)):
         if (int(x[1].split(": ")[1]) in chiplet[i]["SM_ID"]) or (int(x[1].split(": ")[1]) in chiplet[i]["LLC_ID"]):
             if (int(x[2].split(": ")[1]) in chiplet[i]["SM_ID"]) or (int(x[2].split(": ")[1]) in chiplet[i]["LLC_ID"]):
                 return 0
-        return 1
+        return 1"""
+    if int(x[1].split(": ")[1]) >= 192 or int(x[1].split(": ")[1]) <= 195:
+        if int(x[2].split(": ")[1]) >= 192 or int(x[2].split(": ")[1]) <= 195:
+            return 1
+    return 0
 
 
 def hurst(out):
@@ -96,8 +89,106 @@ def hurst(out):
     plt.show()
 
 
+def generate_real_traffic_per_core(packet):
+    start = end = 0
+    lat = 0
+    throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+                  3: {0: {}, 1: {}, 2: {}}}
+    th = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+                  3: {0: {}, 1: {}, 2: {}}}
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(
+                    packet[i][j][2].split(": ")[1]) <= 195:
+                if packet[i][j][0] == "injection buffer":
+                    if int(packet[i][j][5].split(": ")[1]) not in \
+                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
+                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(": ")[1]))
+                    else:
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(": ")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(": ")[1]))
+
+                elif packet[i][j][0] == "forward waiting pop":
+                    if int(packet[i][j][5].split(": ")[1]) not in \
+                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
+                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(": ")[1]))
+                    else:
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(": ")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(": ")[1]))
+
+                elif packet[i][j][0] == "L2_icnt_pop":
+                    if int(packet[i][j][5].split(": ")[1]) not in \
+                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
+                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(":")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(":")[1]))
+                    else:
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(":")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(":")[1]))
+    zero = {0: 0, 1: 0, 2: 0, 3: 0}
+    with open("trace.txt", "w") as file:
+        for cycle, byte in throughput[1][0].items():
+            file.write(str(cycle) + " -> " + str(byte) + "\n")
+
+    flag = prev = 0
+    throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+                  3: {0: {}, 1: {}, 2: {}}}
+    for source in throughput.keys():
+        for dest in throughput[source].keys():
+            for cyc in throughput[source][dest].keys():
+                if flag == 0:
+                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
+                    prev = cyc
+                    flag = 1
+                elif flag == 1:
+                    if cyc - prev > 1:
+                        for k in range(prev + 1, cyc):
+                            zero[source] += 1
+                            throughput_update[source][dest].setdefault(k, []).append(0)
+                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
+                    prev = cyc
+
+    with open("trace2.txt", "w") as file:
+        for cycle, byte in throughput_update[1][0].items():
+            file.write(str(cycle) + " -> " + str(byte) + "\n")
+    print("injection_rate: " + str(zero[1]/199999))
+    fig, ax = plt.subplots(3, 1, figsize=(18, 4))
+    ax[0].bar(list(th[1][0].keys()), list(th[1][0].values()), width=3)
+    ax[1].bar(list(th[1][2].keys()), list(th[1][2].values()), width=3)
+    ax[2].bar(list(th[1][3].keys()), list(th[1][3].values()), width=3)
+    plt.show()
+
+
 if __name__ == '__main__':
-    file2 = open("report_syrk.txt", "r")
+    file2 = open("report.txt", "r")
     raw_content = ""
     if file2.mode == "r":
         raw_content = file2.readlines()
@@ -106,45 +197,22 @@ if __name__ == '__main__':
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
     packet = {}
-
+    cycle = {}
     """for i in range(len(lined_list)):  # packet based classification
         if lined_list[i][0] != "Instruction cache miss":
             if check_local_or_remote(lined_list[i]):
                 if int(lined_list[i][3].split(": ")[1]) in packet.keys():
-                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                    if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
+                        packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
                 else:
                     packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
 
     for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":
             if check_local_or_remote(lined_list[i]):
-                if int(lined_list[i][5].split(": ")[1]) in packet.keys():
-                    packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+                if int(lined_list[i][5].split(": ")[1]) in cycle.keys():
+                    if lined_list[i] not in cycle[int(lined_list[i][5].split(": ")[1])]:
+                        cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
                 else:
-                    packet.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-
-
-    start = end = 0
-    lat = 0
-    latency = {}
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if packet[i][j][0] == "injection buffer":
-                if int(packet[i][j][5].split(": ")[1]) not in latency.keys():
-                    latency[int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(": ")[1])
-                else:
-                    latency[int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(": ")[1])
-            elif packet[i][j][0] == "forward waiting pop":
-                if int(packet[i][j][5].split(": ")[1]) not in latency.keys():
-                    latency[int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(": ")[1])
-                else:
-                    latency[int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(": ")[1])
-            elif packet[i][j][0] == "L2_icnt_pop":
-                if int(packet[i][j][5].split(": ")[1]) not in latency.keys():
-                    latency[int(packet[i][j][5].split(": ")[1])] = int(packet[i][j][7].split(":")[1])
-                else:
-                    latency[int(packet[i][j][5].split(": ")[1])] += int(packet[i][j][7].split(":")[1])
-    plt.bar(list(latency.keys()), list(latency.values()))
-    plt.show()
-
-    print(latency)
+                    cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+    generate_real_traffic_per_core(cycle)

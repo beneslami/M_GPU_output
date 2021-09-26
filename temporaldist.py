@@ -74,8 +74,6 @@ def state_change_distribution():
             pair2[int(lined_list[i][0])] = int(lined_list[i][1])
 
 
-
-
 def inter_packet_distribution(packet):
     arr = {
         0: {

@@ -29,6 +29,21 @@ chiplet.append(chiplet_1)
 chiplet.append(chiplet_2)
 chiplet.append(chiplet_3)
 
+initial_state = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+injection_core = {0: {}, 1: {}, 2: {}, 3: {}}
+injection_core_update = {0: {}, 1: {}, 2: {}, 3: {}}
+throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+th = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+injection_rate = {0: 0, 1: 0, 2: 0, 3: 0}
+window_size = {0: {}, 1: {}, 2: {}, 3: {}}
+packet_type = {0: {}, 1: {}, 2: {}, 3: {}}
+destination = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+packet_freq = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+temp = {0: {}, 1: {}, 2: {}, 3: {}}
+processing_time = {0: {}, 1: {}, 2: {}, 3: {}}
+transitions = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+
 
 def chip_select(num):
     out = -1
@@ -55,8 +70,207 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
         return 1
 
 
+def generate_real_traffic_per_core(packet):
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(
+                    packet[i][j][2].split(": ")[1]) <= 195:
+                if packet[i][j][0] == "injection buffer":
+                    if int(packet[i][j][5].split(": ")[1]) not in \
+                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
+                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(": ")[1]))
+                        injection_core[chip_select(int(packet[i][j][1].split(": ")[1]))].setdefault(int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
+
+                    else:
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(": ")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(": ")[1]))
+                        injection_core[chip_select(int(packet[i][j][1].split(": ")[1]))].setdefault(
+                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
+
+                    # this piece of code shows the distribution of choosing the destination
+                    """if int(packet[i][j][5].split(": ")[1]) not in temp[chip_select(int(packet[i][j][1].split(": ")[1]))].keys():
+                        temp[chip_select(int(packet[i][j][1].split(": ")[1]))].setdefault(int(packet[i][j][5].split(": ")[1]), {}).setdefault(chip_select(int(packet[i][j][2].split(": ")[1])), []).append(int(packet[i][j][7].split(": ")[1]))
+                    else:
+                        if int(packet[i][j][2].split(": ")[1]) not in temp[chip_select(int(packet[i][j][1].split(": ")[1]))][int(packet[i][j][5].split(": ")[1])].keys():
+                            temp[chip_select(int(packet[i][j][1].split(": ")[1]))][int(packet[i][j][5].split(": ")[1])].setdefault(chip_select(int(packet[i][j][2].split(": ")[1])), []).append(int(packet[i][j][7].split(": ")[1]))"""
+                elif packet[i][j][0] == "forward waiting pop":
+                    if int(packet[i][j][5].split(": ")[1]) not in \
+                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
+                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(": ")[1]))
+                    else:
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(": ")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(": ")[1]))
+
+                elif packet[i][j][0] == "L2_icnt_pop":
+                    if int(packet[i][j][5].split(": ")[1]) not in \
+                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
+                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(":")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(":")[1]))
+                    else:
+                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(":")[1]))
+                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
+                            chip_select(int(packet[i][j][2].split(": ")[1]))][
+                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(":")[1]))
+
+    """with open("trace.txt", "w") as file:
+        for cycle, byte in throughput[1][0].items():
+            file.write(str(cycle) + " -> " + str(byte) + "\n")"""
+
+    flag = prev = 0
+    for source in throughput.keys():
+        for dest in throughput[source].keys():
+            for cyc in throughput[source][dest].keys():
+                if flag == 0:
+                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
+                    prev = cyc
+                    flag = 1
+                elif flag == 1:
+                    if cyc - prev > 1:
+                        for k in range(prev + 1, cyc):
+                            throughput_update[source][dest].setdefault(k, []).append(0)
+                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
+                    prev = cyc
+
+    flag = prev = 0
+    for source in injection_core.keys():
+        for cyc in injection_core[source].keys():
+            if flag == 0:
+                injection_core_update[source][cyc] = injection_core[source][cyc]
+                prev = cyc
+                flag = 1
+            elif flag == 1:
+                if cyc - prev > 1:
+                    for k in range(prev + 1, cyc):
+                        injection_core_update[source].setdefault(k, []).append(0)
+                injection_core_update[source][cyc] = injection_core[source][cyc]
+                prev = cyc
+
+    """with open("trace2.txt", "w") as file:
+        for cycle, data in temp[1].items():
+            file.write("cycle: " + str(cycle) + "\n")
+            for dest, values in data.items():
+                for v in values:
+                    file.write("\t\tdest: " + str(dest) + " -> " + str(v) + "\n")
+            file.write("-------")"""
+    """
+    fig, ax = plt.subplots(3, 1, figsize=(18, 4))
+    ax[0].bar(list(th[1][0].keys()), list(th[1][0].values()), width=3)
+    ax[1].bar(list(th[1][2].keys()), list(th[1][2].values()), width=3)
+    ax[2].bar(list(th[1][3].keys()), list(th[1][3].values()), width=3)
+    plt.show()"""
+
+
+def calculate_injection_rate():
+    for source in injection_core_update.keys():
+        on = off = 0
+        for cycle, window in injection_core_update[source].items():
+            if len(window) == 1 and window[0] == 0:
+                off += 1
+            else:
+                on += 1
+        injection_rate[source] = on / (off + on)
+
+
+def generate_per_core_packet_number_per_cycle():
+    for src in throughput_update.keys():
+        for dest in throughput_update[src].keys():
+            for cycle in throughput_update[src][dest].keys():
+                if len(throughput_update[src][dest][cycle]) == 1 and throughput_update[src][dest][cycle][0] == 0:
+                    continue
+                else:
+                    if len(throughput_update[src][dest][cycle]) not in window_size[src].keys():
+                        window_size[src][len(throughput_update[src][dest][cycle])] = 1
+                    else:
+                        window_size[src][len(throughput_update[src][dest][cycle])] += 1 # #
+
+
+def destination_choose(packet):
+    for id in packet.keys():
+        for j in range(len(packet[id])):
+            if packet[id][j][0] == "injection buffer":
+                destination[chip_select(int(packet[id][j][1].split(": ")[1]))][chip_select(int(packet[id][j][2].split(": ")[1]))] += 1
+
+
+def packet_type_frequency():
+    for src in throughput_update.keys():
+        for dest in throughput_update[src].keys():
+            for cycle, bytes in throughput_update[src][dest].items():
+                if bytes[0] != 0:
+                    for i in bytes:
+                        if i not in packet_freq[src][dest].keys():
+                            packet_freq[src][dest][i] = 1
+                        else:
+                            packet_freq[src][dest][i] += 1
+
+
+def generate_markov_state():
+    for src in throughput_update.keys():
+        for dest in throughput_update[src].keys():
+            for cycle in throughput_update[src][dest].keys():
+                if len(throughput_update[src][dest][cycle]) == 1 and throughput_update[src][dest][cycle][0] == 0:
+                    continue
+                else:
+                    for i in throughput_update[src][dest][cycle]:
+                        if i not in packet_type.keys():
+                            packet_type[src][i] = 1
+                        else:
+                            packet_type[src][i] += 1
+
+
+def generate_processing_time(packet):
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "rop push":
+                for k in range(j + 1, len(packet[i])):
+                    if packet[i][k][0] == "L2_icnt_push":
+                        if int(packet[i][k][6].split(": ")[1]) == int(packet[i][j][6].split(": ")[1]):
+                            duration = int(packet[i][k][5].split(": ")[1]) - int(packet[i][j][5].split(": ")[1])
+                            if duration in processing_time[int(packet[i][j][6].split(": ")[1])].keys():
+                                processing_time[int(packet[i][j][6].split(": ")[1])][duration] += 1
+                            else:
+                                processing_time[int(packet[i][j][6].split(": ")[1])][duration] = 1
+                        break
+
+
+def generate_transition_states():
+    for core in packet_freq.keys():
+        for dest in packet_freq[core].keys():
+            overall = 0
+            for packet, freq in packet_freq[core][dest].items():
+                overall += freq
+            for packet in packet_freq[core][dest].keys():
+                transitions[core][dest][packet] = packet_freq[core][dest][packet]/overall
+
+
 if __name__ == "__main__":
-    file2 = open("report_syrk.txt", "r")
+    file2 = open("report.txt", "r")
     raw_content = ""
     if file2.mode == "r":
         raw_content = file2.readlines()
@@ -64,368 +278,76 @@ if __name__ == "__main__":
     for line in raw_content:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
-    p = {}
+    cycle = {}
     packet = {}
 
     for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":
             if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
-                if int(lined_list[i][5].split(": ")[1]) in p.keys():
-                    if lined_list[i] not in p[int(lined_list[i][5].split(": ")[1])]:
-                        p.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+                if int(lined_list[i][5].split(": ")[1]) in cycle.keys():
+                    if lined_list[i] not in cycle[int(lined_list[i][5].split(": ")[1])]:
+                        cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
                 else:
-                    p.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+                    cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
                     
     for i in range(len(lined_list)):  # packet based classification
         if lined_list[i][0] != "Instruction cache miss":
             if check_local_or_remote(lined_list[i]):
-                if int(lined_list[i][3].split(": ")[1]) in packet.keys():
-                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-                else:
-                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-                    
-    overall = {}
-    for i in p.keys():
-        for j in range(len(p[i])):
-            if p[i][j][0] == "injection buffer" and int(p[i][j][1].split(": ")[1]) == 192 and int(p[i][j][2].split(": ")[1]) == 193:
-                if int(p[i][j][5].split(": ")[1]) in overall.keys():
-                    overall.setdefault(int(p[i][j][5].split(": ")[1]), []).append(int(p[i][j][7].split(": ")[1]))
-                else:
-                    overall.setdefault(int(p[i][j][5].split(": ")[1]), []).append(int(p[i][j][7].split(": ")[1]))
+                if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
+                    if int(lined_list[i][3].split(": ")[1]) in packet.keys():
+                        if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
+                            packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                    else:
+                        packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
-    overall_update = {}
-    flag = 0
-    prev = 0
-    for i in overall.keys():
-        if i > 0:
-            if flag == 0:
-                overall_update[i] = overall[i]
-                prev = i
-                flag = 1
-            elif flag == 1:
-                if i - prev > 1:
-                    for j in range(i - prev):
-                        overall_update[prev + j + 1] = 0
-                overall_update[i] = overall[i]
-                prev = i
-    flag = 0
-    start = end = 0
-    zero_sujornTime = []
-    _8_byte = 0
-    win_8 = []
-    win_136 = []
-    window_8 = {1: [], 2: [], 3: [], 4: [], 5: []}
-    window_136 = {1: [], 2: [], 3: [], 4: [], 5: []}
-    _136_byte = 0
-    for k, v in overall_update.items():
-        if v == 0 and flag == 0:
-            start = k
-            flag = 1
-        elif v != 0 and flag == 1:
-            end = k
-            zero_sujornTime.append(end - start)  # write this list as zero sojourn time
-            flag = 0
-            if v[0] == 8:
-                _8_byte += 1
-                if len(v) > 1:
-                    for i in range(1, len(v)):
-                        window_8[i].append(v[i])
-                win_8.append(len(v))
-
-            elif v[0] == 136:
-                _136_byte += 1
-                if len(v) > 1:
-                    for i in range(1, len(v)):
-                        window_136[i].append(v[i])
-                win_136.append(len(v))
-
-    print("number of transition from zero to 8: " + str(_8_byte)) # write this list as transition to state 8 from 0
-    print("---------")
-    print("number of transition from zero to 136: " + str(_136_byte)) # write this list as transition to state 136 from 0
-    print("---------")
-    window_elment_8 = {}
-    window_elment_136 = {}
-    for i in win_8:
-        if i in window_elment_8.keys():
-            window_elment_8[i] += 1
-        else:
-            window_elment_8[i] = 1
-    for i in win_136:
-        if i in window_elment_136.keys():
-            window_elment_136[i] += 1
-        else:
-            window_elment_136[i] = 1
-    print("window of the number of packets for state 8: " + str(window_elment_8)) # write this list as window for state 8
-    print("---------")
-    print("window of the number of packets for state 136: " + str(window_elment_136)) # write this list as window for state 136
-    print("---------")
-    window_8_size2 = {}
-    for i in range(len(window_8[1])):
-        if window_8[1][i] in window_8_size2.keys():
-            window_8_size2[window_8[1][i]] += 1
-        else:
-            window_8_size2[window_8[1][i]] = 1
-
-    window_8_size3 = {}
-    for i in range(len(window_8[2])):
-        if window_8[2][i] in window_8_size3.keys():
-            window_8_size3[window_8[2][i]] += 1
-        else:
-            window_8_size3[window_8[2][i]] = 1
-
-    window_8_size4 = {}
-    for i in range(len(window_8[3])):
-        if window_8[3][i] in window_8_size4.keys():
-            window_8_size4[window_8[3][i]] += 1
-        else:
-            window_8_size4[window_8[3][i]] = 1
-
-    window_8_size5 = {}
-    for i in range(len(window_8[4])):
-        if window_8[4][i] in window_8_size5.keys():
-            window_8_size5[window_8[4][i]] += 1
-        else:
-            window_8_size5[window_8[4][i]] = 1
-
-    print("distribution of packet bytes in each location of the window2: " + str(window_8_size2)) # write this list as window for state 8
-    print("distribution of packet bytes in each location of the window3: " + str(window_8_size3))
-    print("distribution of packet bytes in each location of the window4: " + str(window_8_size4))
-    print("distribution of packet bytes in each location of the window5: " + str(window_8_size5))
-    print("---------")
-    window_136_size2 = {}
-    for i in range(len(window_136[1])):
-        if window_136[1][i] in window_136_size2.keys():
-            window_136_size2[window_136[1][i]] += 1
-        else:
-            window_136_size2[window_136[1][i]] = 1
-
-    window_136_size3 = {}
-    for i in range(len(window_136[2])):
-        if window_136[2][i] in window_136_size3.keys():
-            window_136_size3[window_136[2][i]] += 1
-        else:
-            window_136_size3[window_136[2][i]] = 1
-
-    window_136_size4 = {}
-    for i in range(len(window_136[3])):
-        if window_136[3][i] in window_136_size4.keys():
-            window_136_size4[window_136[3][i]] += 1
-        else:
-            window_136_size4[window_136[3][i]] = 1
-
-    window_136_size5 = {}
-    for i in range(len(window_136[4])):
-        if window_136[4][i] in window_136_size5.keys():
-            window_136_size5[window_136[4][i]] += 1
-        else:
-            window_136_size5[window_136[4][i]] = 1
-    print("distribution of packet bytes in each location of the window2: " + str(window_136_size2)) # write this list as window for state 136
-    print("distribution of packet bytes in each location of the window3: " + str(window_136_size3))
-    print("distribution of packet bytes in each location of the window4: " + str(window_136_size4))
-    print("distribution of packet bytes in each location of the window5: " + str(window_136_size5))
-    print("---------")
-    s8_sojournTime = []
-    s136_sojournTime = []
-    s8_to_s136 = 0
-    s8_to_s0 = 0
-    s136_to_s0 = 0
-    s136_to_s8 = 0
-    start = end = flag = 0
-    for k, v in overall_update.items():
-        if not isinstance(v, int):
-            if v[0] == 8 and flag == 0:
-                start = k
-                flag = 1
-            elif v[0] == 8 and flag == 1:
-                continue
-            elif v[0] != 8 and flag == 1:
-                end = k
-                flag = 0
-                s8_sojournTime.append(end - start)
-                if v[0] == 136:
-                    s8_to_s136 += 1
-                end = start = 0
-        elif v == 0:
-            if flag == 1:
-                end = k
-                s8_sojournTime.append(end - start)
-                s8_to_s0 += 1
-                end = start = flag = 0
-
-    flag = 0
-    start = end = 0
-    for k, v in overall_update.items():
-        if not isinstance(v, int):
-            if v[0] == 136 and flag == 0:
-                start = k
-                flag = 1
-            elif v[0] == 136 and flag == 1:
-                continue
-            elif v[0] != 136 and flag == 1:
-                end = k
-                flag = 0
-                s136_sojournTime.append(end - start)
-                if v[0] == 8:
-                    s136_to_s8 += 1
-                end = start = 0
-        elif v == 0:
-            if flag == 1:
-                end = k
-                s136_sojournTime.append(end - start)
-                s136_to_s0 += 1
-                end = start = flag = 0
-
-    print("s136 to s0: " + str(s136_to_s0))
-    print("s136 to s8: " + str(s136_to_s8))
-    print("s8 to s0: " + str(s8_to_s0))
-    print("s8 to s 136: " + str(s8_to_s136))
-    print("s136 sojourn time: " + str(s136_sojournTime))
-    print("s8 sojourn time: " + str(s8_sojournTime))
-    zero_sujornTime_dist = {}
-    for i in zero_sujornTime:
-        if i in zero_sujornTime_dist.keys():
-            zero_sujornTime_dist[i] += 1
-        else:
-            zero_sujornTime_dist[i] = 1
-    zero_sujornTime_dist = sorted(zero_sujornTime_dist.items(), key=lambda x: x[0])
-
-    eight_sojournTime_dist = {}
-    for i in s8_sojournTime:
-        if i in eight_sojournTime_dist.keys():
-            eight_sojournTime_dist[i] += 1
-        else:
-            eight_sojournTime_dist[i] = 1
-    eight_sojournTime_dist = sorted(eight_sojournTime_dist.items(), key=lambda x: x[0])
-    onethirtysix_sojournTime_dist = {}
-    for i in s136_sojournTime:
-        if i in onethirtysix_sojournTime_dist.keys():
-            onethirtysix_sojournTime_dist[i] += 1
-        else:
-            onethirtysix_sojournTime_dist[i] = 1
-    onethirtysix_sojournTime_dist = sorted(onethirtysix_sojournTime_dist.items(), key=lambda x: x[0])
-
-    one_hop_cycle = {}
-    one_hop_cycle_list = []
-    forwarding_cycle = {}
-    processing_cycle = {}
-    processing_cycle_list = []
-
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if packet[i][j][0] == "injection buffer":
-                for k in range(j + 1, len(packet[i])):
-                    if packet[i][k][0] == "inter_icnt_pop_llc_pop" or packet[i][k][0] == "forward_waiting_pop":
-                        if int(packet[i][k][1].split(": ")[1]) == int(packet[i][j][1].split(": ")[1]):
-                            duration = int(packet[i][k][5].split(": ")[1]) - int(packet[i][j][5].split(": ")[1])
-                            if duration in one_hop_cycle.keys():
-                                one_hop_cycle[duration] += 1
-                            else:
-                                one_hop_cycle[duration] = 1
-                            one_hop_cycle_list.append(duration)
-                        break
-            elif packet[i][j][0] == "L2_icnt_pop":
-                for k in range(j + 1, len(packet[i])):
-                    if packet[i][k][0] == "SM boundary buffer pop" or packet[i][k][0] == "forward_waiting_pop":
-                        if int(packet[i][k][1].split(": ")[1]) == int(packet[i][j][1].split(": ")[1]):
-                            duration = int(packet[i][k][5].split(": ")[1]) - int(packet[i][j][5].split(": ")[1])
-                            if duration in one_hop_cycle.keys():
-                                one_hop_cycle[duration] += 1
-                            else:
-                                one_hop_cycle[duration] = 1
-                            one_hop_cycle_list.append(duration)
-                        break
-
-            elif packet[i][j][0] == "rop push":
-                for k in range(j + 1, len(packet[i])):
-                    if packet[i][k][0] == "L2_icnt_pop":
-                        if int(packet[i][k][6].split(": ")[1]) == int(packet[i][j][6].split(": ")[1]):
-                            duration = int(packet[i][k][5].split(": ")[1]) - int(packet[i][j][5].split(": ")[1])
-                            if duration in processing_cycle.keys():
-                                processing_cycle[duration] += 1
-                            else:
-                                processing_cycle[duration] = 1
-                            processing_cycle_list.append(duration)
-                        break
+    generate_real_traffic_per_core(cycle)
+    calculate_injection_rate()
+    generate_per_core_packet_number_per_cycle()
+    generate_markov_state()
+    destination_choose(packet)
+    packet_type_frequency()
+    generate_processing_time(packet)
+    generate_transition_states()
 
     with open("syrk.model", "w") as file:
-        file.write("zero_state_sojourntime_begin\n")
-        for i in range(len(zero_sujornTime_dist)):
-            file.write(str(zero_sujornTime_dist[i][0]) + " " + str(zero_sujornTime_dist[i][1]) + "\n")
-        file.write("zero_state_sojourntime_end\n\n")
+        for i in range(0, 4):
+            file.write("core " + str(i) + "\n")
+            file.write("states_begin\n")
+            for j in packet_type[i].keys():
+                file.write(str(j) + "\n")
+            file.write("states_end\n\n")
 
-        file.write("eight_state_sojourntime_begin\n")
-        for i in range(len(eight_sojournTime_dist)):
-            file.write(str(eight_sojournTime_dist[i][0]) + " " + str(eight_sojournTime_dist[i][1]) + "\n")
-        file.write("eight_state_sojourntime_end\n\n")
+            file.write("window_size_begin\n")
+            for size, freq in window_size[i].items():
+                file.write(str(size) + "\t" + str(freq) + "\n")
+            file.write("window_size_end\n\n")
 
-        file.write("onethirtysix_state_sojourntime_begin\n")
-        for i in range(len(onethirtysix_sojournTime_dist)):
-            file.write(str(onethirtysix_sojournTime_dist[i][0]) + " " + str(onethirtysix_sojournTime_dist[i][1]) + "\n")
-        file.write("onethirtysix_state_sojourntime_end\n\n")
+            file.write("packet_distribution_begin\n")
+            for dest, data in packet_freq[i].items():
+                file.write(str(dest) + ":\t")
+                for pack, freq in data.items():
+                    file.write(str(pack) + "\t" + str(freq) + "\t")
+            file.write("\npacket_distribution_end\n\n")
 
-        file.write("s0_to_s8: " + str(_8_byte/(_8_byte + _136_byte)) + "\n")
-        file.write("s0_to_s136: " + str(_136_byte/(_8_byte + _136_byte)) + "\n")
-        file.write("s8_to_s0: " + str(s8_to_s0/(s8_to_s0 + s8_to_s136)) + "\n")
-        file.write("s8_to_s136: " + str(s8_to_s136/(s8_to_s0 + s8_to_s136)) + "\n")
-        file.write("s136_to_s0: " + str(s136_to_s0/(s136_to_s0 + s136_to_s8)) + "\n")
-        file.write("s136_to_s8: " + str(s136_to_s8/(s136_to_s0 + s136_to_s8)) + "\n\n")
+            file.write("destination_begin\n")
+            for dest, freq in destination[i].items():
+                file.write(str(dest) + "\t" + str(freq) + "\n")
+            file.write("destination_end\n\n")
 
-        file.write("state_8_window_size_begin\n")
-        for k, v in window_elment_8.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_8_window_size_end\n\n")
+            file.write("transition_begin\n")
+            for dest in transitions[i].keys():
+                file.write("destination\t" + str(dest) + "\n")
+                for byte in transitions[i][dest].keys():
+                    file.write("\t\t" + str(byte) + "\t")
+                file.write("\n")
+                for byte in transitions[i][dest].keys():
+                    file.write(str(byte) + "\t\t")
+                    for byte2 in transitions[i][dest].keys():
+                        file.write(str("{:.4f}".format(transitions[i][dest][byte2])) + "\t")
+                    file.write("\n")
+            file.write("transition_end\n\n")
 
-        file.write("state_136_window_size_begin\n")
-        for k, v in window_elment_136.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_136_window_size_end\n\n")
-
-        file.write("state_8_window_size2_packet_begin\n")
-        for k, v in window_8_size2.items():
-           file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_8_window_size2_packet_end\n\n")
-
-        file.write("state_8_window_size3_packet_begin\n")
-        for k, v in window_8_size3.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_8_window_size3_packet_end\n\n")
-
-        file.write("state_8_window_size4_packet_begin\n")
-        for k, v in window_8_size4.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_8_window_size4_packet_end\n\n")
-
-        file.write("state_8_window_size5_packet_begin\n")
-        for k, v in window_8_size5.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_8_window_size5_packet_end\n\n")
-
-        file.write("state_136_window_size2_packet_begin\n")
-        for k, v in window_136_size2.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_136_window_size2_packet_end\n\n")
-
-        file.write("state_136_window_size3_packet_begin\n")
-        for k, v in window_136_size3.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_136_window_size3_packet_end\n\n")
-
-        file.write("state_136_window_size4_packet_begin\n")
-        for k, v in window_136_size4.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_136_window_size4_packet_end\n\n")
-
-        file.write("state_136_window_size5_packet_begin\n")
-        for k, v in window_136_size5.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("state_136_window_size5_packet_end\n\n")
-
-        file.write("one_hop_delay_begin\n")
-        for k, v in one_hop_cycle.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("one_hop_delay_end\n\n")
-
-        file.write("processing_delay_begin\n")
-        for k, v in processing_cycle.items():
-            file.write(str(k) + " " + str(v) + "\n")
-        file.write("processing_delay_end\n\n")
+            file.write("processing_time_begin\n")
+            for time, freq in processing_time[i].items():
+                file.write(str(time) + "\t" + str(freq) + "\n")
+            file.write("processing_time_end\n\n")
