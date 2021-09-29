@@ -73,8 +73,7 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
 def generate_real_traffic_per_core(packet):
     for i in packet.keys():
         for j in range(len(packet[i])):
-            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(
-                    packet[i][j][2].split(": ")[1]) <= 195:
+            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
                 if packet[i][j][0] == "injection buffer":
                     if int(packet[i][j][5].split(": ")[1]) not in \
                             throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
@@ -96,53 +95,6 @@ def generate_real_traffic_per_core(packet):
                             int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(": ")[1]))
                         injection_core[chip_select(int(packet[i][j][1].split(": ")[1]))].setdefault(
                             int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
-
-                    # this piece of code shows the distribution of choosing the destination
-                    """if int(packet[i][j][5].split(": ")[1]) not in temp[chip_select(int(packet[i][j][1].split(": ")[1]))].keys():
-                        temp[chip_select(int(packet[i][j][1].split(": ")[1]))].setdefault(int(packet[i][j][5].split(": ")[1]), {}).setdefault(chip_select(int(packet[i][j][2].split(": ")[1])), []).append(int(packet[i][j][7].split(": ")[1]))
-                    else:
-                        if int(packet[i][j][2].split(": ")[1]) not in temp[chip_select(int(packet[i][j][1].split(": ")[1]))][int(packet[i][j][5].split(": ")[1])].keys():
-                            temp[chip_select(int(packet[i][j][1].split(": ")[1]))][int(packet[i][j][5].split(": ")[1])].setdefault(chip_select(int(packet[i][j][2].split(": ")[1])), []).append(int(packet[i][j][7].split(": ")[1]))"""
-                elif packet[i][j][0] == "forward waiting pop":
-                    if int(packet[i][j][5].split(": ")[1]) not in \
-                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
-                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
-                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
-                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(": ")[1]))
-                    else:
-                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(": ")[1]))
-                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(": ")[1]))
-
-                elif packet[i][j][0] == "L2_icnt_pop":
-                    if int(packet[i][j][5].split(": ")[1]) not in \
-                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
-                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
-                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(":")[1]))
-                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(":")[1]))
-                    else:
-                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(":")[1]))
-                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(":")[1]))
-
-    """with open("trace.txt", "w") as file:
-        for cycle, byte in throughput[1][0].items():
-            file.write(str(cycle) + " -> " + str(byte) + "\n")"""
-
     flag = prev = 0
     for source in throughput.keys():
         for dest in throughput[source].keys():
@@ -171,20 +123,6 @@ def generate_real_traffic_per_core(packet):
                         injection_core_update[source].setdefault(k, []).append(0)
                 injection_core_update[source][cyc] = injection_core[source][cyc]
                 prev = cyc
-
-    """with open("trace2.txt", "w") as file:
-        for cycle, data in temp[1].items():
-            file.write("cycle: " + str(cycle) + "\n")
-            for dest, values in data.items():
-                for v in values:
-                    file.write("\t\tdest: " + str(dest) + " -> " + str(v) + "\n")
-            file.write("-------")"""
-    """
-    fig, ax = plt.subplots(3, 1, figsize=(18, 4))
-    ax[0].bar(list(th[1][0].keys()), list(th[1][0].values()), width=3)
-    ax[1].bar(list(th[1][2].keys()), list(th[1][2].values()), width=3)
-    ax[2].bar(list(th[1][3].keys()), list(th[1][3].values()), width=3)
-    plt.show()"""
 
 
 def calculate_injection_rate():
@@ -309,13 +247,10 @@ if __name__ == "__main__":
     generate_processing_time(packet)
     generate_transition_states()
 
-    with open("syrk.model", "w") as file:
-        for i in range(0, 4):
+    for i in range(0, 4):
+        filename = "syrk_core_" + str(i) + str(".model")
+        with open(filename, "w") as file:
             file.write("core " + str(i) + "\n")
-            file.write("states_begin\n")
-            for j in packet_type[i].keys():
-                file.write(str(j) + "\n")
-            file.write("states_end\n\n")
 
             file.write("window_size_begin\n")
             for size, freq in window_size[i].items():
@@ -327,6 +262,7 @@ if __name__ == "__main__":
                 file.write(str(dest) + ":\t")
                 for pack, freq in data.items():
                     file.write(str(pack) + "\t" + str(freq) + "\t")
+                file.write("\n")
             file.write("\npacket_distribution_end\n\n")
 
             file.write("destination_begin\n")

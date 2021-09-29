@@ -84,48 +84,21 @@ if __name__ == "__main__":
         else:
             packet.setdefault(int(lined_list[i][2].split(": ")[1]), []).append(lined_list[i])
 
-    out = {}
+    out = {0: {}, 1: {}, 2: {}, 3: {}}
     for i in packet.keys():
         for j in range(len(packet[i])):
             if len(packet[i][j]) > 7:
-                if int(packet[i][j][0].split(": ")[1]) != int(packet[i][j][1].split(": ")[1]):
-                    if int(packet[i][j][0].split(": ")[1]) == int(packet[i][j][3].split(": ")[1]):
-                        if int(packet[i][j][7].split(": ")[1]) not in out.keys():
-                            out[int(packet[i][j][7].split(": ")[1])] = int(packet[i][j][5].split(": ")[1])
-                        else:
-                            out[int(packet[i][j][7].split(": ")[1])] += int(packet[i][j][5].split(": ")[1])
-    fig, ax = plt.subplots(1, 1, figsize=(18, 4))
-    ax.bar(list(out.keys()), list(out.values()))
-    ax.set_ylim(0, 50000)
-    plt.show()
-    """cycle = {}
-    for i in range(len(lined_list)):
-        if int(lined_list[i][3].split(": ")[1]) == -1 and lined_list[i][3].split(": ")[0] == "output":
-            if int(lined_list[i][6].split(": ")[1]) in cycle.keys():
-                cycle.setdefault(int(lined_list[i][6].split(": ")[1]), []).append(lined_list[i])
+                continue
             else:
-                cycle.setdefault(int(lined_list[i][6].split(": ")[1]), []).append(lined_list[i])
-        else:
-            if int(lined_list[i][7].split(": ")[1]) in cycle.keys():
-                cycle.setdefault(int(lined_list[i][7].split(": ")[1]), []).append(lined_list[i])
-            else:
-                cycle.setdefault(int(lined_list[i][7].split(": ")[1]), []).append(lined_list[i])
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
+                    source = int(packet[i][j][0].split(": ")[1])
+                    time = int(packet[i][j][6].split(": ")[1])
+                    byte = int(packet[i][j][4].split(": ")[1])
+                    out[source][time] = byte
 
-    out = {}
-    for i in cycle.keys():
-        byte = 0
-        for j in range(len(cycle[i])):
-            if int(cycle[i][j][0].split(": ")[1]) != int(cycle[i][j][1].split(": ")[1]):
-                if cycle[i][j][3].split(": ")[0] == "output" and int(cycle[i][j][3].split(": ")[1]) == -1:
-                    byte += int(cycle[i][j][4].split(": ")[1])
-                elif cycle[i][j][4].split(": ")[0] == "output" and int(cycle[i][j][4].split(": ")[1]) == 4:
-                    byte -= int(cycle[i][j][4].split(": ")[1])
-            out[i] = byte
-    sort_orders = sorted(out.items(), key=lambda x: x[0])
-    out.clear()
-    for i in range(len(sort_orders)):
-        out[sort_orders[i][0]] = sort_orders[i][1]
-    fig, ax = plt.subplots(1, 1, figsize=(18, 5), dpi=100)
-    ax.plot(list(out.keys()), list(out.values()))
-    #ax.set_xlim(1000, 10000)
-    plt.show()"""
+    fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
+    ax[0].bar(list(out[0].keys()), list(out[0].values()))
+    ax[1].bar(list(out[1].keys()), list(out[1].values()))
+    ax[2].bar(list(out[2].keys()), list(out[2].values()))
+    ax[3].bar(list(out[3].keys()), list(out[3].values()))
+    plt.show()

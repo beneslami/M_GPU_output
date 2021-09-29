@@ -198,16 +198,36 @@ if __name__ == '__main__':
         lined_list.append(item)
     packet = {}
     cycle = {}
-    """for i in range(len(lined_list)):  # packet based classification
+    for i in range(len(lined_list)):  # packet based classification
         if lined_list[i][0] != "Instruction cache miss":
             if check_local_or_remote(lined_list[i]):
                 if int(lined_list[i][3].split(": ")[1]) in packet.keys():
                     if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
                         packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
                 else:
-                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
+                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
-    for i in range(len(lined_list)):  # cycle based classification
+    out = {0: {}, 1: {}, 2: {}, 3: {}}
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
+                if packet[i][j][0] == "injection buffer" and (int(packet[i][j][4].split(": ")[1]) == 0 or int(packet[i][j][4].split(": ")[1]) == 1):
+                    source = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    time = int(packet[i][j][5].split(": ")[1])
+                    byte = int(packet[i][j][7].split(": ")[1])
+                    out[source][time] = byte
+
+    fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
+    ax[0].bar(list(out[0].keys()), list(out[0].values()))
+    ax[1].bar(list(out[1].keys()), list(out[1].values()))
+    ax[2].bar(list(out[2].keys()), list(out[2].values()))
+    ax[3].bar(list(out[3].keys()), list(out[3].values()))
+    plt.show()
+
+
+
+
+    """for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":
             if check_local_or_remote(lined_list[i]):
                 if int(lined_list[i][5].split(": ")[1]) in cycle.keys():
@@ -215,4 +235,4 @@ if __name__ == '__main__':
                         cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
                 else:
                     cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-    generate_real_traffic_per_core(cycle)
+    generate_real_traffic_per_core(cycle)"""
