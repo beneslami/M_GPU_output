@@ -134,6 +134,8 @@ def calculate_injection_rate():
             else:
                 on += 1
         injection_rate[source] = on / (off + on)
+        print(injection_rate[source])
+    print("-------\n")
 
 
 def generate_per_core_packet_number_per_cycle():
@@ -146,7 +148,8 @@ def generate_per_core_packet_number_per_cycle():
                     if len(throughput_update[src][dest][cycle]) not in window_size[src].keys():
                         window_size[src][len(throughput_update[src][dest][cycle])] = 1
                     else:
-                        window_size[src][len(throughput_update[src][dest][cycle])] += 1 # #
+                        window_size[src][len(throughput_update[src][dest][cycle])] += 1
+                temp[src][cycle] = len(throughput_update[src][dest][cycle])
 
 
 def destination_choose(packet):
@@ -241,6 +244,9 @@ if __name__ == "__main__":
     generate_real_traffic_per_core(cycle)
     calculate_injection_rate()
     generate_per_core_packet_number_per_cycle()
+
+
+    """ 
     generate_markov_state()
     destination_choose(packet)
     packet_type_frequency()
@@ -287,3 +293,4 @@ if __name__ == "__main__":
             for time, freq in processing_time[i].items():
                 file.write(str(time) + "\t" + str(freq) + "\n")
             file.write("processing_time_end\n\n")
+    """

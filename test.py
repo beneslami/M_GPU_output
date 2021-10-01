@@ -215,7 +215,15 @@ if __name__ == '__main__':
                     source = chip_select(int(packet[i][j][1].split(": ")[1]))
                     time = int(packet[i][j][5].split(": ")[1])
                     byte = int(packet[i][j][7].split(": ")[1])
-                    out[source][time] = byte
+                    flit = 0
+                    if byte == 8:
+                        flit = 1
+                    elif byte == 136:
+                        flit = 5
+                    if time not in out[source].keys():
+                        out[source][time] = flit
+                    else:
+                        out[source][time] += flit
 
     fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
     ax[0].bar(list(out[0].keys()), list(out[0].values()))
