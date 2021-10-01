@@ -134,8 +134,6 @@ def calculate_injection_rate():
             else:
                 on += 1
         injection_rate[source] = on / (off + on)
-        print(injection_rate[source])
-    print("-------\n")
 
 
 def generate_per_core_packet_number_per_cycle():
@@ -149,7 +147,6 @@ def generate_per_core_packet_number_per_cycle():
                         window_size[src][len(throughput_update[src][dest][cycle])] = 1
                     else:
                         window_size[src][len(throughput_update[src][dest][cycle])] += 1
-                temp[src][cycle] = len(throughput_update[src][dest][cycle])
 
 
 def destination_choose(packet):
@@ -201,13 +198,40 @@ def generate_processing_time(packet):
 
 
 def generate_transition_states():
-    for core in packet_freq.keys():
-        for dest in packet_freq[core].keys():
-            overall = 0
-            for packet, freq in packet_freq[core][dest].items():
-                overall += freq
-            for packet in packet_freq[core][dest].keys():
-                transitions[core][dest][packet] = packet_freq[core][dest][packet]/overall
+    temp = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+    for core in throughput.keys():
+        for dest in throughput[core].keys():
+            for cycle in throughput[core][dest].keys():
+                if len(throughput[core][dest][cycle]) == 0 and int(throughput[core][dest][cycle][0]) == 0:
+                    continue
+                else:
+                    prev = 0
+                    overall = 0
+                    packet = 0
+                    for i in len(throughput[core][dest][cycle]):
+                        if i == 0:
+                            prev = throughput[core][dest][cycle][i]
+                            if prev not in temp[core][dest].keys():
+                                temp[core][dest][prev][prev] = 1
+                            else:
+                                temp[core][dest][prev][prev] += 1
+                            overall += 1
+                        else:
+                            if prev == throughput[core][dest][cycle][i]:
+                                temp[core][dest][prev][prev] += 1
+                            else:
+                                temp[core][dest][prev][throughput[core][dest][cycle]] += 1
+                            prev = throughput[core][dest][cycle][i]
+                            overall += 1
+
+
+
+
+    for core in temp.keys():
+        for dest in temp[core].keys():
+            for current_state in temp[core][dest].keys():
+                for next_state in temp[core][dest][current_state].keys():
+                    transitions[core][dest][current_state][next_state] = temp[core][dest][current_state][next_state]/overall 
 
 
 if __name__ == "__main__":
@@ -230,7 +254,7 @@ if __name__ == "__main__":
                         cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
                 else:
                     cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-                    
+
     for i in range(len(lined_list)):  # packet based classification
         if lined_list[i][0] != "Instruction cache miss":
             if check_local_or_remote(lined_list[i]):
@@ -244,9 +268,6 @@ if __name__ == "__main__":
     generate_real_traffic_per_core(cycle)
     calculate_injection_rate()
     generate_per_core_packet_number_per_cycle()
-
-
-    """ 
     generate_markov_state()
     destination_choose(packet)
     packet_type_frequency()
@@ -293,4 +314,3 @@ if __name__ == "__main__":
             for time, freq in processing_time[i].items():
                 file.write(str(time) + "\t" + str(freq) + "\n")
             file.write("processing_time_end\n\n")
-    """

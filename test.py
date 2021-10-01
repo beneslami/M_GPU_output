@@ -210,20 +210,15 @@ if __name__ == '__main__':
     out = {0: {}, 1: {}, 2: {}, 3: {}}
     for i in packet.keys():
         for j in range(len(packet[i])):
-            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
-                if packet[i][j][0] == "injection buffer" and (int(packet[i][j][4].split(": ")[1]) == 0 or int(packet[i][j][4].split(": ")[1]) == 1):
-                    source = chip_select(int(packet[i][j][1].split(": ")[1]))
-                    time = int(packet[i][j][5].split(": ")[1])
-                    byte = int(packet[i][j][7].split(": ")[1])
-                    flit = 0
-                    if byte == 8:
-                        flit = 1
-                    elif byte == 136:
-                        flit = 5
-                    if time not in out[source].keys():
-                        out[source][time] = flit
-                    else:
-                        out[source][time] += flit
+            if int(packet[i][j][5].split(": ")[1]) < 50000:
+                if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
+                    if packet[i][j][0] == "injection buffer" and (int(packet[i][j][4].split(": ")[1]) == 0 or int(packet[i][j][4].split(": ")[1]) == 1):
+                        source = chip_select(int(packet[i][j][1].split(": ")[1]))
+                        time = int(packet[i][j][5].split(": ")[1])
+                        byte = int(packet[i][j][7].split(": ")[1])
+                        out[source][time] = byte
+            else:
+                break
 
     fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
     ax[0].bar(list(out[0].keys()), list(out[0].values()))

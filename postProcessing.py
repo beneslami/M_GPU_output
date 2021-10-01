@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import numpy as np
 chiplet = []
 chiplet_0 = dict(
     SM_ID=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
@@ -78,7 +77,7 @@ if __name__ == "__main__":
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
 
-    """packet = {}
+    packet = {}
     for i in range(len(lined_list)):
         if int(lined_list[i][2].split(": ")[1]) in packet.keys():
             packet.setdefault(int(lined_list[i][2].split(": ")[1]), []).append(lined_list[i])
@@ -95,51 +94,19 @@ if __name__ == "__main__":
                     source = int(packet[i][j][0].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
                     byte = int(packet[i][j][4].split(": ")[1])
-                    out[source][time] = byte
+                    flit = 0
+                    if byte == 8:
+                        flit = 1
+                    elif byte == 136:
+                        flit = 5
+                    if time not in out[source].keys():
+                        out[source][time] = flit
+                    else:
+                        out[source][time] += flit
 
     fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
     ax[0].bar(list(out[0].keys()), list(out[0].values()))
     ax[1].bar(list(out[1].keys()), list(out[1].values()))
     ax[2].bar(list(out[2].keys()), list(out[2].values()))
     ax[3].bar(list(out[3].keys()), list(out[3].values()))
-    plt.show()"""
-    inject_network = {0: {}, 1: {}, 2: {}, 3: {}}
-    inject_core = {0: {}, 1: {}, 2: {}, 3: {}}
-    for i in range(len(lined_list)):
-        if len(lined_list[i]) > 7:
-            if int(lined_list[i][0].split(": ")[1]) == int(lined_list[i][3].split(": ")[1]):
-                source = int(lined_list[i][0].split(": ")[1])
-                byte = int(lined_list[i][5].split(": ")[1])
-                num_flit = 0
-                if byte == 8:
-                    num_flit = 1
-                elif byte == 136:
-                    num_flit = 5
-                cycle = int(lined_list[i][7].split(": ")[1])
-                if cycle not in inject_network[source].keys():
-                    inject_network[source][cycle] = num_flit
-                else:
-                    inject_network[source][cycle] += num_flit
-        else:
-            source = int(lined_list[i][0].split(": ")[1])
-            byte = int(lined_list[i][4].split(": ")[1])
-            num_flit = 0
-            if byte == 8:
-                num_flit = 1
-            elif byte == 136:
-                num_flit = 5
-            cycle = int(lined_list[i][6].split(": ")[1])
-            if cycle not in inject_network[source].keys():
-                inject_core[source][cycle] = num_flit
-            else:
-                inject_core[source][cycle] += num_flit
-    for i in range(0, 4):
-        print("core " + str(i))
-        print("max injection rate for network: " + str(max(list(inject_network[i].values()))))
-        print("max injection rate for core: " + str(max(list(inject_core[i].values()))))
-    fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
-    ax[0].bar(list(inject_core[0].keys()), list(inject_core[0].values()))
-    ax[1].bar(list(inject_core[1].keys()), list(inject_core[1].values()))
-    ax[2].bar(list(inject_core[2].keys()), list(inject_core[2].values()))
-    ax[3].bar(list(inject_core[3].keys()), list(inject_core[3].values()))
     plt.show()
