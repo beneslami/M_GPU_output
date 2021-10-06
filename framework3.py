@@ -42,7 +42,7 @@ destination = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 
 packet_freq = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 temp = {0: {}, 1: {}, 2: {}, 3: {}}
 processing_time = {0: {}, 1: {}, 2: {}, 3: {}}
-transitions = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+main_transitions = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 
 
 def chip_select(num):
@@ -198,44 +198,63 @@ def generate_processing_time(packet):
 
 
 def generate_transition_states():
-    temp = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+    tmp = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+    overall = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+    prev = 0
+    for core in packet_freq.keys():
+        for dest in packet_freq[core].keys():
+            for packet in packet_freq[core][dest].keys():
+                if packet not in tmp[core][dest].keys():
+                    tmp[core][dest].setdefault(packet, {})
+
+    for core in packet_freq.keys():
+        for dest in packet_freq[core].keys():
+            for packet1 in packet_freq[core][dest].keys():
+                for packet2 in packet_freq[core][dest].keys():
+                    if packet1 not in tmp[core][dest].keys():
+                        tmp[core][dest].setdefault(packet1, {})
+                    if packet2 not in tmp[core][dest][packet1].keys():
+                        tmp[core][dest][packet1][packet2] = 0
+
     for core in throughput.keys():
         for dest in throughput[core].keys():
             for cycle in throughput[core][dest].keys():
-                if len(throughput[core][dest][cycle]) == 0 and int(throughput[core][dest][cycle][0]) == 0:
+                if len(throughput[core][dest][cycle]) == 1 and throughput[core][dest][cycle][0] == 0:
                     continue
                 else:
-                    prev = 0
-                    overall = 0
-                    packet = 0
-                    for i in len(throughput[core][dest][cycle]):
+                    for i in range(len(throughput[core][dest][cycle])):
                         if i == 0:
                             prev = throughput[core][dest][cycle][i]
-                            if prev not in temp[core][dest].keys():
-                                temp[core][dest][prev][prev] = 1
-                            else:
-                                temp[core][dest][prev][prev] += 1
-                            overall += 1
                         else:
-                            if prev == throughput[core][dest][cycle][i]:
-                                temp[core][dest][prev][prev] += 1
+                            if throughput[core][dest][cycle][i] == prev:
+                                if throughput[core][dest][cycle][i] not in tmp[core][dest][prev].keys():
+                                    tmp[core][dest][prev][throughput[core][dest][cycle][i]] = 1
+                                else:
+                                    tmp[core][dest][prev][throughput[core][dest][cycle][i]] += 1
                             else:
-                                temp[core][dest][prev][throughput[core][dest][cycle]] += 1
+                                if throughput[core][dest][cycle][i] not in tmp[core][dest][prev].keys():
+                                    tmp[core][dest][prev][throughput[core][dest][cycle][i]] = 1
+                                else:
+                                    tmp[core][dest][prev][throughput[core][dest][cycle][i]] += 1
+                            if prev not in overall[core][dest].keys():
+                                overall[core][dest][prev] = 1
+                            else:
+                                overall[core][dest][prev] += 1
                             prev = throughput[core][dest][cycle][i]
-                            overall += 1
 
+    for core in tmp.keys():
+        for dest in tmp[core].keys():
+            for state in tmp[core][dest].keys():
+                for next_state in tmp[core][dest][state].keys():
+                    tmp[core][dest][state][next_state] = tmp[core][dest][state][next_state] / overall[core][dest][state]
 
-
-
-    for core in temp.keys():
-        for dest in temp[core].keys():
-            for current_state in temp[core][dest].keys():
-                for next_state in temp[core][dest][current_state].keys():
-                    transitions[core][dest][current_state][next_state] = temp[core][dest][current_state][next_state]/overall 
+    for core in tmp.keys():
+        main_transitions[core] = tmp[core]
 
 
 if __name__ == "__main__":
     file2 = open("report.txt", "r")
+    model_name = "syrk"
     raw_content = ""
     if file2.mode == "r":
         raw_content = file2.readlines()
@@ -275,7 +294,13 @@ if __name__ == "__main__":
     generate_transition_states()
 
     for i in range(0, 4):
-        filename = "syrk_core_" + str(i) + str(".model")
+        """for dest in throughput_update[i].keys():
+            path = model_name + "_trace_" + str(i) + "_" +str(dest) + ".txt"
+            with open(path, "w") as tr:
+                for c in throughput_update[i][dest].keys():
+                    tr.write(str(c) + " -> " + str(throughput_update[i][dest][c]) + "\n")"""
+
+        filename = model_name + "_core_" + str(i) + str(".model")
         with open(filename, "w") as file:
             file.write("core " + str(i) + "\n")
 
@@ -298,15 +323,15 @@ if __name__ == "__main__":
             file.write("destination_end\n\n")
 
             file.write("transition_begin\n")
-            for dest in transitions[i].keys():
-                file.write("destination\t" + str(dest) + "\n")
-                for byte in transitions[i][dest].keys():
-                    file.write("\t\t" + str(byte) + "\t")
+            for dest in main_transitions[i].keys():
+                file.write("destination " + str(dest) + "\n")
+                for source in main_transitions[i][dest].keys():
+                    file.write("\t\t" + str(source))
                 file.write("\n")
-                for byte in transitions[i][dest].keys():
-                    file.write(str(byte) + "\t\t")
-                    for byte2 in transitions[i][dest].keys():
-                        file.write(str("{:.4f}".format(transitions[i][dest][byte2])) + "\t")
+                for source in main_transitions[i][dest].keys():
+                    file.write(str(source) + str("\t\t"))
+                    for d in main_transitions[i][dest][source].keys():
+                        file.write(str("{:.3f}".format(main_transitions[i][dest][source][d])) + "\t\t")
                     file.write("\n")
             file.write("transition_end\n\n")
 
