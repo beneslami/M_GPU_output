@@ -122,7 +122,7 @@ def flit_per_cycle(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2 or int(packet[i][j][5].split(": ")[1]) == 3:
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
                     byte = int(packet[i][j][4].split(": ")[1])
@@ -180,7 +180,7 @@ def byte_per_cycle_dist(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2 or int(packet[i][j][5].split(": ")[1]) == 3:
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
                     byte = int(packet[i][j][4].split(": ")[1])
@@ -220,7 +220,7 @@ def inter_departure_dist(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2 or int(packet[i][j][5].split(": ")[1]) == 3:
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
                     byte = int(packet[i][j][4].split(": ")[1])
@@ -271,7 +271,7 @@ def outser(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2 or int(packet[i][j][5].split(": ")[1]) == 3:
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
                     dest = int(packet[i][j][1].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
@@ -373,7 +373,7 @@ def per_core_comparison():
 
 
 if __name__ == "__main__":
-    with open('out_.txt', 'r') as file:
+    with open('out.txt', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:

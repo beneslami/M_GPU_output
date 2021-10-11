@@ -146,19 +146,18 @@ def injection_per_core(packet):
 
 
 def injection_rate_per_core():
-    off = {0: 0, 1: 0, 2: 0, 3: 0}
-    total = {0: 0, 1: 0, 2: 0, 3: 0}
-    injection_rate = {0: 0, 1: 0, 2: 0, 3: 0}
+    off = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    total = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    injection_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {1: 0, 2: 0, 3: 0}, 2: {1: 0, 2: 0, 3: 0}, 3: {1: 0, 2: 0, 3: 0}}
     for core in throughput_update.keys():
         for dest in throughput_update[core].keys():
             for cyc in throughput_update[core][dest].keys():
                 if len(throughput_update[core][dest][cyc]) == 1 and throughput_update[core][dest][cyc][0] == 0:
-                    print(throughput_update[core][dest][cyc])
-                    off[core] += 1
-                total[core] += 1
+                    off[core][dest] += 1
+                total[core][dest] += 1
     for core in injection_rate.keys():
-        injection_rate[core] = 1 - (off[core]/total[core])
-
+        for dest in injection_rate[core].keys():
+            injection_rate[core][dest] = 1 - sum(off[core][dest]) / total[core][dest]
     print(injection_rate)
 
 
@@ -331,7 +330,7 @@ def inter_departure_dist():
 def outser():
     for core in throughput.keys():
         for dest in throughput[core].keys():
-            path = "out/pre_" + str(core) + "_" + str(dest) + ".txt"
+            path = "opre_" + str(core) + "_" + str(dest) + ".txt"
             with open(path, "w") as file:
                 for cycle, byte in throughput[core][dest].items():
                     temp = 0
@@ -370,4 +369,4 @@ if __name__ == '__main__':
                     cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
 
     injection_per_core(cycle)
-    inter_departure_dist()
+    outser()

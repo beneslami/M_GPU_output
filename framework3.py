@@ -35,8 +35,8 @@ injection_core_update = {0: {}, 1: {}, 2: {}, 3: {}}
 throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 th = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-injection_rate = {0: 0, 1: 0, 2: 0, 3: 0}
-window_size = {0: {}, 1: {}, 2: {}, 3: {}}
+injection_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+window_size = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 packet_type = {0: {}, 1: {}, 2: {}, 3: {}}
 destination = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
 packet_freq = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
@@ -126,14 +126,17 @@ def generate_real_traffic_per_core(packet):
 
 
 def calculate_injection_rate():
-    for source in injection_core_update.keys():
-        on = off = 0
-        for cycle, window in injection_core_update[source].items():
-            if len(window) == 1 and window[0] == 0:
-                off += 1
-            else:
-                on += 1
-        injection_rate[source] = on / (off + on)
+    off = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    total = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    for core in throughput_update.keys():
+        for dest in throughput_update[core].keys():
+            for cyc in throughput_update[core][dest].keys():
+                if len(throughput_update[core][dest][cyc]) == 1 and throughput_update[core][dest][cyc][0] == 0:
+                    off[core][dest] += 1
+                total[core][dest] += 1
+    for core in injection_rate.keys():
+        for dest in injection_rate[core].keys():
+            injection_rate[core][dest] = 1 - (off[core][dest] / total[core][dest])
 
 
 def generate_per_core_packet_number_per_cycle():
@@ -143,10 +146,10 @@ def generate_per_core_packet_number_per_cycle():
                 if len(throughput_update[src][dest][cycle]) == 1 and throughput_update[src][dest][cycle][0] == 0:
                     continue
                 else:
-                    if len(throughput_update[src][dest][cycle]) not in window_size[src].keys():
-                        window_size[src][len(throughput_update[src][dest][cycle])] = 1
+                    if len(throughput_update[src][dest][cycle]) not in window_size[src][dest].keys():
+                        window_size[src][dest][len(throughput_update[src][dest][cycle])] = 1
                     else:
-                        window_size[src][len(throughput_update[src][dest][cycle])] += 1
+                        window_size[src][dest][len(throughput_update[src][dest][cycle])] += 1
 
 
 def destination_choose(packet):
@@ -266,23 +269,21 @@ if __name__ == "__main__":
     packet = {}
 
     for i in range(len(lined_list)):  # cycle based classification
-        if lined_list[i][0] != "Instruction cache miss":
-            if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
-                if int(lined_list[i][5].split(": ")[1]) in cycle.keys():
-                    if lined_list[i] not in cycle[int(lined_list[i][5].split(": ")[1])]:
-                        cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-                else:
+        if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
+            if int(lined_list[i][5].split(": ")[1]) in cycle.keys():
+                if lined_list[i] not in cycle[int(lined_list[i][5].split(": ")[1])]:
                     cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+            else:
+                cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
 
     for i in range(len(lined_list)):  # packet based classification
-        if lined_list[i][0] != "Instruction cache miss":
-            if check_local_or_remote(lined_list[i]):
-                if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
-                    if int(lined_list[i][3].split(": ")[1]) in packet.keys():
-                        if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
-                            packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-                    else:
+        if check_local_or_remote(lined_list[i]):
+            if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
+                if int(lined_list[i][3].split(": ")[1]) in packet.keys():
+                    if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
                         packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                else:
+                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
     generate_real_traffic_per_core(cycle)
     calculate_injection_rate()
@@ -294,19 +295,20 @@ if __name__ == "__main__":
     generate_transition_states()
 
     for i in range(0, 4):
-        """for dest in throughput_update[i].keys():
-            path = model_name + "_trace_" + str(i) + "_" +str(dest) + ".txt"
-            with open(path, "w") as tr:
-                for c in throughput_update[i][dest].keys():
-                    tr.write(str(c) + " -> " + str(throughput_update[i][dest][c]) + "\n")"""
-
         filename = model_name + "_core_" + str(i) + str(".model")
         with open(filename, "w") as file:
             file.write("core " + str(i) + "\n")
 
+            file.write("injection_rate_begin\n")
+            for dest in injection_rate[i].keys():
+                file.write(str(dest) + "\t" + str(injection_rate[i][dest]) + "\n")
+            file.write("injection_rate_end\n")
+
             file.write("window_size_begin\n")
-            for size, freq in window_size[i].items():
-                file.write(str(size) + "\t" + str(freq) + "\n")
+            for dest in window_size[i].keys():
+                file.write("destination " + str(dest) + "\n")
+                for size, freq in window_size[i][dest].items():
+                    file.write(str(size) + "\t" + str(freq) + "\n")
             file.write("window_size_end\n\n")
 
             file.write("packet_distribution_begin\n")
