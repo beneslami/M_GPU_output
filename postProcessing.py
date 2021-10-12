@@ -188,10 +188,11 @@ def byte_per_cycle_dist(packet):
                         out1[source][time] = byte
                     else:
                         out1[source][time] += byte
+
     for core in out1.keys():
         for cycle, byte in out1[core].items():
             dist[core].append(byte)
-
+    
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
     sns.distplot(list(dist[0]), kde=True, hist=True, ax=ax[0, 0])
@@ -279,7 +280,7 @@ def outser(packet):
                     if time not in throughput[source][dest].keys():
                         throughput[source][dest].setdefault(time, []).append(byte)
                     else:
-                        throughput[source][dest].setdefault(time, []).append(byte)
+                        throughput[source][dest][time].append(byte)
     flag = prev = 0
     for source in throughput.keys():
         for dest in throughput[source].keys():
@@ -300,10 +301,7 @@ def outser(packet):
             path = "out/post_" + str(core) + "_" + str(dest) + ".txt"
             with open(path, "w") as file:
                 for cycle, byte in throughput[core][dest].items():
-                    temp = 0
-                    for b in byte:
-                        temp += b
-                    file.write(str(cycle) + "\t" + str(temp) + "\n")
+                    file.write(str(cycle) + "\t" + str(byte) + "\n")
 
 
 def per_core_comparison():

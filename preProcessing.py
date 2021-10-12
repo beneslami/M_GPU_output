@@ -246,24 +246,17 @@ def zero_state_dist():
         print("\n")
 
 
-def byte_per_cycle_dist(packet):
-    out1 = {0: {}, 1: {}, 2: {}, 3: {}}
+def byte_per_cycle_dist():
     dist = {0: [], 1: [], 2: [], 3: []}
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
-                if packet[i][j][0] == "injection buffer" and (
-                        int(packet[i][j][4].split(": ")[1]) == 0 or int(packet[i][j][4].split(": ")[1]) == 1):
-                    source = chip_select(int(packet[i][j][1].split(": ")[1]))
-                    time = int(packet[i][j][5].split(": ")[1])
-                    byte = int(packet[i][j][7].split(": ")[1])
-                    if time not in out1[source].keys():
-                        out1[source][time] = byte
-                    else:
-                        out1[source][time] += byte
-    for core in out1.keys():
-        for cycle, byte in out1[core].items():
-            dist[core].append(byte)
+    temp = {0: [], 1: [], 2: [], 3: []}
+    for source in throughput.keys():
+        for dest in throughput[source].keys():
+            for cycle, byte in throughput[source][dest].items():
+                if len(byte) == 1 and byte[0] == 0:
+                    continue
+                else:
+                    temp[source].append(len(byte))
+                    dist[source].append(sum(byte))
 
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
@@ -330,13 +323,10 @@ def inter_departure_dist():
 def outser():
     for core in throughput.keys():
         for dest in throughput[core].keys():
-            path = "opre_" + str(core) + "_" + str(dest) + ".txt"
+            path = "out/pre_" + str(core) + "_" + str(dest) + ".txt"
             with open(path, "w") as file:
                 for cycle, byte in throughput[core][dest].items():
-                    temp = 0
-                    for b in byte:
-                        temp += b
-                    file.write(str(cycle) + "\t" + str(temp) + "\n")
+                    file.write(str(cycle) + "\t" + str(byte) + "\n")
 
 
 if __name__ == '__main__':
@@ -350,14 +340,14 @@ if __name__ == '__main__':
         lined_list.append(item)
     packet = {}
     cycle = {}
-    for i in range(len(lined_list)):  # packet based classification
+    """for i in range(len(lined_list)):  # packet based classification
         if lined_list[i][0] != "Instruction cache miss":
             if check_local_or_remote(lined_list[i]):
                 if int(lined_list[i][3].split(": ")[1]) in packet.keys():
                     if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
                         packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
                 else:
-                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
 
     for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":

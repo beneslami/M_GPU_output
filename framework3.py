@@ -37,6 +37,7 @@ throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: 
 th = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 injection_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
 window_size = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+window_size_t = {0: {}, 1: {}, 2: {}, 3: {}}
 packet_type = {0: {}, 1: {}, 2: {}, 3: {}}
 destination = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
 packet_freq = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
@@ -150,6 +151,10 @@ def generate_per_core_packet_number_per_cycle():
                         window_size[src][dest][len(throughput_update[src][dest][cycle])] = 1
                     else:
                         window_size[src][dest][len(throughput_update[src][dest][cycle])] += 1
+                    """if len(throughput_update[src][dest][cycle]) not in window_size_t[src].keys():
+                        window_size_t[src][len(throughput_update[src][dest][cycle])] = 1
+                    else:
+                        window_size_t[src][len(throughput_update[src][dest][cycle])] += 1"""
 
 
 def destination_choose(packet):
@@ -204,6 +209,7 @@ def generate_transition_states():
     tmp = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
     overall = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
     prev = 0
+    prev_cycle = 0
     for core in packet_freq.keys():
         for dest in packet_freq[core].keys():
             for packet in packet_freq[core][dest].keys():
@@ -228,6 +234,12 @@ def generate_transition_states():
                     for i in range(len(throughput[core][dest][cycle])):
                         if i == 0:
                             prev = throughput[core][dest][cycle][i]
+                            if prev_cycle != 0:
+                                tmp[core][dest][prev_cycle][prev] += 1
+                                if prev_cycle not in overall[core][dest].keys():
+                                    overall[core][dest][prev_cycle] = 1
+                                else:
+                                    overall[core][dest][prev_cycle] += 1
                         else:
                             if throughput[core][dest][cycle][i] == prev:
                                 if throughput[core][dest][cycle][i] not in tmp[core][dest][prev].keys():
@@ -244,6 +256,9 @@ def generate_transition_states():
                             else:
                                 overall[core][dest][prev] += 1
                             prev = throughput[core][dest][cycle][i]
+                        if i == len(throughput[core][dest][cycle]) - 1:
+                            prev_cycle = throughput[core][dest][cycle][i]
+            prev_cycle = 0
 
     for core in tmp.keys():
         for dest in tmp[core].keys():
