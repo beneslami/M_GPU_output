@@ -122,19 +122,43 @@ def flit_per_cycle(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
-                    source = int(packet[i][j][0].split(": ")[1])
-                    time = int(packet[i][j][6].split(": ")[1])
-                    byte = int(packet[i][j][4].split(": ")[1])
-                    flit = 0
-                    if byte == 8:
-                        flit = 1
-                    elif byte == 136:
-                        flit = 5
-                    if time not in out[source].keys():
-                        out[source][time] = flit
-                    else:
-                        out[source][time] += flit
+                if int(packet[i][j][3].split(": ")[1]) == -1:
+                    if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
+                        source = int(packet[i][j][0].split(": ")[1])
+                        dest = int(packet[i][j][1].split(": ")[1])
+                        time = int(packet[i][j][6].split(": ")[1])
+                        byte = int(packet[i][j][4].split(": ")[1])
+                        flit = 0
+                        if byte == 8:
+                            flit = 1
+                        elif byte == 136:
+                            flit = 5
+                        elif byte == 72:
+                            flit = 3
+                        if time not in out[source].keys():
+                            out[source][time] = flit
+                        else:
+                            out[source][time] += flit
+                        if time not in throughput[source][dest].keys():
+                            throughput[source][dest].setdefault(time, []).append(byte)
+                        else:
+                            throughput[source][dest].setdefault(time, []).append(byte)
+    zero = {0: 0, 1: 0, 2: 0, 3: 0}
+    flag = prev = 0
+    for source in throughput.keys():
+        for dest in throughput[source].keys():
+            for cyc in throughput[source][dest].keys():
+                if flag == 0:
+                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
+                    prev = cyc
+                    flag = 1
+                elif flag == 1:
+                    if cyc - prev > 1:
+                        for k in range(prev + 1, cyc):
+                            zero[source] += 1
+                            throughput_update[source][dest].setdefault(k, []).append(0)
+                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
+                    prev = cyc
 
     fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
     ax[0].bar(list(out[0].keys()), list(out[0].values()), width=3)
@@ -172,39 +196,28 @@ def byte_per_cycle(packet):
     plt.show()
 
 
-def byte_per_cycle_dist(packet):
-    out1 = {0: {}, 1: {}, 2: {}, 3: {}}
+def byte_per_cycle_dist():
     dist = {0: [], 1: [], 2: [], 3: []}
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if len(packet[i][j]) > 7:
-                continue
-            else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
-                    source = int(packet[i][j][0].split(": ")[1])
-                    time = int(packet[i][j][6].split(": ")[1])
-                    byte = int(packet[i][j][4].split(": ")[1])
-                    if time not in out1[source].keys():
-                        out1[source][time] = byte
-                    else:
-                        out1[source][time] += byte
+    for source in throughput.keys():
+        for dest in throughput[source].keys():
+            for cycle, byte in throughput[source][dest].items():
+                if len(byte) == 1 and byte[0] == 0:
+                    continue
+                else:
+                    dist[source].append(sum(byte))
 
-    for core in out1.keys():
-        for cycle, byte in out1[core].items():
-            dist[core].append(byte)
-    
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
-    sns.distplot(list(dist[0]), kde=True, hist=True, ax=ax[0, 0])
+    sns.distplot(list(dist[0]), hist=True, ax=ax[0, 0])
     ax[0, 0].set_title("core 0")
     ax[0, 0].set_xlim(-50, 1000)
-    sns.distplot(list(dist[1]), kde=True, hist=True, ax=ax[0, 1])
+    sns.distplot(list(dist[1]), hist=True, ax=ax[0, 1])
     ax[0, 1].set_title("core 1")
     ax[0, 1].set_xlim(-50, 1000)
-    sns.distplot(list(dist[2]), kde=True, hist=True, ax=ax[1, 0])
+    sns.distplot(list(dist[2]), hist=True, ax=ax[1, 0])
     ax[1, 0].set_title("core 2")
     ax[1, 0].set_xlim(-50, 1000)
-    sns.distplot(list(dist[3]), kde=True, hist=True, ax=ax[1, 1])
+    sns.distplot(list(dist[3]), hist=True, ax=ax[1, 1])
     ax[1, 1].set_title("core 3")
     ax[1, 1].set_xlim(-50, 1000)
     plt.setp(ax, yticks=[])
@@ -212,90 +225,53 @@ def byte_per_cycle_dist(packet):
     plt.show()
 
 
-def inter_departure_dist(packet):
+def inter_departure_dist():
     dist = {0: [], 1: [], 2: [], 3: []}
     flag = 0
     start = end = 0
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if len(packet[i][j]) > 7:
-                continue
-            else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
-                    source = int(packet[i][j][0].split(": ")[1])
-                    time = int(packet[i][j][6].split(": ")[1])
-                    byte = int(packet[i][j][4].split(": ")[1])
-                    if time not in injection[source].keys():
-                        injection[source][time] = byte
-                    else:
-                        injection[source][time] += byte
-    _injection = {0: {}, 1: {}, 2: {}, 3: {}}
-    for core in injection.keys():
-        _injection[core] = dict(sorted(injection[core].items(), key=lambda x: x[0]))
+    sorted_throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+                  3: {0: {}, 1: {}, 2: {}}}
+    for core in throughput_update.keys():
+        for dest in throughput_update[core].keys():
+            sorted_throughput_update[core][dest] = dict(sorted(throughput_update[core][dest].items(), key=lambda x:x[0]))
 
-    for core in _injection.keys():
-        for cyc, byte in _injection[core].items():
-            if flag == 0:
-                start = cyc
-                flag = 1
-            else:
-                if cyc - start > 1:
-                    if flag == 1:
-                        dist[core].append(cyc - start)
+    for core in sorted_throughput_update.keys():
+        for dest in throughput_update[core].keys():
+            for cyc, byte in throughput_update[core][dest].items():
+                if len(byte) == 1 and byte[0] == 0:
+                    if flag == 0:
                         start = cyc
+                        flag = 1
+                    else:
+                        continue
                 else:
-                    continue
-        flag = start = 0
+                    if flag == 1:
+                        end = cyc
+                        dist[core].append(end - start)
+                        flag = 0
+                    else:
+                        continue
+            flag = end = start = 0
 
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
     sns.distplot(list(dist[0]), kde=True, hist=True, ax=ax[0, 0])
     ax[0, 0].set_title("core 0")
-    #ax[0, 0].set_xlim(-20, 700)
+    ax[0, 0].set_xlim(-20, 300)
     sns.distplot(list(dist[1]), kde=True, hist=True, ax=ax[0, 1])
     ax[0, 1].set_title("core 1")
-    #ax[0, 1].set_xlim(-20, 700)
+    ax[0, 1].set_xlim(-20, 300)
     sns.distplot(list(dist[2]), kde=True, hist=True, ax=ax[1, 0])
     ax[1, 0].set_title("core 2")
-    #ax[1, 0].set_xlim(-20, 700)
+    ax[1, 0].set_xlim(-20, 300)
     sns.distplot(list(dist[3]), kde=True, hist=True, ax=ax[1, 1])
     ax[1, 1].set_title("core 3")
-    #ax[1, 1].set_xlim(-20, 700)
+    ax[1, 1].set_xlim(-20, 300)
     plt.setp(ax, yticks=[])
     plt.tight_layout()
     plt.show()
 
-
-def outser(packet):
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if len(packet[i][j]) > 7:
-                continue
-            else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
-                    source = int(packet[i][j][0].split(": ")[1])
-                    dest = int(packet[i][j][1].split(": ")[1])
-                    time = int(packet[i][j][6].split(": ")[1])
-                    byte = int(packet[i][j][4].split(": ")[1])
-                    if time not in throughput[source][dest].keys():
-                        throughput[source][dest].setdefault(time, []).append(byte)
-                    else:
-                        throughput[source][dest][time].append(byte)
-    flag = prev = 0
-    for source in throughput.keys():
-        for dest in throughput[source].keys():
-            for cyc in throughput[source][dest].keys():
-                if flag == 0:
-                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
-                    prev = cyc
-                    flag = 1
-                elif flag == 1:
-                    if cyc - prev > 1:
-                        for k in range(prev + 1, cyc):
-                            throughput_update[source][dest].setdefault(k, []).append(0)
-                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
-                    prev = cyc
-
+def outser():
     for core in throughput.keys():
         for dest in throughput[core].keys():
             path = "out/post_" + str(core) + "_" + str(dest) + ".txt"
@@ -313,28 +289,40 @@ def per_core_comparison():
     syn_list = {}
     with open(real_path, "r") as file:
         reader = file.readlines()
-    lined_list = []
+    lined_list = {}
     for line in reader:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
-        lined_list.append(item)
-    for item in lined_list:
-        if int(item[1]) != 0:
-            if int(item[1]) not in real_list.keys():
-                real_list[int(item[1])] = 1
+        y = len(item[1].split("\n")[0][1:][:-1].split(","))
+        for index in range(y):
+            if int(item[0]) not in lined_list.keys():
+                lined_list.setdefault(int(item[0]), []).append(int(item[1].split("\n")[0][1:][:-1].split(",")[index]))
             else:
-                real_list[int(item[1])] += 1
+                lined_list[int(item[0])].append(int(item[1].split("\n")[0][1:][:-1].split(",")[index]))
+
+    for cycle, byte in lined_list.items():
+        if sum(byte) not in real_list.keys():
+            real_list[sum(byte)] = 1
+        else:
+            real_list[sum(byte)] += 1
+
 
     with open(synthetic_path, "r") as file:
         reader = file.readlines()
-    lined_list = []
+    lined_list = {}
     for line in reader:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
-        lined_list.append(item)
-    for item in lined_list:
-        if int(item[1]) not in syn_list.keys():
-            syn_list[int(item[1])] = 1
+        y = len(item[1].split("\n")[0][1:][:-1].split(","))
+        for index in range(y):
+            if int(item[0]) not in lined_list.keys():
+                lined_list.setdefault(int(item[0]), []).append(int(item[1].split("\n")[0][1:][:-1].split(",")[index]))
+            else:
+                lined_list[int(item[0])].append(int(item[1].split("\n")[0][1:][:-1].split(",")[index]))
+
+    for cycle, byte in lined_list.items():
+        if sum(byte) not in syn_list.keys():
+            syn_list[sum(byte)] = 1
         else:
-            syn_list[int(item[1])] += 1
+            syn_list[sum(byte)] += 1
     real_list = dict(sorted(real_list.items(), key=lambda x:x[0]))
     syn_list = dict(sorted(syn_list.items(), key=lambda x:x[0]))
 
@@ -378,14 +366,16 @@ if __name__ == "__main__":
         item = [x for x in line.split("\t") if x not in ['', '\t']]
         lined_list.append(item)
 
+    packet_ = {}
     packet = {}
     for i in range(len(lined_list)):
-        if int(lined_list[i][2].split(": ")[1]) in packet.keys():
-            packet.setdefault(int(lined_list[i][2].split(": ")[1]), []).append(lined_list[i])
+        if int(lined_list[i][2].split(": ")[1]) in packet_.keys():
+            packet_.setdefault(int(lined_list[i][6].split(": ")[1]), []).append(lined_list[i])
         else:
-            packet.setdefault(int(lined_list[i][2].split(": ")[1]), []).append(lined_list[i])
+            packet_.setdefault(int(lined_list[i][6].split(": ")[1]), []).append(lined_list[i])
+    packet = dict(sorted(packet_.items(), key=lambda x: x[0]))
     flit_per_cycle(packet)
-    byte_per_cycle_dist(packet)
-    inter_departure_dist(packet)
-    outser(packet)
+    byte_per_cycle_dist()
+    inter_departure_dist()
+    outser()
     per_core_comparison()
