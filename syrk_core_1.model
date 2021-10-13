@@ -1,55 +1,65 @@
 core 1
+
 injection_rate_begin
 0	0.256729172175887
 2	0.23402504472271912
 3	0.30381735835104906
 injection_rate_end
+
 window_size_begin
 destination 0
-32	1
 1	73729
 2	11258
 3	1212
 4	153
 5	28
-8	2
 6	9
 7	10
+8	2
 9	2
+32	1
 destination 2
 1	68204
 2	9213
 3	934
 4	104
 5	23
-7	4
 6	10
+7	4
 destination 3
 1	84540
 2	15223
 3	1877
-5	36
 4	187
+5	36
 6	21
 7	11
-9	1
 8	1
+9	1
 window_size_end
 
 packet_distribution_begin
 0:	8	21560	136	79263	
 2:	8	21070	136	68981	
-3:	8	21464	136	100301	
-
+3:	8	21464	136	100301
 packet_distribution_end
 
-destination_begin
-0	100823
-2	90051
-3	121765
-destination_end
+cycle_transition_begin
+destination 0
+		8		136
+8		0.493		0.507		
+136		0.124		0.876		
+destination 2
+		8		136
+8		0.538		0.462		
+136		0.127		0.873		
+destination 3
+		8		136
+8		0.471		0.529		
+136		0.101		0.899		
+cycle_transition_end
 
-transition_begin
+line_transition_begin
 destination 0
 		8		136
 8		0.453		0.547		
@@ -62,7 +72,7 @@ destination 3
 		8		136
 8		0.399		0.601		
 136		0.172		0.828		
-transition_end
+line_transition_end
 
 processing_time_begin
 239	4958

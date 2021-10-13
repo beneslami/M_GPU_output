@@ -8,35 +8,35 @@ injection_rate_end
 
 window_size_begin
 destination 0
-32	1
 1	72760
+2	10573
 3	1060
 4	99
-2	10573
-6	11
 5	26
+6	11
 7	3
 12	1
+32	1
 destination 1
 1	79747
 2	12509
-4	153
 3	1387
+4	153
 5	32
 6	11
-8	4
 7	3
+8	4
 9	1
 10	1
 destination 2
 1	75174
+2	11261
 3	1228
 4	111
-2	11261
+5	29
 6	12
 7	8
 8	3
-5	29
 9	1
 10	1
 window_size_end
@@ -44,17 +44,25 @@ window_size_end
 packet_distribution_begin
 0:	8	21106	136	76637	
 1:	8	21410	136	88426	
-2:	8	21138	136	81002	
-
+2:	8	21138	136	81002
 packet_distribution_end
 
-destination_begin
-0	97743
-1	109836
-2	102140
-destination_end
+cycle_transition_begin
+destination 0
+		8		136
+8		0.518		0.482		
+136		0.118		0.882		
+destination 1
+		8		136
+8		0.480		0.520		
+136		0.112		0.888		
+destination 2
+		8		136
+8		0.510		0.490		
+136		0.116		0.884		
+cycle_transition_end
 
-transition_begin
+line_transition_begin
 destination 0
 		8		136
 8		0.448		0.552		
@@ -67,7 +75,7 @@ destination 2
 		8		136
 8		0.461		0.539		
 136		0.193		0.807		
-transition_end
+line_transition_end
 
 processing_time_begin
 239	5845

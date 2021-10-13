@@ -201,10 +201,10 @@ def byte_per_cycle_dist():
     for source in throughput.keys():
         for dest in throughput[source].keys():
             for cycle, byte in throughput[source][dest].items():
-                if len(byte) == 1 and byte[0] == 0:
+                """if len(byte) == 1 and byte[0] == 0:
                     continue
-                else:
-                    dist[source].append(sum(byte))
+                else:"""
+                dist[source].append(sum(byte))
 
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
@@ -235,10 +235,10 @@ def inter_departure_dist():
         for dest in throughput_update[core].keys():
             sorted_throughput_update[core][dest] = dict(sorted(throughput_update[core][dest].items(), key=lambda x:x[0]))
 
-    for core in sorted_throughput_update.keys():
+    for core in throughput_update.keys():
         for dest in throughput_update[core].keys():
             for cyc, byte in throughput_update[core][dest].items():
-                if len(byte) == 1 and byte[0] == 0:
+                if byte[0] == 0:
                     if flag == 0:
                         start = cyc
                         flag = 1
@@ -270,6 +270,7 @@ def inter_departure_dist():
     plt.setp(ax, yticks=[])
     plt.tight_layout()
     plt.show()
+
 
 def outser():
     for core in throughput.keys():

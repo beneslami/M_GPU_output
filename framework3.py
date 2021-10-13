@@ -30,8 +30,6 @@ chiplet.append(chiplet_2)
 chiplet.append(chiplet_3)
 
 initial_state = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-injection_core = {0: {}, 1: {}, 2: {}, 3: {}}
-injection_core_update = {0: {}, 1: {}, 2: {}, 3: {}}
 throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 th = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
@@ -44,6 +42,7 @@ packet_freq = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1:
 temp = {0: {}, 1: {}, 2: {}, 3: {}}
 processing_time = {0: {}, 1: {}, 2: {}, 3: {}}
 main_transitions = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+cycle_transision = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 
 
 def chip_select(num):
@@ -71,31 +70,10 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
         return 1
 
 
-def generate_real_traffic_per_core(packet):
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
-                if packet[i][j][0] == "injection buffer":
-                    if int(packet[i][j][5].split(": ")[1]) not in \
-                            throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                                chip_select(int(packet[i][j][2].split(": ")[1]))].keys():
-                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))].setdefault(
-                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
-                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])] = (int(packet[i][j][7].split(": ")[1]))
-                        injection_core[chip_select(int(packet[i][j][1].split(": ")[1]))].setdefault(int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
-
-                    else:
-                        throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])].append(int(packet[i][j][7].split(": ")[1]))
-                        th[chip_select(int(packet[i][j][1].split(": ")[1]))][
-                            chip_select(int(packet[i][j][2].split(": ")[1]))][
-                            int(packet[i][j][5].split(": ")[1])] += (int(packet[i][j][7].split(": ")[1]))
-                        injection_core[chip_select(int(packet[i][j][1].split(": ")[1]))].setdefault(
-                            int(packet[i][j][5].split(": ")[1]), []).append(int(packet[i][j][7].split(": ")[1]))
+def generate_real_traffic_per_core(source, dest, packet):
+    for cycle, byte in packet.items():
+        if cycle not in throughput[source][dest].keys():
+            throughput[source][dest][cycle] = byte
     flag = prev = 0
     for source in throughput.keys():
         for dest in throughput[source].keys():
@@ -111,50 +89,31 @@ def generate_real_traffic_per_core(packet):
                     throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
                     prev = cyc
 
-    flag = prev = 0
-    for source in injection_core.keys():
-        for cyc in injection_core[source].keys():
-            if flag == 0:
-                injection_core_update[source][cyc] = injection_core[source][cyc]
-                prev = cyc
-                flag = 1
-            elif flag == 1:
-                if cyc - prev > 1:
-                    for k in range(prev + 1, cyc):
-                        injection_core_update[source].setdefault(k, []).append(0)
-                injection_core_update[source][cyc] = injection_core[source][cyc]
-                prev = cyc
+
+def calculate_injection_rate(source, dest):
+    off = 0
+    total = 0
+    for cyc in throughput_update[source][dest].keys():
+        if throughput_update[source][dest][cyc][0] == 0:
+            off += 1
+        total += 1
+    injection_rate[source][dest] = 1 - off/total
 
 
-def calculate_injection_rate():
-    off = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    total = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    for core in throughput_update.keys():
-        for dest in throughput_update[core].keys():
-            for cyc in throughput_update[core][dest].keys():
-                if len(throughput_update[core][dest][cyc]) == 1 and throughput_update[core][dest][cyc][0] == 0:
-                    off[core][dest] += 1
-                total[core][dest] += 1
-    for core in injection_rate.keys():
-        for dest in injection_rate[core].keys():
-            injection_rate[core][dest] = 1 - (off[core][dest] / total[core][dest])
-
-
-def generate_per_core_packet_number_per_cycle():
-    for src in throughput_update.keys():
-        for dest in throughput_update[src].keys():
-            for cycle in throughput_update[src][dest].keys():
-                if len(throughput_update[src][dest][cycle]) == 1 and throughput_update[src][dest][cycle][0] == 0:
-                    continue
-                else:
-                    if len(throughput_update[src][dest][cycle]) not in window_size[src][dest].keys():
-                        window_size[src][dest][len(throughput_update[src][dest][cycle])] = 1
-                    else:
-                        window_size[src][dest][len(throughput_update[src][dest][cycle])] += 1
-                    """if len(throughput_update[src][dest][cycle]) not in window_size_t[src].keys():
-                        window_size_t[src][len(throughput_update[src][dest][cycle])] = 1
-                    else:
-                        window_size_t[src][len(throughput_update[src][dest][cycle])] += 1"""
+def generate_per_core_packet_number_per_cycle(source, dest):
+    for cycle in throughput_update[source][dest].keys():
+        if throughput_update[source][dest][cycle][0] == 0:
+            continue
+        else:
+            if len(throughput_update[source][dest][cycle]) not in window_size[source][dest].keys():
+                window_size[source][dest][len(throughput_update[source][dest][cycle])] = 1
+            else:
+                window_size[source][dest][len(throughput_update[source][dest][cycle])] += 1
+            """if len(throughput_update[src][dest][cycle]) not in window_size_t[src].keys():
+                window_size_t[src][len(throughput_update[src][dest][cycle])] = 1
+            else:
+                window_size_t[src][len(throughput_update[src][dest][cycle])] += 1"""
+    window_size[source][dest] = dict(sorted(window_size[source][dest].items(), key=lambda x: x[0]))
 
 
 def destination_choose(packet):
@@ -164,150 +123,125 @@ def destination_choose(packet):
                 destination[chip_select(int(packet[id][j][1].split(": ")[1]))][chip_select(int(packet[id][j][2].split(": ")[1]))] += 1
 
 
-def packet_type_frequency():
-    for src in throughput_update.keys():
-        for dest in throughput_update[src].keys():
-            for cycle, bytes in throughput_update[src][dest].items():
-                if bytes[0] != 0:
-                    for i in bytes:
-                        if i not in packet_freq[src][dest].keys():
-                            packet_freq[src][dest][i] = 1
-                        else:
-                            packet_freq[src][dest][i] += 1
-
-
-def generate_markov_state():
-    for src in throughput_update.keys():
-        for dest in throughput_update[src].keys():
-            for cycle in throughput_update[src][dest].keys():
-                if len(throughput_update[src][dest][cycle]) == 1 and throughput_update[src][dest][cycle][0] == 0:
-                    continue
+def packet_type_frequency(source, dest):
+    for cycle, bytes in throughput_update[source][dest].items():
+        if bytes[0] != 0:
+            for i in bytes:
+                if i not in packet_freq[source][dest].keys():
+                    packet_freq[source][dest][i] = 1
                 else:
-                    for i in throughput_update[src][dest][cycle]:
-                        if i not in packet_type.keys():
-                            packet_type[src][i] = 1
-                        else:
-                            packet_type[src][i] += 1
+                    packet_freq[source][dest][i] += 1
 
 
-def generate_processing_time(packet):
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if packet[i][j][0] == "rop push":
-                for k in range(j + 1, len(packet[i])):
-                    if packet[i][k][0] == "L2_icnt_push":
-                        if int(packet[i][k][6].split(": ")[1]) == int(packet[i][j][6].split(": ")[1]):
-                            duration = int(packet[i][k][5].split(": ")[1]) - int(packet[i][j][5].split(": ")[1])
-                            if duration in processing_time[int(packet[i][j][6].split(": ")[1])].keys():
-                                processing_time[int(packet[i][j][6].split(": ")[1])][duration] += 1
-                            else:
-                                processing_time[int(packet[i][j][6].split(": ")[1])][duration] = 1
-                        break
+def generate_markov_state(source, dest):
+    for cycle in throughput_update[source][dest].keys():
+        if throughput_update[source][dest][cycle][0] == 0:
+            continue
+        else:
+            for i in throughput_update[source][dest][cycle]:
+                if i not in packet_type[source].keys():
+                    packet_type[source][i] = 1
+                else:
+                    packet_type[source][i] += 1
 
 
-def generate_transition_states():
-    tmp = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-    overall = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-    prev = 0
+def generate_processing_time(source):
+    if 1 not in processing_time[source].keys():
+        processing_time[source][1] = 1
+    else:
+        processing_time[source][1] += 1
+
+
+def generate_transition_states(source, dest):
+    tmp = {source: {dest: {}}}
+    single = {source: {dest: {}}}
+    overall = {source: {dest: {}}}
+    overall_single = {source: {dest: {}}}
+    prev_line = 0
     prev_cycle = 0
-    for core in packet_freq.keys():
-        for dest in packet_freq[core].keys():
-            for packet in packet_freq[core][dest].keys():
-                if packet not in tmp[core][dest].keys():
-                    tmp[core][dest].setdefault(packet, {})
+    for packet in packet_freq[source][dest].keys():
+        if packet not in tmp[source][dest].keys():
+            tmp[source][dest].setdefault(packet, {})
+            single[source][dest].setdefault(packet, {})
 
-    for core in packet_freq.keys():
-        for dest in packet_freq[core].keys():
-            for packet1 in packet_freq[core][dest].keys():
-                for packet2 in packet_freq[core][dest].keys():
-                    if packet1 not in tmp[core][dest].keys():
-                        tmp[core][dest].setdefault(packet1, {})
-                    if packet2 not in tmp[core][dest][packet1].keys():
-                        tmp[core][dest][packet1][packet2] = 0
+    for packet1 in packet_freq[source][dest].keys():
+        for packet2 in packet_freq[source][dest].keys():
+            if packet2 not in tmp[source][dest][packet1].keys():
+                tmp[source][dest][packet1][packet2] = 0
+                single[source][dest][packet1][packet2] = 0
 
-    for core in throughput.keys():
-        for dest in throughput[core].keys():
-            for cycle in throughput[core][dest].keys():
-                if len(throughput[core][dest][cycle]) == 1 and throughput[core][dest][cycle][0] == 0:
-                    continue
-                else:
-                    for i in range(len(throughput[core][dest][cycle])):
-                        if i == 0:
-                            prev = throughput[core][dest][cycle][i]
-                            if prev_cycle != 0:
-                                tmp[core][dest][prev_cycle][prev] += 1
-                                if prev_cycle not in overall[core][dest].keys():
-                                    overall[core][dest][prev_cycle] = 1
-                                else:
-                                    overall[core][dest][prev_cycle] += 1
+    for cycle in throughput[source][dest].keys():
+        if throughput[source][dest][cycle][0] == 0:
+            continue
+        else:
+            if len(throughput[source][dest][cycle]) > 1:
+                for i in range(len(throughput[source][dest][cycle])):
+                    if i == 0:
+                        prev_line = throughput[source][dest][cycle][i]
+                    else:
+                        if throughput[source][dest][cycle][i] not in tmp[source][dest][prev_line].keys():
+                            tmp[source][dest][prev_line][throughput[source][dest][cycle][i]] = 1
                         else:
-                            if throughput[core][dest][cycle][i] == prev:
-                                if throughput[core][dest][cycle][i] not in tmp[core][dest][prev].keys():
-                                    tmp[core][dest][prev][throughput[core][dest][cycle][i]] = 1
-                                else:
-                                    tmp[core][dest][prev][throughput[core][dest][cycle][i]] += 1
-                            else:
-                                if throughput[core][dest][cycle][i] not in tmp[core][dest][prev].keys():
-                                    tmp[core][dest][prev][throughput[core][dest][cycle][i]] = 1
-                                else:
-                                    tmp[core][dest][prev][throughput[core][dest][cycle][i]] += 1
-                            if prev not in overall[core][dest].keys():
-                                overall[core][dest][prev] = 1
-                            else:
-                                overall[core][dest][prev] += 1
-                            prev = throughput[core][dest][cycle][i]
-                        if i == len(throughput[core][dest][cycle]) - 1:
-                            prev_cycle = throughput[core][dest][cycle][i]
-            prev_cycle = 0
+                            tmp[source][dest][prev_line][throughput[source][dest][cycle][i]] += 1
+                        if prev_line not in overall[source][dest].keys():
+                            overall[source][dest][prev_line] = 1
+                        else:
+                            overall[source][dest][prev_line] += 1
+                        prev_line = throughput[source][dest][cycle][i]
+            elif len(throughput[source][dest][cycle]) == 1:
+                if prev_cycle == 0:
+                    prev_cycle = throughput[source][dest][cycle][0]
+                else:
+                    if throughput[source][dest][cycle][0] not in single[source][dest][prev_cycle].keys():
+                        single[source][dest][prev_cycle][throughput[source][dest][cycle][0]] = 1
+                    else:
+                        single[source][dest][prev_cycle][throughput[source][dest][cycle][0]] += 1
+                    if prev_cycle not in overall_single[source][dest].keys():
+                        overall_single[source][dest][prev_cycle] = 1
+                    else:
+                        overall_single[source][dest][prev_cycle] += 1
+                    prev_cycle = throughput[source][dest][cycle][0]
 
-    for core in tmp.keys():
-        for dest in tmp[core].keys():
-            for state in tmp[core][dest].keys():
-                for next_state in tmp[core][dest][state].keys():
-                    tmp[core][dest][state][next_state] = tmp[core][dest][state][next_state] / overall[core][dest][state]
+    for state in tmp[source][dest].keys():
+        for next_state in tmp[source][dest][state].keys():
+            tmp[source][dest][state][next_state] = tmp[source][dest][state][next_state] / overall[source][dest][state]
+    main_transitions[source][dest] = tmp[source][dest]
+    for state in single[source][dest].keys():
+        for next_state in single[source][dest][state].keys():
+            single[source][dest][state][next_state] = single[source][dest][state][next_state] / overall_single[source][dest][state]
 
-    for core in tmp.keys():
-        main_transitions[core] = tmp[core]
+    cycle_transision[source][dest] = single[source][dest]
 
 
 if __name__ == "__main__":
-    file2 = open("report.txt", "r")
     model_name = "syrk"
-    raw_content = ""
-    if file2.mode == "r":
-        raw_content = file2.readlines()
-    lined_list = []
-    for line in raw_content:
-        item = [x for x in line.split("\t") if x not in ['', '\t']]
-        lined_list.append(item)
-    cycle = {}
-    packet = {}
+    for src in range(0, 4):
+        for dest in range(0, 4):
+            if src != dest:
+                path = "out/pre_" + str(src) + "_" + str(dest) + ".txt"
+                file2 = open(path, "r")
+                raw_content = ""
+                if file2.mode == "r":
+                    raw_content = file2.readlines()
+                lined_list = {}
+                for line in raw_content:
+                    item = [x for x in line.split("\t") if x not in ['', '\t']]
+                    y = len(item[1].split("\n")[0][1:][:-1].split(","))
+                    for index in range(y):
+                        if int(item[0]) not in lined_list.keys():
+                            lined_list.setdefault(int(item[0]), []).append(
+                                int(item[1].split("\n")[0][1:][:-1].split(",")[index]))
+                        else:
+                            lined_list[int(item[0])].append(int(item[1].split("\n")[0][1:][:-1].split(",")[index]))
 
-    for i in range(len(lined_list)):  # cycle based classification
-        if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
-            if int(lined_list[i][5].split(": ")[1]) in cycle.keys():
-                if lined_list[i] not in cycle[int(lined_list[i][5].split(": ")[1])]:
-                    cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-            else:
-                cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-
-    for i in range(len(lined_list)):  # packet based classification
-        if check_local_or_remote(lined_list[i]):
-            if chip_select(int(lined_list[i][1].split(": ")[1])) != chip_select(int(lined_list[i][2].split(": ")[1])):
-                if int(lined_list[i][3].split(": ")[1]) in packet.keys():
-                    if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
-                        packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-                else:
-                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-
-    generate_real_traffic_per_core(cycle)
-    calculate_injection_rate()
-    generate_per_core_packet_number_per_cycle()
-    generate_markov_state()
-    destination_choose(packet)
-    packet_type_frequency()
-    generate_processing_time(packet)
-    generate_transition_states()
+                generate_real_traffic_per_core(src, dest, lined_list)
+                calculate_injection_rate(src, dest)
+                generate_per_core_packet_number_per_cycle(src, dest)
+                #destination_choose()
+                packet_type_frequency(src, dest)
+                generate_markov_state(src, dest)
+                generate_processing_time(src)
+                generate_transition_states(src, dest)
 
     for i in range(0, 4):
         filename = model_name + "_core_" + str(i) + str(".model")
@@ -332,14 +266,27 @@ if __name__ == "__main__":
                 for pack, freq in data.items():
                     file.write(str(pack) + "\t" + str(freq) + "\t")
                 file.write("\n")
-            file.write("\npacket_distribution_end\n\n")
+            file.write("packet_distribution_end\n\n")
 
-            file.write("destination_begin\n")
-            for dest, freq in destination[i].items():
-                file.write(str(dest) + "\t" + str(freq) + "\n")
-            file.write("destination_end\n\n")
+            #file.write("destination_begin\n")
+            #for dest, freq in destination[i].items():
+                #file.write(str(dest) + "\t" + str(freq) + "\n")
+            #file.write("destination_end\n\n")
 
-            file.write("transition_begin\n")
+            file.write("cycle_transition_begin\n")
+            for dest in cycle_transision[i].keys():
+                file.write("destination " + str(dest) + "\n")
+                for source in cycle_transision[i][dest].keys():
+                    file.write("\t\t" + str(source))
+                file.write("\n")
+                for source in cycle_transision[i][dest].keys():
+                    file.write(str(source) + str("\t\t"))
+                    for d in cycle_transision[i][dest][source].keys():
+                        file.write(str("{:.3f}".format(cycle_transision[i][dest][source][d])) + "\t\t")
+                    file.write("\n")
+            file.write("cycle_transition_end\n\n")
+
+            file.write("line_transition_begin\n")
             for dest in main_transitions[i].keys():
                 file.write("destination " + str(dest) + "\n")
                 for source in main_transitions[i][dest].keys():
@@ -350,9 +297,9 @@ if __name__ == "__main__":
                     for d in main_transitions[i][dest][source].keys():
                         file.write(str("{:.3f}".format(main_transitions[i][dest][source][d])) + "\t\t")
                     file.write("\n")
-            file.write("transition_end\n\n")
+            file.write("line_transition_end\n\n")
 
             file.write("processing_time_begin\n")
             for time, freq in processing_time[i].items():
-                file.write(str(time) + "\t" + str(freq) + "\n")
+               """file.write(str(time) + "\t" + str(freq) + "\n")"""
             file.write("processing_time_end\n\n")
