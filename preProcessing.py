@@ -146,19 +146,18 @@ def injection_per_core(packet):
 
 
 def injection_rate_per_core():
-    off = {0: 0, 1: 0, 2: 0, 3: 0}
-    total = {0: 0, 1: 0, 2: 0, 3: 0}
-    injection_rate = {0: 0, 1: 0, 2: 0, 3: 0}
+    off = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    total = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    injection_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {1: 0, 2: 0, 3: 0}, 2: {1: 0, 2: 0, 3: 0}, 3: {1: 0, 2: 0, 3: 0}}
     for core in throughput_update.keys():
         for dest in throughput_update[core].keys():
             for cyc in throughput_update[core][dest].keys():
                 if len(throughput_update[core][dest][cyc]) == 1 and throughput_update[core][dest][cyc][0] == 0:
-                    print(throughput_update[core][dest][cyc])
-                    off[core] += 1
-                total[core] += 1
+                    off[core][dest] += 1
+                total[core][dest] += 1
     for core in injection_rate.keys():
-        injection_rate[core] = 1 - (off[core]/total[core])
-
+        for dest in injection_rate[core].keys():
+            injection_rate[core][dest] = 1 - sum(off[core][dest]) / total[core][dest]
     print(injection_rate)
 
 
@@ -247,24 +246,17 @@ def zero_state_dist():
         print("\n")
 
 
-def byte_per_cycle_dist(packet):
-    out1 = {0: {}, 1: {}, 2: {}, 3: {}}
+def byte_per_cycle_dist():
     dist = {0: [], 1: [], 2: [], 3: []}
-    for i in packet.keys():
-        for j in range(len(packet[i])):
-            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
-                if packet[i][j][0] == "injection buffer" and (
-                        int(packet[i][j][4].split(": ")[1]) == 0 or int(packet[i][j][4].split(": ")[1]) == 1):
-                    source = chip_select(int(packet[i][j][1].split(": ")[1]))
-                    time = int(packet[i][j][5].split(": ")[1])
-                    byte = int(packet[i][j][7].split(": ")[1])
-                    if time not in out1[source].keys():
-                        out1[source][time] = byte
-                    else:
-                        out1[source][time] += byte
-    for core in out1.keys():
-        for cycle, byte in out1[core].items():
-            dist[core].append(byte)
+    temp = {0: [], 1: [], 2: [], 3: []}
+    for source in throughput.keys():
+        for dest in throughput[source].keys():
+            for cycle, byte in throughput[source][dest].items():
+                if len(byte) == 1 and byte[0] == 0:
+                    continue
+                else:
+                    temp[source].append(len(byte))
+                    dist[source].append(sum(byte))
 
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
@@ -334,10 +326,7 @@ def outser():
             path = "out/pre_" + str(core) + "_" + str(dest) + ".txt"
             with open(path, "w") as file:
                 for cycle, byte in throughput[core][dest].items():
-                    temp = 0
-                    for b in byte:
-                        temp += b
-                    file.write(str(cycle) + "\t" + str(temp) + "\n")
+                    file.write(str(cycle) + "\t" + str(byte) + "\n")
 
 
 if __name__ == '__main__':
@@ -351,14 +340,14 @@ if __name__ == '__main__':
         lined_list.append(item)
     packet = {}
     cycle = {}
-    for i in range(len(lined_list)):  # packet based classification
+    """for i in range(len(lined_list)):  # packet based classification
         if lined_list[i][0] != "Instruction cache miss":
             if check_local_or_remote(lined_list[i]):
                 if int(lined_list[i][3].split(": ")[1]) in packet.keys():
                     if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
                         packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
                 else:
-                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
 
     for i in range(len(lined_list)):  # cycle based classification
         if lined_list[i][0] != "Instruction cache miss":
@@ -370,4 +359,4 @@ if __name__ == '__main__':
                     cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
 
     injection_per_core(cycle)
-    inter_departure_dist()
+    outser()

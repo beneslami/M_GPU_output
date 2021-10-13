@@ -122,7 +122,7 @@ def flit_per_cycle(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2 or int(packet[i][j][5].split(": ")[1]) == 3:
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
                     byte = int(packet[i][j][4].split(": ")[1])
@@ -180,7 +180,7 @@ def byte_per_cycle_dist(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2 or int(packet[i][j][5].split(": ")[1]) == 3:
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
                     byte = int(packet[i][j][4].split(": ")[1])
@@ -188,10 +188,11 @@ def byte_per_cycle_dist(packet):
                         out1[source][time] = byte
                     else:
                         out1[source][time] += byte
+
     for core in out1.keys():
         for cycle, byte in out1[core].items():
             dist[core].append(byte)
-
+    
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
     sns.distplot(list(dist[0]), kde=True, hist=True, ax=ax[0, 0])
@@ -220,7 +221,7 @@ def inter_departure_dist(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2 or int(packet[i][j][5].split(": ")[1]) == 3:
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
                     byte = int(packet[i][j][4].split(": ")[1])
@@ -271,7 +272,7 @@ def outser(packet):
             if len(packet[i][j]) > 7:
                 continue
             else:
-                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2 or int(packet[i][j][5].split(": ")[1]) == 3:
+                if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
                     dest = int(packet[i][j][1].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
@@ -279,7 +280,7 @@ def outser(packet):
                     if time not in throughput[source][dest].keys():
                         throughput[source][dest].setdefault(time, []).append(byte)
                     else:
-                        throughput[source][dest].setdefault(time, []).append(byte)
+                        throughput[source][dest][time].append(byte)
     flag = prev = 0
     for source in throughput.keys():
         for dest in throughput[source].keys():
@@ -300,10 +301,7 @@ def outser(packet):
             path = "out/post_" + str(core) + "_" + str(dest) + ".txt"
             with open(path, "w") as file:
                 for cycle, byte in throughput[core][dest].items():
-                    temp = 0
-                    for b in byte:
-                        temp += b
-                    file.write(str(cycle) + "\t" + str(temp) + "\n")
+                    file.write(str(cycle) + "\t" + str(byte) + "\n")
 
 
 def per_core_comparison():
@@ -373,7 +371,7 @@ def per_core_comparison():
 
 
 if __name__ == "__main__":
-    with open('out_.txt', 'r') as file:
+    with open('out.txt', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
