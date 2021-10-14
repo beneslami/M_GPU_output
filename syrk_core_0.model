@@ -43,40 +43,51 @@ destination 3
 window_size_end
 
 packet_distribution_begin
-1:	8	21353	136	77658	
-2:	8	21591	136	78779	
-3:	8	21130	136	76843	
-
+destination 1
+8	21353
+136	77658
+destination 2
+8	21591
+136	78779
+destination 3
+8	21130
+136	76843
 packet_distribution_end
+
+destination_begin
+1   57709
+2   58865
+3   56933
+destination_end
 
 cycle_transition_begin
 destination 1
 		8		136
-8		0.516		0.484		
-136		0.118		0.882		
+8		0.516		0.484
+136		0.118		0.882
 destination 2
 		8		136
-8		0.504		0.496		
-136		0.121		0.879		
+8		0.504		0.496
+136		0.121		0.879
 destination 3
 		8		136
-8		0.521		0.479		
-136		0.119		0.881		
+8		0.521		0.479
+136		0.119		0.881
 cycle_transition_end
 
 line_transition_begin
 destination 1
 		8		136
-8		0.469		0.531		
-136		0.215		0.785		
+8		0.469		0.531
+136		0.215		0.785
 destination 2
 		8		136
-8		0.461		0.539		
-136		0.211		0.789		
+8		0.461		0.539
+136		0.211		0.789
 destination 3
 		8		136
-8		0.455		0.545		
-136		0.206		0.794		
+8		0.455		0.545
+136		0.206		0.794
 line_transition_end
 
 processing_time_begin

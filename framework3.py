@@ -116,11 +116,8 @@ def generate_per_core_packet_number_per_cycle(source, dest):
     window_size[source][dest] = dict(sorted(window_size[source][dest].items(), key=lambda x: x[0]))
 
 
-def destination_choose(packet):
-    for id in packet.keys():
-        for j in range(len(packet[id])):
-            if packet[id][j][0] == "injection buffer":
-                destination[chip_select(int(packet[id][j][1].split(": ")[1]))][chip_select(int(packet[id][j][2].split(": ")[1]))] += 1
+def destination_choose():
+    print("")
 
 
 def packet_type_frequency(source, dest):
@@ -237,7 +234,7 @@ if __name__ == "__main__":
                 generate_real_traffic_per_core(src, dest, lined_list)
                 calculate_injection_rate(src, dest)
                 generate_per_core_packet_number_per_cycle(src, dest)
-                #destination_choose()
+                destination_choose()
                 packet_type_frequency(src, dest)
                 generate_markov_state(src, dest)
                 generate_processing_time(src)
@@ -268,12 +265,12 @@ if __name__ == "__main__":
                 file.write("\n")
             file.write("packet_distribution_end\n\n")
 
-            #file.write("destination_begin\n")
-            #for dest, freq in destination[i].items():
-                #file.write(str(dest) + "\t" + str(freq) + "\n")
-            #file.write("destination_end\n\n")
+            file.write("destination_begin\n")
+            for dest, freq in destination[i].items():
+                """file.write(str(dest) + "\t" + str(freq) + "\n")"""
+            file.write("destination_end\n\n")
 
-            file.write("cycle_transition_begin\n")
+            """file.write("cycle_transition_begin\n")
             for dest in cycle_transision[i].keys():
                 file.write("destination " + str(dest) + "\n")
                 for source in cycle_transision[i][dest].keys():
@@ -297,7 +294,7 @@ if __name__ == "__main__":
                     for d in main_transitions[i][dest][source].keys():
                         file.write(str("{:.3f}".format(main_transitions[i][dest][source][d])) + "\t\t")
                     file.write("\n")
-            file.write("line_transition_end\n\n")
+            file.write("line_transition_end\n\n")"""
 
             file.write("processing_time_begin\n")
             for time, freq in processing_time[i].items():
