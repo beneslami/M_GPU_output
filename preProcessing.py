@@ -1,6 +1,10 @@
+import csv
+import os
+
 import matplotlib.pyplot as plt
 from hurst import compute_Hc
 import seaborn as sns
+import data_loading_utils
 
 chiplet = []
 chiplet_0 = dict(
@@ -32,6 +36,12 @@ throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: 
                   3: {0: {}, 1: {}, 2: {}}}
 throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
               3: {0: {}, 1: {}, 2: {}}}
+processing_time = {0: {}, 1: {}, 2: {}, 3: {}}
+dest_window = {0: {}, 1: {}, 2: {}, 3: {}}
+iat_dist_csv = {0: {}, 1: {}, 2: {}, 3: {}}
+byte_dist_csv = {0: {}, 1: {}, 2: {}, 3: {}}
+#injection_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+packet_type_ratio = {0: {0: 0, 1: 0, 2: 0, 3: 0}, 1: {0: 0, 1: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 2: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0, 3: 0}}
 
 
 def chip_select(num):
@@ -112,8 +122,7 @@ def hurst():
 def injection_per_core(packet):
     for i in packet.keys():
         for j in range(len(packet[i])):
-            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(
-                    packet[i][j][2].split(": ")[1]) <= 195:
+            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
                 if packet[i][j][0] == "injection buffer":
                     if int(packet[i][j][5].split(": ")[1]) not in \
                             throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][
@@ -145,41 +154,47 @@ def injection_per_core(packet):
                     prev = cyc
 
 
-def injection_rate_per_core():
+def injection_rate_per_core(dir):
     off = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    total = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    injection_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {1: 0, 2: 0, 3: 0}, 2: {1: 0, 2: 0, 3: 0}, 3: {1: 0, 2: 0, 3: 0}}
+    total_off = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    on = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    total_on = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+    injection_rate_off = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
     for core in throughput_update.keys():
         for dest in throughput_update[core].keys():
             for cyc in throughput_update[core][dest].keys():
-                if len(throughput_update[core][dest][cyc]) == 1 and throughput_update[core][dest][cyc][0] == 0:
+                if throughput_update[core][dest][cyc][0] == 0:
                     off[core][dest] += 1
-                total[core][dest] += 1
-    for core in injection_rate.keys():
-        for dest in injection_rate[core].keys():
-            injection_rate[core][dest] = 1 - sum(off[core][dest]) / total[core][dest]
-    print(injection_rate)
+                total_off[core][dest] += 1
+
+    for core in injection_rate_off.keys():
+        for dest in injection_rate_off[core].keys():
+            injection_rate_off[core][dest] = 1 - (off[core][dest] / total_off[core][dest])
+
+    with open(dir + "pre/out/injection_rate.txt", "w") as file:
+        for core in injection_rate_off.keys():
+            file.write("core: " + str(core) + "\n")
+            for dest in injection_rate_off[core].keys():
+                file.write(str(dest) + "\t" + str(injection_rate_off[core][dest]) + "\n")
 
 
-def flit_per_cycle(cycle):
+def flit_per_cycle():
     out = {0: {}, 1: {}, 2: {}, 3: {}}
-    for i in cycle.keys():
-        for j in range(len(cycle[i])):
-            if 192 <= int(cycle[i][j][1].split(": ")[1]) <= 195 and 192 <= int(cycle[i][j][2].split(": ")[1]) <= 195:
-                if cycle[i][j][0] == "injection buffer" and (
-                        int(cycle[i][j][4].split(": ")[1]) == 0 or int(cycle[i][j][4].split(": ")[1]) == 1):
-                    source = chip_select(int(cycle[i][j][1].split(": ")[1]))
-                    time = int(cycle[i][j][5].split(": ")[1])
-                    byte = int(cycle[i][j][7].split(": ")[1])
-                    flit = 0
-                    if byte == 8:
-                        flit = 1
-                    elif byte == 136:
-                        flit = 5
-                    if time not in out[source].keys():
-                        out[source][time] = flit
+    for core in throughput.keys():
+        for dest in throughput[core].keys():
+            for cyc, byte in throughput[core][dest].items():
+                flit = 0
+                if sum(byte) > 32:
+                    if sum(byte) % 32 > 0:
+                        flit = (sum(byte) / 32) + 1
                     else:
-                        out[source][time] += flit
+                        flit = (sum(byte) / 32)
+                else:
+                    flit = 1
+                if cyc not in out[core].keys():
+                    out[core][cyc] = flit
+                else:
+                    out[core][cyc] += flit
 
     fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
     ax[0].bar(list(out[0].keys()), list(out[0].values()), width=3)
@@ -193,9 +208,9 @@ def flit_per_cycle(cycle):
     plt.show()
 
 
-def byte_per_cycle(cycle):
+def byte_per_cycle():
     out1 = {0: {}, 1: {}, 2: {}, 3: {}}
-    for i in cycle.keys():
+    """for i in cycle.keys():
         for j in range(len(cycle[i])):
             if 192 <= int(cycle[i][j][1].split(": ")[1]) <= 195 and 192 <= int(cycle[i][j][2].split(": ")[1]) <= 195:
                 if cycle[i][j][0] == "injection buffer" and (
@@ -206,14 +221,36 @@ def byte_per_cycle(cycle):
                     if time not in out1[source].keys():
                         out1[source][time] = byte
                     else:
-                        out1[source][time] += byte
-
+                        out1[source][time] += byte"""
+    for src in throughput.keys():
+        for dest in throughput[src].keys():
+            for cyc, byte in throughput[src][dest].items():
+                if cyc not in out1[src].keys():
+                    out1[src][cyc] = sum(byte)
+                else:
+                    out1[src][cyc] += sum(byte)
     fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
     ax[0].bar(list(out1[0].keys()), list(out1[0].values()), width=3)
     ax[1].bar(list(out1[1].keys()), list(out1[1].values()), width=3)
     ax[2].bar(list(out1[2].keys()), list(out1[2].values()), width=3)
     ax[3].bar(list(out1[3].keys()), list(out1[3].values()), width=3)
     plt.show()
+
+
+def destination_window_size(cycle, dir):
+    for i in cycle.keys():
+        for j in range(len(cycle[i])):
+            if cycle[i][j][0] == "L2_icnt_pop":
+                if 192 <= int(cycle[i][j][1].split(": ")[1]) <= 195:
+                    if i not in dest_window[chip_select(int(cycle[i][j][1].split(": ")[1]))].keys():
+                        dest_window[chip_select(int(cycle[i][j][1].split(": ")[1]))].setdefault(i, []).append(int(cycle[i][j][7].split(": ")[1]))
+                    else:
+                        dest_window[chip_select(int(cycle[i][j][1].split(": ")[1]))][i].append(int(cycle[i][j][7].split(": ")[1]))
+    for core in dest_window.keys():
+        path = dir + "pre/out/dest_win_" + str(core) + ".txt"
+        with open(path, "a") as file:
+            for cycle, byte in dest_window[core].items():
+                file.write(str(cycle) + "\t" + str(byte) + "\n")
 
 
 def zero_state_dist():
@@ -248,15 +285,17 @@ def zero_state_dist():
 
 def byte_per_cycle_dist():
     dist = {0: [], 1: [], 2: [], 3: []}
-    temp = {0: [], 1: [], 2: [], 3: []}
     for source in throughput.keys():
         for dest in throughput[source].keys():
             for cycle, byte in throughput[source][dest].items():
-                if len(byte) == 1 and byte[0] == 0:
+                if byte[0] == 0:
                     continue
                 else:
-                    temp[source].append(len(byte))
                     dist[source].append(sum(byte))
+                    if sum(byte) not in byte_dist_csv[source].keys():
+                        byte_dist_csv[source][sum(byte)] = 1
+                    else:
+                        byte_dist_csv[source][sum(byte)] += 1
 
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
@@ -286,7 +325,7 @@ def inter_departure_dist():
     for core in sorted_throughput_update.keys():
         for dest in throughput_update[core].keys():
             for cyc, byte in throughput_update[core][dest].items():
-                if len(byte) == 1 and byte[0] == 0:
+                if byte[0] == 0:
                     if flag == 0:
                         start = cyc
                         flag = 1
@@ -296,6 +335,10 @@ def inter_departure_dist():
                     if flag == 1:
                         end = cyc
                         dist[core].append(end - start)
+                        if (end - start) not in iat_dist_csv[core].keys():
+                            iat_dist_csv[core][end - start] = 1
+                        else:
+                            iat_dist_csv[core][end - start] += 1
                         flag = 0
                     else:
                         continue
@@ -320,17 +363,110 @@ def inter_departure_dist():
     plt.show()
 
 
-def outser():
+def outser(dir):
     for core in throughput.keys():
         for dest in throughput[core].keys():
-            path = "out/pre_" + str(core) + "_" + str(dest) + ".txt"
-            with open(path, "w") as file:
+            path = dir + "pre/out/pre_" + str(core) + "_" + str(dest) + ".txt"
+            with open(path, "a") as file:
                 for cycle, byte in throughput[core][dest].items():
                     file.write(str(cycle) + "\t" + str(byte) + "\n")
 
 
+def generate_processing_time(packet, dir):
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "rop push":
+                for k in range(j + 1, len(packet[i])):
+                    if packet[i][k][0] == "L2_icnt_push":
+                        if int(packet[i][k][6].split(": ")[1]) == int(packet[i][j][6].split(": ")[1]):
+                            duration = int(packet[i][k][5].split(": ")[1]) - int(packet[i][j][5].split(": ")[1])
+                            if duration in processing_time[int(packet[i][j][6].split(": ")[1])].keys():
+                                processing_time[int(packet[i][j][6].split(": ")[1])][duration] += 1
+                            else:
+                                processing_time[int(packet[i][j][6].split(": ")[1])][duration] = 1
+                        break
+
+    for i in processing_time.keys():
+        processing_time[i] = dict(sorted(processing_time[i].items(), key=lambda x: x[0]))
+    for core in processing_time.keys():
+        path = dir + "pre/out/processing_time_" + str(core) + ".txt"
+        with open(path, "w") as file:
+            for duration, freq in processing_time[core].items():
+                file.write(str(duration) + "\t" + str(freq) + "\n")
+
+
+def generate_csv(dir):
+    fields = ['byte', 'dist']
+    byte_dist_csv[0] = dict(sorted(byte_dist_csv[0].items(), key=lambda x: x[0]))
+    with open(dir + "pre/out/byte_0.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in byte_dist_csv[0].items():
+            writer.writerow([cyc, byte])
+    byte_dist_csv[1] = dict(sorted(byte_dist_csv[1].items(), key=lambda x: x[0]))
+    with open(dir + "pre/out/byte_1.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in byte_dist_csv[1].items():
+            writer.writerow([cyc, byte])
+    byte_dist_csv[2] = dict(sorted(byte_dist_csv[2].items(), key=lambda x: x[0]))
+    with open(dir + "pre/out/byte_2.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in byte_dist_csv[2].items():
+            writer.writerow([cyc, byte])
+    byte_dist_csv[3] = dict(sorted(byte_dist_csv[3].items(), key=lambda x: x[0]))
+    with open(dir + "pre/out/byte_3.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in byte_dist_csv[3].items():
+            writer.writerow([cyc, byte])
+
+    fields = ['IAT', 'dist']
+    iat_dist_csv[0] = dict(sorted(iat_dist_csv[0].items(), key=lambda x: x[0]))
+    with open(dir + "pre/out/iat_0.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in iat_dist_csv[0].items():
+            writer.writerow([cyc, byte])
+    iat_dist_csv[1] = dict(sorted(iat_dist_csv[1].items(), key=lambda x: x[0]))
+    with open(dir + "pre/out/iat_1.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in iat_dist_csv[1].items():
+            writer.writerow([cyc, byte])
+    iat_dist_csv[2] = dict(sorted(iat_dist_csv[2].items(), key=lambda x: x[0]))
+    with open(dir + "pre/out/iat_2.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in iat_dist_csv[2].items():
+            writer.writerow([cyc, byte])
+    iat_dist_csv[3] = dict(sorted(iat_dist_csv[3].items(), key=lambda x: x[0]))
+    with open(dir + "pre/out/iat_3.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in iat_dist_csv[3].items():
+            writer.writerow([cyc, byte])
+
+
+def generate_packet_type_ratio(packet, dir):
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "injection buffer":
+                packet_type_ratio[int(packet[i][j][1].split(": ")[1])][int(packet[i][j][4].split(": ")[1])] += 1
+    fields = ['packet_type', 'frequency']
+    with open(dir + "pre/out/packet_ratio.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for core in packet_type_ratio.keys():
+            writer.writerow([str(core)])
+            for type, freq in packet_type_ratio[core].items():
+                writer.writerow([type, freq])
+
+
 if __name__ == '__main__':
-    file2 = open("report.txt", "r")
+    dir = "benchmarks/kmeans/"
+    file2 = open(dir + "kmeans.txt", "r")
     raw_content = ""
     if file2.mode == "r":
         raw_content = file2.readlines()
@@ -340,23 +476,30 @@ if __name__ == '__main__':
         lined_list.append(item)
     packet = {}
     cycle = {}
-    """for i in range(len(lined_list)):  # packet based classification
-        if lined_list[i][0] != "Instruction cache miss":
-            if check_local_or_remote(lined_list[i]):
-                if int(lined_list[i][3].split(": ")[1]) in packet.keys():
-                    if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
-                        packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-                else:
-                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])"""
+    for i in range(len(lined_list)):  # packet based classification
+        if check_local_or_remote(lined_list[i]):
+            if int(lined_list[i][3].split(": ")[1]) in packet.keys():
+                if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
+                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+            else:
+                packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
 
     for i in range(len(lined_list)):  # cycle based classification
-        if lined_list[i][0] != "Instruction cache miss":
-            if check_local_or_remote(lined_list[i]):
-                if int(lined_list[i][5].split(": ")[1]) in cycle.keys():
-                    if lined_list[i] not in cycle[int(lined_list[i][5].split(": ")[1])]:
-                        cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
-                else:
+        if check_local_or_remote(lined_list[i]):
+            if int(lined_list[i][5].split(": ")[1]) in cycle.keys():
+                if lined_list[i] not in cycle[int(lined_list[i][5].split(": ")[1])]:
                     cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
+            else:
+                cycle.setdefault(int(lined_list[i][5].split(": ")[1]), []).append(lined_list[i])
 
     injection_per_core(cycle)
-    outser()
+    outser(dir)
+    injection_rate_per_core(dir)
+    #byte_per_cycle()
+    flit_per_cycle()
+    inter_departure_dist()
+    byte_per_cycle_dist()
+    destination_window_size(cycle, dir)
+    generate_processing_time(packet, dir)
+    generate_csv(dir)
+    generate_packet_type_ratio(packet, dir)

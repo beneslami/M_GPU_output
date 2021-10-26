@@ -1,7 +1,11 @@
+import csv
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from hurst import compute_Hc
 from scipy import stats
+import numpy as np
+
 
 chiplet = []
 chiplet_0 = dict(
@@ -41,6 +45,9 @@ throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: 
                   3: {0: {}, 1: {}, 2: {}}}
 throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
               3: {0: {}, 1: {}, 2: {}}}
+packet_type_ratio = {0: {0: 0, 1: 0, 2: 0, 3: 0}, 1: {0: 0, 1: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 2: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0, 3: 0}}
+per_chiplet_heat_map = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+                  3: {0: {}, 1: {}, 2: {}}}
 
 
 def check_local_or_remote(x):  # 0 for local, 1 for remote
@@ -196,28 +203,56 @@ def byte_per_cycle(packet):
     plt.show()
 
 
-def byte_per_cycle_dist():
-    dist = {0: [], 1: [], 2: [], 3: []}
+def byte_per_cycle_dist(dir):
+    dist = {0: {}, 1: {}, 2: {}, 3: {}}
+    dist_sns = {0: [], 1: [], 2: [], 3: []}
     for source in throughput.keys():
         for dest in throughput[source].keys():
             for cycle, byte in throughput[source][dest].items():
-                """if len(byte) == 1 and byte[0] == 0:
-                    continue
-                else:"""
-                dist[source].append(sum(byte))
+                dist_sns[source].append(sum(byte))
+                if sum(byte) not in dist[source].keys():
+                    dist[source][sum(byte)] = 1
+                else:
+                    dist[source][sum(byte)] += 1
+
+    fields = ['byte', 'dist']
+    dist[0] = dict(sorted(dist[0].items(), key=lambda x: x[0]))
+    with open(dir + "post/out/byte_0.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[0].items():
+            writer.writerow([cyc, byte])
+    dist[1] = dict(sorted(dist[1].items(), key=lambda x: x[0]))
+    with open(dir + "post/out/byte_1.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[1].items():
+            writer.writerow([cyc, byte])
+    dist[2] = dict(sorted(dist[2].items(), key=lambda x: x[0]))
+    with open(dir + "post/out/byte_2.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[2].items():
+            writer.writerow([cyc, byte])
+    dist[3] = dict(sorted(dist[3].items(), key=lambda x: x[0]))
+    with open(dir + "post/out/byte_3.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[3].items():
+            writer.writerow([cyc, byte])
 
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
-    sns.distplot(list(dist[0]), hist=True, ax=ax[0, 0])
+    sns.distplot(list(dist_sns[0]), hist=True, ax=ax[0, 0])
     ax[0, 0].set_title("core 0")
     ax[0, 0].set_xlim(-50, 1000)
-    sns.distplot(list(dist[1]), hist=True, ax=ax[0, 1])
+    sns.distplot(list(dist_sns[1]), hist=True, ax=ax[0, 1])
     ax[0, 1].set_title("core 1")
     ax[0, 1].set_xlim(-50, 1000)
-    sns.distplot(list(dist[2]), hist=True, ax=ax[1, 0])
+    sns.distplot(list(dist_sns[2]), hist=True, ax=ax[1, 0])
     ax[1, 0].set_title("core 2")
     ax[1, 0].set_xlim(-50, 1000)
-    sns.distplot(list(dist[3]), hist=True, ax=ax[1, 1])
+    sns.distplot(list(dist_sns[3]), hist=True, ax=ax[1, 1])
     ax[1, 1].set_title("core 3")
     ax[1, 1].set_xlim(-50, 1000)
     plt.setp(ax, yticks=[])
@@ -225,8 +260,9 @@ def byte_per_cycle_dist():
     plt.show()
 
 
-def inter_departure_dist():
-    dist = {0: [], 1: [], 2: [], 3: []}
+def inter_departure_dist(dir):
+    dist = {0: {}, 1: {}, 2: {}, 3: {}}
+    dist_sns = {0: [], 1: [], 2: [], 3: []}
     flag = 0
     start = end = 0
     sorted_throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
@@ -247,24 +283,53 @@ def inter_departure_dist():
                 else:
                     if flag == 1:
                         end = cyc
-                        dist[core].append(end - start)
+                        dist_sns[core].append(end - start)
+                        if (end - start) not in dist[core].keys():
+                            dist[core][end - start] = 1
+                        else:
+                            dist[core][end - start] += 1
                         flag = 0
                     else:
                         continue
             flag = end = start = 0
+    fields = ['IAT', 'dist']
+    dist[0] = dict(sorted(dist[0].items(), key=lambda x: x[0]))
+    with open(dir + "post/out/iat_0.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[0].items():
+            writer.writerow([cyc, byte])
+    dist[1] = dict(sorted(dist[1].items(), key=lambda x: x[0]))
+    with open(dir + "post/out/iat_1.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[1].items():
+            writer.writerow([cyc, byte])
+    dist[2] = dict(sorted(dist[2].items(), key=lambda x: x[0]))
+    with open(dir + "post/out/iat_2.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[2].items():
+            writer.writerow([cyc, byte])
+    dist[3] = dict(sorted(dist[3].items(), key=lambda x: x[0]))
+    with open(dir + "post/out/iat_3.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[3].items():
+            writer.writerow([cyc, byte])
 
     sns.set(style="dark", palette="muted", color_codes=True)
     fig, ax = plt.subplots(2, 2, figsize=(15, 15), sharex=True)
-    sns.distplot(list(dist[0]), kde=True, hist=True, ax=ax[0, 0])
+    sns.distplot(list(dist_sns[0]), kde=True, hist=True, ax=ax[0, 0])
     ax[0, 0].set_title("core 0")
     ax[0, 0].set_xlim(-20, 300)
-    sns.distplot(list(dist[1]), kde=True, hist=True, ax=ax[0, 1])
+    sns.distplot(list(dist_sns[1]), kde=True, hist=True, ax=ax[0, 1])
     ax[0, 1].set_title("core 1")
     ax[0, 1].set_xlim(-20, 300)
-    sns.distplot(list(dist[2]), kde=True, hist=True, ax=ax[1, 0])
+    sns.distplot(list(dist_sns[2]), kde=True, hist=True, ax=ax[1, 0])
     ax[1, 0].set_title("core 2")
     ax[1, 0].set_xlim(-20, 300)
-    sns.distplot(list(dist[3]), kde=True, hist=True, ax=ax[1, 1])
+    sns.distplot(list(dist_sns[3]), kde=True, hist=True, ax=ax[1, 1])
     ax[1, 1].set_title("core 3")
     ax[1, 1].set_xlim(-20, 300)
     plt.setp(ax, yticks=[])
@@ -272,20 +337,38 @@ def inter_departure_dist():
     plt.show()
 
 
-def outser():
+def outser(dir):
     for core in throughput.keys():
         for dest in throughput[core].keys():
-            path = "out/post_" + str(core) + "_" + str(dest) + ".txt"
+            path = dir + "post/out/post_" + str(core) + "_" + str(dest) + ".txt"
             with open(path, "w") as file:
                 for cycle, byte in throughput[core][dest].items():
                     file.write(str(cycle) + "\t" + str(byte) + "\n")
 
 
-def per_core_comparison():
-    real_core = synthetic_core = 0
-    real_dest = synthetic_dest = 1
-    real_path = "out/pre_" + str(real_core) + "_" + str(real_dest) + ".txt"
-    synthetic_path = "out/post_" + str(synthetic_core) + "_" + str(synthetic_dest) + ".txt"
+def generate_packet_type_ratio(packet, dir):
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if len(packet[i][j]) > 7:
+                continue
+            else:
+                if int(packet[i][j][3].split(": ")[1]) == -1:
+                    packet_type_ratio[int(packet[i][j][0].split(": ")[1])][int(packet[i][j][5].split(": ")[1])] += 1
+    fields = ['packet_type', 'frequency']
+    with open(dir + "post/out/packet_ratio.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for core in packet_type_ratio.keys():
+            writer.writerow([str(core)])
+            for type, freq in packet_type_ratio[core].items():
+                writer.writerow([type, freq])
+
+
+def per_core_comparison(path):
+    real_core = synthetic_core = 1
+    real_dest = synthetic_dest = 3
+    real_path = path + "/pre/out/pre_" + str(real_core) + "_" + str(real_dest) + ".txt"
+    synthetic_path = path + "/post/out/post_" + str(synthetic_core) + "_" + str(synthetic_dest) + ".txt"
     real_list = {}
     syn_list = {}
     with open(real_path, "r") as file:
@@ -359,7 +442,34 @@ def per_core_comparison():
     plt.show()
 
 
+def per_chip_traffic_pattern():
+    one_to_one = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0},
+                  3: {0: 0, 1: 0, 2: 0}}
+    total = {0: 0, 1: 0, 2: 0, 3: 0}
+    for core in throughput.keys():
+        for dest in throughput[core].keys():
+            one_to_one[core][dest] += sum(throughput[core][dest])
+            total[core] += sum(throughput[core][dest])
+    for core in one_to_one.keys():
+        for dest in one_to_one[core].keys():
+            per_chiplet_heat_map[core][dest] = one_to_one[core][dest]/total[core]
+    frame = []
+    for i in range(max(list(per_chiplet_heat_map.keys()))):
+        for core in per_chiplet_heat_map.keys():
+            inner_frame = []
+            if i == core:
+                inner_frame.append([0])
+            else:
+                for dest in per_chiplet_heat_map[core].keys():
+                    inner_frame.append(per_chiplet_heat_map[core][dest])
+        frame.append(inner_frame)
+    print(frame)
+    sns.heatmap(frame)
+    plt.show()
+
+
 if __name__ == "__main__":
+    path = "benchmarks/bfs/"
     with open('out.txt', 'r') as file:
         reader = file.readlines()
     lined_list = []
@@ -376,7 +486,9 @@ if __name__ == "__main__":
             packet_.setdefault(int(lined_list[i][6].split(": ")[1]), []).append(lined_list[i])
     packet = dict(sorted(packet_.items(), key=lambda x: x[0]))
     flit_per_cycle(packet)
-    byte_per_cycle_dist()
-    inter_departure_dist()
-    outser()
-    per_core_comparison()
+    #byte_per_cycle_dist(path)
+    #inter_departure_dist(path)
+    #outser(path)
+    #per_core_comparison(path)
+    #generate_packet_type_ratio(packet, path)
+    per_chip_traffic_pattern()
