@@ -1,3 +1,5 @@
+import csv
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,6 +36,7 @@ throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: 
 throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 th = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 injection_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
+inj_rate = {0: 0, 1: 0, 2: 0, 3: 0}
 window_size = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 dest_window_size = {0: {}, 1: {}, 2: {}, 3: {}}
 window_size_t = {0: {}, 1: {}, 2: {}, 3: {}}
@@ -44,6 +47,7 @@ temp = {0: {}, 1: {}, 2: {}, 3: {}}
 processing_time = {0: {}, 1: {}, 2: {}, 3: {}}
 main_transitions = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 cycle_transision = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+iat = {0: {}, 1: {}, 2: {}, 3: {}}
 
 
 def chip_select(num):
@@ -91,14 +95,15 @@ def generate_real_traffic_per_core(source, dest, packet):
                     prev = cyc
 
 
-def calculate_injection_rate(source, dest):
+def calculate_injection_rate(source):
     off = 0
     total = 0
-    for cyc in throughput_update[source][dest].keys():
-        if throughput_update[source][dest][cyc][0] == 0:
-            off += 1
-        total += 1
-    injection_rate[source][dest] = 1 - (off/total)
+    for dest in throughput_update[source].keys():
+        for cyc in throughput_update[source][dest].keys():
+            if throughput_update[source][dest][cyc][0] == 0:
+                off += 1
+            total += 1
+    injection_rate[source] = 1 - (off/total)
 
 
 def generate_per_core_packet_number_per_cycle(source, dest):
@@ -110,10 +115,6 @@ def generate_per_core_packet_number_per_cycle(source, dest):
                 window_size[source][dest][len(throughput_update[source][dest][cycle])] = 1
             else:
                 window_size[source][dest][len(throughput_update[source][dest][cycle])] += 1
-            """if len(throughput_update[src][dest][cycle]) not in window_size_t[src].keys():
-                window_size_t[src][len(throughput_update[src][dest][cycle])] = 1
-            else:
-                window_size_t[src][len(throughput_update[src][dest][cycle])] += 1"""
     window_size[source][dest] = dict(sorted(window_size[source][dest].items(), key=lambda x: x[0]))
 
 
@@ -147,7 +148,7 @@ def generate_markov_state(source, dest):
 
 
 def generate_processing_time(subpath, source):
-    path = subpath + "out/processing_time_" + str(source) + ".txt"
+    path = subpath + "pre/out/processing_time_" + str(source) + ".txt"
     file = open(path, "r")
     raw_content = ""
     if file2.mode == "r":
@@ -221,7 +222,7 @@ def generate_transition_states(source, dest):
 
 
 def calculate_destination_window(subpath, source):
-    path = subpath + "out/dest_win_" + str(source) + ".txt"
+    path = subpath + "pre/out/dest_win_" + str(source) + ".txt"
     file = open(path, "r")
     raw_content = ""
     if file.mode == "r":
@@ -243,12 +244,23 @@ def calculate_destination_window(subpath, source):
             dest_window_size[source][len(byte)] += 1
 
 
+def inter_arrival_time(subpath, source):
+    with open(subpath + "pre/out/iat_" + str(source) + ".csv") as csv_file:
+        reader = csv.reader(csv_file, delimiter=',')
+        flag = 0
+        for item in reader:
+            if flag == 0:
+                flag = 1
+            else:
+                iat[source][int(item[0])] = int(item[1])
+
+
 if __name__ == "__main__":
+    subpath = "benchmarks/PolyBench/syrk/"
     for src in range(0, 4):
         for dest in range(0, 4):
             if src != dest:
-                subpath = "benchmarks/bfs/pre/"
-                path = subpath + "out/pre_" + str(src) + "_" + str(dest) + ".txt"
+                path = subpath + "pre/out/pre_" + str(src) + "_" + str(dest) + ".txt"
                 file2 = open(path, "r")
                 raw_content = ""
                 if file2.mode == "r":
@@ -265,21 +277,19 @@ if __name__ == "__main__":
                 generate_real_traffic_per_core(src, dest, lined_list)
                 generate_per_core_packet_number_per_cycle(src, dest)
                 packet_type_frequency(src, dest)
+        calculate_injection_rate(src)
+        inter_arrival_time(subpath, src)
+        calculate_destination_window(subpath, src)
+        generate_processing_time(subpath, src)
 
-                calculate_injection_rate(src, dest)
-                calculate_destination_window(subpath, src)
-                generate_processing_time(subpath, src)
-    destination_choose()
-
-    model_name = "bfs"
+    model_name = "syrk"
     for i in range(0, 4):
-        filename = "benchmarks/bfs/" + model_name + "_core_" + str(i) + str(".model")
+        filename = subpath + model_name + "_core_" + str(i) + str(".model")
         with open(filename, "w") as file:
             file.write("core " + str(i) + "\n\n")
-
             file.write("injection_rate_begin\n")
             for dest in injection_rate[i].keys():
-                file.write(str(dest) + "\t" + str(injection_rate[i][dest]) + "\n")
+                file.write(str(injection_rate[i][dest]) + "\n")
             file.write("injection_rate_end\n")
 
             file.write("\nwindow_size_begin\n")
@@ -296,10 +306,10 @@ if __name__ == "__main__":
                     file.write(str(pack) + "\t" + str(freq) + "\n")
             file.write("packet_distribution_end\n\n")
 
-            file.write("destination_begin\n")
+            """file.write("destination_begin\n")
             for dest, freq in destination[i].items():
                 file.write(str(dest) + "\t" + str(freq) + "\n")
-            file.write("destination_end\n\n")
+            file.write("destination_end\n\n")"""
 
             file.write("destination_window_begin\n")
             for size, freq in dest_window_size[i].items():
@@ -336,3 +346,8 @@ if __name__ == "__main__":
             for time, freq in processing_time[i].items():
                file.write(str(time) + "\t" + str(freq) + "\n")
             file.write("processing_time_end\n\n")
+
+            file.write("Inter_arrival_time_begin\n")
+            for duration, freq in iat[i].items():
+                file.write(str(duration) + "\t" + str(freq) + "\n")
+            file.write("Inter_arrival_time_end\n")

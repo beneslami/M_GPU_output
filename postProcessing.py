@@ -41,9 +41,13 @@ chiplet.append(chiplet_1)
 chiplet.append(chiplet_2)
 chiplet.append(chiplet_3)
 injection = {0: {}, 1: {}, 2: {}, 3: {}}
-throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+throughput_flit_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
                   3: {0: {}, 1: {}, 2: {}}}
-throughput = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+throughput_flit = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+              3: {0: {}, 1: {}, 2: {}}}
+throughput_byte_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
+                  3: {0: {}, 1: {}, 2: {}}}
+throughput_byte = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
               3: {0: {}, 1: {}, 2: {}}}
 packet_type_ratio = {0: {0: 0, 1: 0, 2: 0, 3: 0}, 1: {0: 0, 1: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 2: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0, 3: 0}}
 per_chiplet_heat_map = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
@@ -146,25 +150,25 @@ def flit_per_cycle(packet):
                             out[source][time] = flit
                         else:
                             out[source][time] += flit
-                        if time not in throughput[source][dest].keys():
-                            throughput[source][dest].setdefault(time, []).append(byte)
+                        if time not in throughput_flit[source][dest].keys():
+                            throughput_flit[source][dest].setdefault(time, []).append(byte)
                         else:
-                            throughput[source][dest].setdefault(time, []).append(byte)
+                            throughput_flit[source][dest].setdefault(time, []).append(byte)
     zero = {0: 0, 1: 0, 2: 0, 3: 0}
     flag = prev = 0
-    for source in throughput.keys():
-        for dest in throughput[source].keys():
-            for cyc in throughput[source][dest].keys():
+    for source in throughput_flit.keys():
+        for dest in throughput_flit[source].keys():
+            for cyc in throughput_flit[source][dest].keys():
                 if flag == 0:
-                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
+                    throughput_flit_update[source][dest][cyc] = throughput_flit[source][dest][cyc]
                     prev = cyc
                     flag = 1
                 elif flag == 1:
                     if cyc - prev > 1:
                         for k in range(prev + 1, cyc):
                             zero[source] += 1
-                            throughput_update[source][dest].setdefault(k, []).append(0)
-                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
+                            throughput_flit_update[source][dest].setdefault(k, []).append(0)
+                    throughput_flit_update[source][dest][cyc] = throughput_flit[source][dest][cyc]
                     prev = cyc
 
     fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
@@ -188,12 +192,33 @@ def byte_per_cycle(packet):
             else:
                 if int(packet[i][j][5].split(": ")[1]) == 0 or int(packet[i][j][5].split(": ")[1]) == 2:
                     source = int(packet[i][j][0].split(": ")[1])
+                    dest = int(packet[i][j][1].split(": ")[1])
                     time = int(packet[i][j][6].split(": ")[1])
                     byte = int(packet[i][j][4].split(": ")[1])
                     if time not in out1[source].keys():
                         out1[source][time] = byte
                     else:
                         out1[source][time] += byte
+                    if time not in throughput_byte[source][dest].keys():
+                        throughput_byte[source][dest][time] = byte
+                    else:
+                        throughput_byte[source][dest][time] += byte
+    zero = {0: 0, 1: 0, 2: 0, 3: 0}
+    flag = prev = 0
+    for source in throughput_byte.keys():
+        for dest in throughput_byte[source].keys():
+            for cyc in throughput_byte[source][dest].keys():
+                if flag == 0:
+                    throughput_byte_update[source][dest][cyc] = throughput_byte[source][dest][cyc]
+                    prev = cyc
+                    flag = 1
+                elif flag == 1:
+                    if cyc - prev > 1:
+                        for k in range(prev + 1, cyc):
+                            zero[source] += 1
+                            throughput_byte_update[source][dest].setdefault(k, []).append(0)
+                    throughput_byte_update[source][dest][cyc] = throughput_byte[source][dest][cyc]
+                    prev = cyc
 
     fig, ax = plt.subplots(4, 1, figsize=(18, 5), dpi=200)
     ax[0].bar(list(out1[0].keys()), list(out1[0].values()), width=3)
@@ -206,14 +231,14 @@ def byte_per_cycle(packet):
 def byte_per_cycle_dist(dir):
     dist = {0: {}, 1: {}, 2: {}, 3: {}}
     dist_sns = {0: [], 1: [], 2: [], 3: []}
-    for source in throughput.keys():
-        for dest in throughput[source].keys():
-            for cycle, byte in throughput[source][dest].items():
-                dist_sns[source].append(sum(byte))
-                if sum(byte) not in dist[source].keys():
-                    dist[source][sum(byte)] = 1
+    for source in throughput_byte.keys():
+        for dest in throughput_byte[source].keys():
+            for cycle, byte in throughput_byte[source][dest].items():
+                dist_sns[source].append(byte)
+                if byte not in dist[source].keys():
+                    dist[source][byte] = 1
                 else:
-                    dist[source][sum(byte)] += 1
+                    dist[source][byte] += 1
 
     fields = ['byte', 'dist']
     dist[0] = dict(sorted(dist[0].items(), key=lambda x: x[0]))
@@ -265,16 +290,30 @@ def inter_departure_dist(dir):
     dist_sns = {0: [], 1: [], 2: [], 3: []}
     flag = 0
     start = end = 0
-    sorted_throughput_update = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}},
-                  3: {0: {}, 1: {}, 2: {}}}
-    for core in throughput_update.keys():
-        for dest in throughput_update[core].keys():
-            sorted_throughput_update[core][dest] = dict(sorted(throughput_update[core][dest].items(), key=lambda x:x[0]))
+    global throughput_byte_update
+    global throughput_byte
+    for source in throughput_byte.keys():
+        for dest in throughput_byte[source].keys():
+            for cyc in throughput_byte[source][dest].keys():
+                if flag == 0:
+                    throughput_byte_update[source][dest][cyc] = throughput_byte[source][dest][cyc]
+                    prev = cyc
+                    flag = 1
+                elif flag == 1:
+                    if cyc - prev > 1:
+                        for k in range(prev + 1, cyc):
+                            throughput_byte_update[source][dest].setdefault(k, []).append(0)
+                    throughput_byte_update[source][dest][cyc] = throughput_byte[source][dest][cyc]
+                    prev = cyc
 
-    for core in throughput_update.keys():
-        for dest in throughput_update[core].keys():
-            for cyc, byte in throughput_update[core][dest].items():
-                if byte[0] == 0:
+    for core in throughput_byte_update.keys():
+        for dest in throughput_byte_update[core].keys():
+            throughput_byte_update[core][dest] = dict(sorted(throughput_byte_update[core][dest].items(), key=lambda x:x[0]))
+
+    for core in throughput_byte_update.keys():
+        for dest in throughput_byte_update[core].keys():
+            for cyc, byte in throughput_byte_update[core][dest].items():
+                if not(isinstance(byte, int)) and byte[0] == 0:
                     if flag == 0:
                         start = cyc
                         flag = 1
@@ -338,11 +377,11 @@ def inter_departure_dist(dir):
 
 
 def outser(dir):
-    for core in throughput.keys():
-        for dest in throughput[core].keys():
+    for core in throughput_byte.keys():
+        for dest in throughput_byte[core].keys():
             path = dir + "post/out/post_" + str(core) + "_" + str(dest) + ".txt"
             with open(path, "w") as file:
-                for cycle, byte in throughput[core][dest].items():
+                for cycle, byte in throughput_byte[core][dest].items():
                     file.write(str(cycle) + "\t" + str(byte) + "\n")
 
 
@@ -388,7 +427,6 @@ def per_core_comparison(path):
             real_list[sum(byte)] = 1
         else:
             real_list[sum(byte)] += 1
-
 
     with open(synthetic_path, "r") as file:
         reader = file.readlines()
@@ -442,35 +480,29 @@ def per_core_comparison(path):
     plt.show()
 
 
-def per_chip_traffic_pattern():
-    one_to_one = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0},
-                  3: {0: 0, 1: 0, 2: 0}}
-    total = {0: 0, 1: 0, 2: 0, 3: 0}
-    for core in throughput.keys():
-        for dest in throughput[core].keys():
-            one_to_one[core][dest] += sum(throughput[core][dest])
-            total[core] += sum(throughput[core][dest])
-    for core in one_to_one.keys():
-        for dest in one_to_one[core].keys():
-            per_chiplet_heat_map[core][dest] = one_to_one[core][dest]/total[core]
-    frame = []
-    for i in range(max(list(per_chiplet_heat_map.keys()))):
-        for core in per_chiplet_heat_map.keys():
-            inner_frame = []
-            if i == core:
-                inner_frame.append([0])
-            else:
-                for dest in per_chiplet_heat_map[core].keys():
-                    inner_frame.append(per_chiplet_heat_map[core][dest])
-        frame.append(inner_frame)
-    print(frame)
-    sns.heatmap(frame)
-    plt.show()
+def generate_packet_latency(packet, dir):
+    dist = {}
+    start = 0
+    for i in packet.keys():
+        for line in packet[i]:
+            if int(line[3].split(": ")[1]) == -1:
+                start = int(line[6].split(": ")[1])
+            elif int(line[4].split(": ")[1]) == 4:
+                if (int(line[7].split(": ")[1]) - start) not in dist.keys():
+                    dist[int(line[7].split(": ")[1]) - start] = 1
+                else:
+                    dist[int(line[7].split(": ")[1]) - start] += 1
+                break
+    with open(dir + "post/out/packet_latency.csv", "w") as csv_file:
+        writer = csv.writer(csv_file)
+        writer.writerow(['latency', 'density'])
+        for lat, freq in dist.items():
+            writer.writerow([lat, freq])
 
 
 if __name__ == "__main__":
-    path = "benchmarks/bfs/"
-    with open('out.txt', 'r') as file:
+    path = "benchmarks/PolyBench/syrk/"
+    with open(path + 'post/out.txt', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
@@ -481,14 +513,15 @@ if __name__ == "__main__":
     packet = {}
     for i in range(len(lined_list)):
         if int(lined_list[i][2].split(": ")[1]) in packet_.keys():
-            packet_.setdefault(int(lined_list[i][6].split(": ")[1]), []).append(lined_list[i])
+            packet_.setdefault(int(lined_list[i][2].split(": ")[1]), []).append(lined_list[i])
         else:
-            packet_.setdefault(int(lined_list[i][6].split(": ")[1]), []).append(lined_list[i])
+            packet_.setdefault(int(lined_list[i][2].split(": ")[1]), []).append(lined_list[i])
     packet = dict(sorted(packet_.items(), key=lambda x: x[0]))
-    flit_per_cycle(packet)
+    #flit_per_cycle(packet)
+    #byte_per_cycle(packet)
     #byte_per_cycle_dist(path)
     #inter_departure_dist(path)
     #outser(path)
-    #per_core_comparison(path)
     #generate_packet_type_ratio(packet, path)
-    per_chip_traffic_pattern()
+    #per_core_comparison(path)
+    generate_packet_latency(packet, path)
