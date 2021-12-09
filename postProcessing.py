@@ -759,9 +759,6 @@ def test():
                     if len(throughput_byte[src][cyc][dest]) == 1:
                         if throughput_byte[src][cyc][dest][0] == 8:
                             ziq[src][dest] += 1
-    print(ziq[0][1])
-    print(ziq[0][2])
-    print(ziq[0][3])
 
 
 def inter_injection(dir):
