@@ -446,6 +446,7 @@ if __name__ == "__main__":
     t6.join()
     t7.join()
     t8.join()
+
     for i in range(0, 4):
         filename = subpath + model_name + "_core_" + str(i) + str(".model")
         with open(filename, "w") as file:
