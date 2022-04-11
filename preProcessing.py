@@ -530,7 +530,7 @@ def destination_byte_dist():
 
 
 if __name__ == '__main__':
-    dir = "benchmarks/PolyBench/atax/pre/"
+    dir = "benchmarks/Rodinia/cfd/pre/"
     for src in range(0, 4):
         for dst in range(0, 4):
             if src != dst:
