@@ -1,8 +1,8 @@
 import csv
+import gc
+import os
+import sys
 import numpy as np
-import matplotlib.pyplot as plt
-from hurst import compute_Hc
-import warnings
 
 chiplet = []
 chiplet_0 = dict(
@@ -30,21 +30,24 @@ chiplet.append(chiplet_1)
 chiplet.append(chiplet_2)
 chiplet.append(chiplet_3)
 
-traffic = {0: {}, 1: {}, 2: {}, 3: {}}
-dest_traffic = {0: {}, 1: {}, 2: {}, 3: {}}
-iat = {0: {}, 1: {}, 2: {}, 3: {}}
-byte_dist = {0: {}, 1: {}, 2: {}, 3: {}}
-byte_dist_ = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-window_size = {0: {}, 1: {}, 2: {}, 3: {}}
-packet_type = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-injection_rate = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-inter_injection_rate = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-state_nums = {0: {}, 1: {}, 2: {}, 3: {}}
-destination_choose = {0: {}, 1: {}, 2: {}, 3: {}}
-traffic_pattern = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-offered_throughput = {}
+TIME = 8
+TIME_2 = 8
+request_injection = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+response_injection = {0: {}, 1: {}, 2: {}, 3: {}}
+offered_throughput = {0: {}, 1: {}, 2: {}, 3: {}}
 total_throughput = {}
-packet_freq = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+
+dest_window = {0: {}, 1: {}, 2: {}, 3: {}}
+iat_dist_csv = {0: {}, 1: {}, 2: {}, 3: {}}
+byte_dist_csv = {0: {}, 1: {}, 2: {}, 3: {}}
+packet_type_ratio = {0: {0: 0, 1: 0, 2: 0, 3: 0}, 1: {0: 0, 1: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 2: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0, 3: 0}}
+link_utilization = {0: {1: {}, 2: {}, 3: {}}, 1: {0:{}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+req_link_utilization = {0: {1: {}, 2: {}, 3: {}}, 1: {0:{}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+resp_link_utilization = {0: {1: {}, 2: {}, 3: {}}, 1: {0:{}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+packet_latency = {0: {1: [], 2: [], 3: []}, 1: {0: [], 2: [], 3: []}, 2: {0: [], 1: [], 3: []}, 3: {0: [], 1: [], 2: []}}
+network_latency = {0: {1: [], 2: [], 3: []}, 1: {0: [], 2: [], 3: []}, 2: {0: [], 1: [], 3: []}, 3: {0: [], 1: [], 2: []}}
+data = {0: {}, 1: {}, 2: {}, 3: {}}
+traffic_flow = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
 
 
 def chip_select(num):
@@ -74,491 +77,698 @@ def check_local_or_remote(x):  # 0 for local, 1 for remote
     return 0
 
 
-def calculate_injection_rate():
-    start = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    flag = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            for dest in traffic[src][cyc].keys():
-                if len(traffic[src][cyc][dest]) == 0:
-                    if flag[src][dest] == 0:
-                        start[src][dest] = cyc
-                        flag[src][dest] = 1
-                    elif flag[src][dest] == 1:
-                        continue
-                else:
-                    if flag[src][dest] == 1:
-                        if (cyc - start[src][dest]) not in injection_rate[src][dest].keys():
-                            injection_rate[src][dest][(cyc - start[src][dest])] = 1
-                        else:
-                            injection_rate[src][dest][(cyc - start[src][dest])] += 1
-                        flag[src][dest] = 0
-
-    for src in injection_rate.keys():
-        for dest in injection_rate[src].keys():
-            injection_rate[src][dest] = dict(sorted(injection_rate[src][dest].items(), key=lambda x: x[0]))
-
-    with open(dir + "injection_rate.csv", "w") as file:
-        for src in injection_rate.keys():
-            file.write(str(src) + "\n")
-            for dest in injection_rate[src].keys():
-                file.write(str(dest) + "\n")
-                for duration, freq in injection_rate[src][dest].items():
-                    file.write(str(duration) + "," + str(freq) + "\n")
-
-
-def update_traffic():
-    global traffic
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            list_ = [0, 1, 2, 3]
-            list_.remove(src)
-            for dest in traffic[src][cyc].keys():
-                list_.remove(dest)
-            if len(list_) != 0:
-                for i in list_:
-                    traffic[src][cyc].setdefault(i, [])
-    for src in traffic.keys():
-        traffic[src] = dict(sorted(traffic[src].items(), key=lambda x: x[0]))
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            traffic[src][cyc] = dict(sorted(traffic[src][cyc].items(), key=lambda x: x[0]))
-
-
-def generate_real_traffic_per_core(source, dest, packet):
-    global traffic
-    for cycle, byte in packet.items():
-        if cycle not in traffic[source].keys():
-            traffic[source].setdefault(cycle, {})
-            if dest not in traffic[source][cycle].keys():
-                traffic[source][cycle][dest] = byte
-            else:
-                for b in byte:
-                    traffic[source][cycle][dest].append(b)
-        else:
-            if dest not in traffic[source][cycle].keys():
-                traffic[source][cycle][dest] = byte
-            else:
-                for b in byte:
-                    traffic[source][cycle][dest].append(b)
-
-
-def IAT(dir):
-    global traffic
-    flag = 0
-    start = -1
-    for source in traffic.keys():
-        for cycle in traffic[source].keys():
-            if flag == 0:
-                start = cycle
-                flag = 1
-            elif flag == 1:
-                if (cycle - start) not in iat[source].keys():
-                    iat[source][cycle - start] = 1
-                else:
-                    iat[source][cycle - start] += 1
-                start = cycle
-        start = -1
-        flag = 0
-    for source in iat.keys():
-        iat[source] = dict(sorted(iat[source].items(), key=lambda x: x[0]))
-    for src in iat.keys():
-        with open(dir + "iat_" + str(src) + ".csv", "w") as file:
-            for duration, freq in iat[src].items():
-                file.write(str(duration) + "," + str(freq) + "\n")
-
-
-def byte_distribution(dir):
-    global traffic
-    global byte_dist
-    for src in traffic.keys():
-        for cycle in traffic[src].keys():
-            temp = 0
-            for dest in traffic[src][cycle].keys():
-                if len(traffic[src][cycle][dest]) == 0:
-                    if 0 not in byte_dist_[src][dest].keys():
-                        byte_dist_[src][dest][0] = 1
-                    else:
-                        byte_dist_[src][dest][0] += 1
-                else:
-                    temp += sum(traffic[src][cycle][dest])
-                    if sum(traffic[src][cycle][dest]) not in byte_dist_[src][dest].keys():
-                        byte_dist_[src][dest][sum(traffic[src][cycle][dest])] = 1
-                    else:
-                        byte_dist_[src][dest][sum(traffic[src][cycle][dest])] += 1
-            if temp not in byte_dist[src].keys():
-                byte_dist[src][temp] = 1
-            else:
-                byte_dist[src][temp] += 1
-
-    for src in byte_dist.keys():
-        byte_dist[src] = dict(sorted(byte_dist[src].items()), key=lambda x: x[0])
-    for src in byte_dist_.keys():
-        for dest in byte_dist_[src].keys():
-            byte_dist_[src][dest] = dict(sorted(byte_dist_[src][dest].items(), key=lambda x: x[0]))
-
-    for src in byte_dist_.keys():
-        for dest in byte_dist_[src].keys():
-            with open(dir +"byte_" + str(src) + "_" + str(dest) + ".csv", "w") as file:
-                for byte, dist in byte_dist_[src][dest].items():
-                    file.write(str(byte) + "," + str(dist) + "\n")
-
-
-def calculate_window_size(dir):
-    global traffic
-    global window_size
-    dist = {}
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            by = {}
-            counter = 0
-            for dest in traffic[src][cyc].keys():
-                if len(traffic[src][cyc][dest]) != 0:
-                    counter += 1
-                    for b in traffic[src][cyc][dest]:
-                        if b not in by.keys():
-                            by[b] = 1
-                        else:
-                            by[b] += 1
-            if counter not in dist.keys():
-                dist[counter] = by
-            else:
-                temp = dist[counter]
-                for it in by.keys():
-                    if it in temp.keys():
-                        temp[it] += by[it]
-                    else:
-                        temp[it] = by[it]
-                dist[counter] = temp
-
-            sum = 0
-            for dest in traffic[src][cyc].keys():
-                if len(traffic[src][cyc][dest]) != 0:
-                    sum += len(traffic[src][cyc][dest])
-            if sum not in window_size[src].keys():
-                window_size[src][sum] = 1
-            else:
-                window_size[src][sum] += 1
-
-    for src in window_size.keys():
-        window_size[src] = dict(sorted(window_size[src].items(), key=lambda x: x[0]))
-
-    for src in window_size.keys():
-        print(str(src) + "\n")
-        for win, freq in window_size[src].items():
-            print(str(win) + "," + str(freq))
-
-
-def generate_packet_type_ratio():
-    global traffic
-    global packet_type
-    dist_total = {0: {}, 1: {}, 2: {}, 3: {}}
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            for dest in traffic[src][cyc].keys():
-                if len(traffic[src][cyc][dest]) == 0:
-                    if 0 not in packet_type[src][dest].keys():
-                        packet_type[src][dest][0] = 1
-                    else:
-                        packet_type[src][dest][0] += 1
-                    if 0 not in dist_total[src].keys():
-                        dist_total[src][0] = 1
-                    else:
-                        dist_total[src][0] += 1
-
-                else:
-                    for byte in traffic[src][cyc][dest]:
-                        if byte not in packet_type[src][dest].keys():
-                            packet_type[src][dest][byte] = 1
-                        else:
-                            packet_type[src][dest][byte] += 1
-                        if byte not in dist_total[src].keys():
-                            dist_total[src][byte] = 1
-                        else:
-                            dist_total[src][byte] += 1
-    with open(dir + "packet_ratio.csv", "w") as file:
-        for src in dist_total.keys():
-            file.write(str(src) + "\n")
-            for packet, freq in dist_total[src].items():
-                file.write(str(packet) + "," + str(freq) + "\n")
-
-
-def outser(dir):
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            for dest in traffic[src][cyc].keys():
-                with open(dir + "pre_" + str(src) + "_" + str(dest) + ".txt", "a") as file:
-                    file.write(str(cyc) + "\t" + str(traffic[src][cyc][dest]) + "\n")
-
-
-def test():
-    global traffic
-    global state_nums
-    dist = {0: {}, 1: {}, 2: {}, 3: {}}
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            for dest, byte in traffic[src][cyc].items():
-                if len(byte) != 0:
-                    if len(byte) not in dist[src].keys():
-                        dist[src][len(byte)] = 1
-                    else:
-                        dist[src][len(byte)] += 1
-    for src in dist.keys():
-        dist[src] = dict(sorted(dist[src].items(), key=lambda x: x[0]))
-
-    for src in dist.keys():
-        print(src)
-        for win, freq in dist[src].items():
-            print(str(win) + "\t" + str(freq))
-
-
-def destination():
-    global traffic
-    global destination_choose
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            for dest in traffic[src][cyc].keys():
-                if len(traffic[src][cyc][dest]) != 0:
-                    if dest not in destination_choose[src].keys():
-                        destination_choose[src][dest] = 1
-                    else:
-                        destination_choose[src][dest] += 1
-    for src in destination_choose.keys():
-        destination_choose[src] = dict(sorted(destination_choose[src].items(), key=lambda x: x[0]))
-    with open("pre/out/destination_choose.txt", "w") as file:
-        for src in destination_choose.keys():
-            file.write(str(src) + "\n")
-            for dest, freq in destination_choose[src].items():
-                file.write(str(dest) + "," + str(freq) + "\n")
-
-
-def generate_traffic_pattern(dir):
-    global traffic_pattern
-    global traffic
-    destination_spread = {0: {}, 1: {}, 2: {}, 3: {}}
-    for src in traffic.keys():
-        for cycle in traffic[src].keys():
-            for dest in traffic[src][cycle].keys():
-                byte = sum(traffic[src][cycle][dest])
-                traffic_pattern[src][dest] = traffic_pattern[src][dest] + byte
-                if len(traffic[src][cycle][dest]) != 0:
-                    if dest not in destination_spread[src].keys():
-                        destination_spread[src][dest] = 1
-                    else:
-                        destination_spread[src][dest] += 1
-    with open(dir + "traffic_pattern.csv", "w") as file:
-        for src in traffic_pattern.keys():
-            file.write(str(src) + "\n")
-            for dest, byte in traffic_pattern[src].items():
-                file.write(str(dest) + "," + str(byte) + "\n")
-
-    with open(dir + "destination_spread.csv", "w") as file:
-        for src in destination_spread.keys():
-            file.write(str(src) + "\n")
-            for dest, freq in destination_spread[src].items():
-                file.write(str(dest) + "," + str(freq) + "\n")
-
-
-def packet_type_frequency():
-    global traffic
-    global packet_freq
-    for source in traffic.keys():
-        for cycle in traffic[source].keys():
-            for dest, bytes in traffic[source][cycle].items():
-                if len(bytes) != 0:
-                    for i in bytes:
-                        if i not in packet_freq[source][dest].keys():
-                            packet_freq[source][dest][i] = 1
-                        else:
-                            packet_freq[source][dest][i] += 1
-                else:
-                    if 0 not in packet_freq[source][dest].keys():
-                        packet_freq[source][dest][0] = 1
-                    else:
-                        packet_freq[source][dest][0] += 1
-    for src in packet_freq.keys():
-        for dest in packet_freq[src].keys():
-            packet_freq[src][dest] = dict(sorted(packet_freq[src][dest].items(), key=lambda x: x[0]))
-    with open("pre/out/packet_type.csv", "w") as file:
-        for src in packet_freq.keys():
-            file.write(str(src) + "\n")
-            for dest in packet_freq[src].keys():
-                file.write(str(dest) + "\n")
-                for type, freq in packet_freq[src][dest].items():
-                    file.write(str(type) + "," + str(freq) + "\n")
-
-
-def generate_destination_traffic(dir):
-    for i in range(0, 4):
-        for j in range(0, 4):
-            if i != j:
-                lines = ""
-                with open(dir + "response_injection/pre_" + str(i) + "_" + str(j) + ".txt") as file:
+def request_byte_per_core(packet):
+    global request_injection
+    for core in request_injection.keys():
+        for dest in request_injection[core].keys():
+            if os.path.isfile("pre/request_injection/pre_" + str(core) + "_" + str(dest) + ".txt"):
+                with open("pre/request_injection/pre_" + str(core) + "_" + str(dest) + ".txt", "r") as file:
                     lines = file.readlines()
                 for line in lines:
                     item = [x for x in line.split("\t") if x not in ['', '\t']]
                     cycle = int(item[0])
-                    byte = list(item[1].split("\n")[0][1:][:-1].split(", "))
-                    if cycle not in dest_traffic[i].keys():
-                        dest_traffic[i].setdefault(cycle, {})
-                        if j not in dest_traffic[i][cycle].keys():
-                            dest_traffic[i][cycle].setdefault(j, [])
-                            for b in byte:
-                                dest_traffic[i][cycle][j].append(int(b))
-                        else:
-                            for b in byte:
-                                dest_traffic[i][cycle][j].append(int(b))
+                    byte = item[1].split("\n")[0][1:][:-1].split(", ")
+                    request_injection[core][dest].setdefault(cycle, [])
+                    for b in byte:
+                        request_injection[core][dest][cycle].append(int(b))
+
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
+                if packet[i][j][0] == "injection buffer":
+                    source = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    dest = chip_select(int(packet[i][j][2].split(": ")[1]))
+                    time = int(packet[i][j][TIME].split(": ")[1])
+                    byte = int(packet[i][j][7].split(": ")[1])
+                    if time not in request_injection[source][dest].keys():
+                        request_injection[source][dest].setdefault(time, []).append(byte)
                     else:
-                        if j not in dest_traffic[i][cycle].keys():
-                            dest_traffic[i][cycle].setdefault(j, [])
-                            for b in byte:
-                                dest_traffic[i][cycle][j].append(int(b))
-                        else:
-                            for b in byte:
-                                dest_traffic[i][cycle][j].append(int(b))
-    for src in dest_traffic.keys():
-       dest_traffic[src] = dict(sorted(dest_traffic[src].items(), key=lambda x: x[0]))
+                        request_injection[source][dest][time].append(byte)
 
 
-def destination_IAT():
-    dest_iat = {0: {}, 1: {}, 2: {}, 3: {}}
-    window = {0: {}, 1: {}, 2: {}, 3: {}}
-    for src in dest_traffic.keys():
-        start = flag = 0
-        for cyc, windows in dest_traffic[src].items():
-            if flag == 0:
-                start = cyc
+def request_byte_per_core_out():
+    global request_injection
+    for core in request_injection.keys():
+        for dest in request_injection[core].keys():
+            path = "pre/request_injection/pre_" + str(core) + "_" + str(dest) + ".txt"
+            with open(path, "w") as file:
+                for cycle, byte in request_injection[core][dest].items():
+                    file.write(str(cycle) + "\t" + str(byte) + "\n")
+
+
+def response_byte_per_core(packet):
+    global response_injection
+    for core in response_injection.keys():
+        if os.path.isfile("pre/response_injection/pre_" + str(core) + ".txt"):
+            with open("pre/response_injection/pre_" + str(core) + ".txt", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                item = [x for x in line.split("\t") if x not in ['', '\t']]
+                cycle = int(item[0])
+                byte = item[1].split("\n")[0][1:][:-1].split(", ")
+                response_injection[core].setdefault(cycle, [])
+                for b in byte:
+                    response_injection[core][cycle].append(int(b))
+
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
+                if packet[i][j][0] == "L2_icnt_pop":
+                    source = chip_select(int(packet[i][j][1].split(": ")[1]))
+                    time = int(packet[i][j][TIME].split(": ")[1])
+                    byte = int(packet[i][j][7].split(": ")[1])
+                    if time not in response_injection[source].keys():
+                        response_injection[source].setdefault(time, []).append(byte)
+                    else:
+                        response_injection[source][time].append(byte)
+
+
+def response_byte_per_core_out():
+    global response_injection
+    for core in response_injection.keys():
+        path = "pre/response_injection/pre_" + str(core) + ".txt"
+        with open(path, "w") as file:
+            for cycle, byte in response_injection[core].items():
+                file.write(str(cycle) + "\t" + str(byte) + "\n")
+
+
+def cache_access(packet):
+    hit_latency = {0: {}, 1: {}, 2: {}, 3: {}}
+    miss_latency = {0: {}, 1: {}, 2: {}, 3: {}}
+    access = {0: {"hit": 0, "miss": 0}, 1: {"hit": 0, "miss": 0}, 2: {"hit": 0, "miss": 0}, 3: {"hit": 0, "miss": 0}}
+    lines = ""
+
+    for i in hit_latency.keys():
+        if os.path.isfile("pre/cache_access/cache_access_hit" + str(i) + ".csv"):
+            with open("pre/cache_access/cache_access_hit" + str(i) + ".csv", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                item = line.split(",")
+                hit_latency[i][int(item[0])] = int(item[1])
+
+    lines = ""
+    for i in miss_latency.keys():
+        if os.path.isfile("pre/cache_access/cache_access_miss" + str(i) + ".csv"):
+            with open(    "pre/cache_access/cache_access_miss" + str(i) + ".csv", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                item = line.split(",")
+                miss_latency[i][int(item[0])] = int(item[1])
+
+    lines = ""
+    for i in access.keys():
+        if os.path.isfile("pre/cache_access/cache_access" + ".csv"):
+            with open("pre/cache_access/cache_access" + ".csv", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                chip = int(line.split("-")[0])
+                items = line.split("-")[1].split(",")
+                access[chip]["hit"] += int(items[0].split(":")[1])
+                access[chip]["miss"] += int(items[1].split(":")[1])
+
+    for i in packet.keys():
+        chip = -1
+        start = -1
+        end = -1
+        flag = -1
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "rop push":
+                chip = int(packet[i][j][6].split(": ")[1])
+                start = int(packet[i][j][TIME].split(": ")[1])
                 flag = 1
-            else:
-                if (cyc - start) not in dest_iat[src].keys():
-                    dest_iat[src][cyc - start] = 1
-                else:
-                    dest_iat[src][cyc - start] += 1
-                start = cyc
+            elif packet[i][j][0] == "L2_icnt_push" and flag == 1:
+                end = int(packet[i][j][TIME].split(": ")[1])
+                if "L2" in packet[i][j][9]:
+                    if (end - start) not in hit_latency[chip].keys():
+                        hit_latency[chip][end-start] = 1
+                    else:
+                        hit_latency[chip][end-start] += 1
+                    access[chip]["hit"] += 1
+                elif "DRAM" in packet[i][j][9]:
+                    if (end - start) not in miss_latency[chip].keys():
+                        miss_latency[chip][end-start] = 1
+                    else:
+                        miss_latency[chip][end-start] += 1
+                    access[chip]["miss"] += 1
+                    flag = -1
+                break
 
-            total_win = 0
-            for dest, win in dest_traffic[src][cyc].items():
-                total_win += len(win)
-            if total_win not in window[src].keys():
-                window[src][total_win] = 1
+    for i in hit_latency.keys():
+        hit_latency[i] = dict(sorted(hit_latency[i].items(), key=lambda x: x[0]))
+    for i in hit_latency.keys():
+        with open("pre/cache_access/cache_access_hit" + str(i) + ".csv", "w") as file:
+            for duration, freq in hit_latency[i].items():
+                file.write(str(duration) + ", " + str(freq) + "\n")
+
+    for i in miss_latency.keys():
+        miss_latency[i] = dict(sorted(miss_latency[i].items(), key=lambda x: x[0]))
+    for i in miss_latency.keys():
+        with open("pre/cache_access/cache_access_miss" + str(i) + ".csv", "w") as file:
+            for duration, freq in miss_latency[i].items():
+                file.write(str(duration) + ", " + str(freq) + "\n")
+
+    with open("pre/cache_access/cache_access" + ".csv", "w") as file:
+        for i in access.keys():
+            file.write(str(i) + "-")
+            for acc, freq in access[i].items():
+                file.write(str(acc) + ":" + str(freq) + ",")
+            file.write("\n")
+
+
+def generate_link_utilization(packet):
+
+    for src in link_utilization.keys():
+        for dest in link_utilization[src].keys():
+            if os.path.isfile("pre/link_utilization/total/link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt"):
+                with open("pre/link_utilization/total/link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt", "r") as file:
+                    raw_content = file.readlines()
+                for line in raw_content:
+                    item = [x for x in line.split("\t") if x not in ['', '\t']]
+                    cycle = int(item[0])
+                    bytes = item[1].split("\n")[0][1:][:-1].split(", ")
+                    link_utilization[src][dest].setdefault(cycle, [])
+                    for b in bytes:
+                        link_utilization[src][dest][cycle].append(int(b))
+
+            if os.path.isfile("pre/link_utilization/request/req_link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt"):
+                with open(    "pre/link_utilization/request/req_link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt", "r") as file:
+                    raw_content = file.readlines()
+                for line in raw_content:
+                    item = [x for x in line.split("\t") if x not in ['', '\t']]
+                    cycle = int(item[0])
+                    bytes = item[1].split("\n")[0][1:][:-1].split(", ")
+                    req_link_utilization[src][dest].setdefault(cycle, [])
+                    for b in bytes:
+                        req_link_utilization[src][dest][cycle].append(int(b))
+
+            if os.path.isfile("pre/link_utilization/response/resp_link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt"):
+                with open("pre/link_utilization/response/resp_link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt", "r") as file:
+                    raw_content = file.readlines()
+                for line in raw_content:
+                    item = [x for x in line.split("\t") if x not in ['', '\t']]
+                    cycle = int(item[0])
+                    bytes = item[1].split("\n")[0][1:][:-1].split(", ")
+                    resp_link_utilization[src][dest].setdefault(cycle, [])
+                    for b in bytes:
+                        resp_link_utilization[src][dest][cycle].append(int(b))
+    for i in packet.keys():
+        src = dest = -1
+        for j in range(len(packet[i])):
+            if True:
+                if packet[i][j][0] == "injection buffer":
+                    src = int(packet[i][j][6].split(": ")[1])
+                    time = int(packet[i][j][TIME_2].split(": ")[1])
+                    byte = int(packet[i][j][7].split(": ")[1])
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "FW push" and (
+                                int(packet[i][k][4].split(": ")[1]) == 0 or int(packet[i][k][4].split(": ")[1]) == 1):
+                            dest = int(packet[i][k][6].split(": ")[1])
+                            if time not in link_utilization[src][dest].keys():
+                                link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                link_utilization[src][dest][time].append(byte)
+                            if time not in req_link_utilization[src][dest].keys():
+                                req_link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                req_link_utilization[src][dest][time].append(byte)
+                            break
+                        elif packet[i][k][0] == "rop push" and (
+                                int(packet[i][k][4].split(": ")[1]) == 0 or int(packet[i][k][4].split(": ")[1]) == 1):
+                            dest = int(packet[i][k][6].split(": ")[1])
+                            if time not in link_utilization[src][dest].keys():
+                                link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                link_utilization[src][dest][time].append(byte)
+                            if time not in req_link_utilization[src][dest].keys():
+                                req_link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                req_link_utilization[src][dest][time].append(byte)
+                            break
+
+                elif packet[i][j][0] == "FW pop":
+                    src = int(packet[i][j][6].split(": ")[1])
+                    time = int(packet[i][j][TIME_2].split(": ")[1])
+                    byte = int(packet[i][j][7].split(": ")[1])
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "rop push" and (
+                                int(packet[i][k][4].split(": ")[1]) == 0 or int(packet[i][k][4].split(": ")[1]) == 1):
+                            dest = int(packet[i][k][6].split(": ")[1])
+                            if time not in link_utilization[src][dest].keys():
+                                link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                link_utilization[src][dest][time].append(byte)
+                            if time not in req_link_utilization[src][dest].keys():
+                                req_link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                req_link_utilization[src][dest][time].append(byte)
+                            break
+                        elif packet[i][k][0] == "SM pop" and (
+                                int(packet[i][k][4].split(": ")[1]) == 2 or int(packet[i][k][4].split(": ")[1]) == 3):
+                            dest = int(packet[i][k][6].split(": ")[1])
+                            if time not in link_utilization[src][dest].keys():
+                                link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                link_utilization[src][dest][time].append(byte)
+                            if time not in resp_link_utilization[src][dest].keys():
+                                resp_link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                resp_link_utilization[src][dest][time].append(byte)
+                            break
+                elif packet[i][j][0] == "L2_icnt_pop":
+                    src = int(packet[i][j][6].split(": ")[1])
+                    time = int(packet[i][j][TIME_2].split(": ")[1])
+                    byte = int(packet[i][j][7].split(": ")[1])
+                    for k in range(j + 1, len(packet[i])):
+                        if packet[i][k][0] == "FW push" and (
+                                int(packet[i][k][4].split(": ")[1]) == 2 or int(packet[i][k][4].split(": ")[1]) == 3):
+                            dest = int(packet[i][k][6].split(": ")[1])
+                            if time not in link_utilization[src][dest].keys():
+                                link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                link_utilization[src][dest][time].append(byte)
+                            if time not in resp_link_utilization[src][dest].keys():
+                                resp_link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                resp_link_utilization[src][dest][time].append(byte)
+                            break
+                        elif packet[i][k][0] == "SM pop" and (
+                                int(packet[i][k][4].split(": ")[1]) == 2 or int(packet[i][k][4].split(": ")[1]) == 3):
+                            dest = int(packet[i][k][6].split(": ")[1])
+                            if time not in link_utilization[src][dest].keys():
+                                link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                link_utilization[src][dest][time].append(byte)
+                            if time not in resp_link_utilization[src][dest].keys():
+                                resp_link_utilization[src][dest].setdefault(time, []).append(byte)
+                            else:
+                                resp_link_utilization[src][dest][time].append(byte)
+                            break
+
+    for src in req_link_utilization.keys():
+        for dest in req_link_utilization[src].keys():
+            with open("pre/link_utilization/request/req_link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt", "w") as file:
+                for cycle, byte in req_link_utilization[src][dest].items():
+                    file.write(str(cycle) + "\t" + str(byte) + "\n")
+
+    for src in resp_link_utilization.keys():
+        for dest in resp_link_utilization[src].keys():
+            with open("pre/link_utilization/response/resp_link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt", "w") as file:
+                for cycle, byte in resp_link_utilization[src][dest].items():
+                    file.write(str(cycle) + "\t" + str(byte) + "\n")
+
+    for src in link_utilization.keys():
+        for dest in link_utilization[src].keys():
+            with open("pre/link_utilization/total/link_usage" + str(src) + "_" + str(dest) + "_per_cycle.txt", "w") as file:
+                for cycle, byte in link_utilization[src][dest].items():
+                    file.write(str(cycle) + "\t" + str(byte) + "\n")
+
+
+def generate_throughput(packet):
+    global total_throughput
+    global offered_throughput
+    if os.path.isfile("pre/throughput/total_throughput.txt"):
+        with open("pre/throughput/total_throughput.txt", "r") as csv_file:
+            rows = csv_file.readlines()
+            for line in rows:
+                row = [x for x in line.split(",")]
+                total_throughput[int(row[0])] = int(row[1])
+
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if 192 <= int(packet[i][j][1].split(": ")[1]) <= 195 and 192 <= int(packet[i][j][2].split(": ")[1]) <= 195:
+                if packet[i][j][0] == "injection buffer":
+                    if int(packet[i][j][TIME_2].split(": ")[1]) not in total_throughput.keys():
+                        total_throughput[int(packet[i][j][TIME_2].split(": ")[1])] = int(packet[i][j][7].split(": ")[1])
+                    else:
+                        total_throughput[int(packet[i][j][TIME_2].split(": ")[1])] += int(packet[i][j][7].split(": ")[1])
+                    if int(packet[i][j][TIME_2].split(": ")[1]) not in offered_throughput[chip_select(int(packet[i][j][1].split(": ")[1]))].keys():
+                        offered_throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][int(packet[i][j][TIME_2].split(": ")[1])] = int(packet[i][j][7].split(": ")[1])
+                    else:
+                        offered_throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][int(packet[i][j][TIME_2].split(": ")[1])] += int(packet[i][j][7].split(": ")[1])
+
+                elif packet[i][j][0] == "rop push":
+                    if int(packet[i][j][TIME_2].split(": ")[1]) not in total_throughput.keys():
+                        total_throughput[int(packet[i][j][TIME_2].split(": ")[1])] = -int(packet[i][j][7].split(": ")[1])
+                    else:
+                        total_throughput[int(packet[i][j][TIME_2].split(": ")[1])] -= int(packet[i][j][7].split(": ")[1])
+
+                elif packet[i][j][0] == "L2_icnt_push":
+                    if int(packet[i][j][TIME_2].split(": ")[1]) not in total_throughput.keys():
+                        total_throughput[int(packet[i][j][TIME_2].split(": ")[1])] = int(packet[i][j][7].split(":")[1])
+                    else:
+                        total_throughput[int(packet[i][j][TIME_2].split(": ")[1])] += int(packet[i][j][7].split(":")[1])
+                    if int(packet[i][j][TIME_2].split(": ")[1]) not in offered_throughput[chip_select(int(packet[i][j][1].split(": ")[1]))].keys():
+                        offered_throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][int(packet[i][j][TIME_2].split(": ")[1])] = int(packet[i][j][7].split(":")[1])
+                    else:
+                        offered_throughput[chip_select(int(packet[i][j][1].split(": ")[1]))][int(packet[i][j][TIME_2].split(": ")[1])] += int(packet[i][j][7].split(":")[1])
+
+                elif packet[i][j][0] == "SM pop":
+                    if int(packet[i][j][TIME_2].split(": ")[1]) not in total_throughput.keys():
+                        total_throughput[int(packet[i][j][TIME_2].split(": ")[1])] = -int(packet[i][j][7].split(": ")[1])
+                    else:
+                        total_throughput[int(packet[i][j][TIME_2].split(": ")[1])] -= int(packet[i][j][7].split(": ")[1])
+
+    total_throughput = dict(sorted(total_throughput.items(), key=lambda x: x[0]))
+
+    with open("pre/throughput/total_throughput.txt", "w") as csv_file:
+        for cyc, byte in total_throughput.items():
+            csv_file.write(str(cyc) + "," + str(byte) + "\n")
+
+
+def calculate_overall_throughput():
+    global data
+    global offered_throughput
+    if os.path.isfile("pre/throughput/throughput_param.csv"):
+        with open("pre/throughput/throughput_param.csv", "r") as csv_file:
+            rows = csv_file.readlines()
+            src = -1
+            for line in rows:
+                row = [x for x in line.split(",")]
+                if len(row) == 1:
+                    src = int(row[0])
+                else:
+                    data[src][int(row[0])] = int(row[1])
+
+    for src in offered_throughput.keys():
+        for time, byte in offered_throughput[src].items():
+            if byte not in data[src].keys():
+                data[src][byte] = 1
             else:
-                window[src][total_win] += 1
+                data[src][byte] += 1
+    with open("pre/throughput/throughput_param.csv", "w") as file:
+        for src in data.keys():
+            file.write(str(src) + "\n")
+            for byte, dist in data[src].items():
+                file.write(str(byte) + "," + str(dist) + "\n")
+
+
+def rop_buffer(packet):
+    window = {0 : {}, 1: {}, 2: {}, 3: {}}
+    lines = ""
+    for src in window.keys():
+        if os.path.isfile("pre/buffers/rop_buffer_" + str(src) + ".txt"):
+            with open("pre/buffers/rop_buffer_" + str(src) + ".txt", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                item = [x for x in line.split("\t") if x not in ['', '\t']]
+                time = int(item[0])
+                byte = item[1].split("\n")[0][1:][:-1].split(", ")
+                window[src].setdefault(time, [])
+                for b in byte:
+                    window[src][time].append(int(b))
+
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "rop push":
+                chip = int(packet[i][j][6].split(": ")[1])
+                time = int(packet[i][j][TIME].split(": ")[1])
+                byte = int(packet[i][j][7].split(": ")[1])
+                if time not in window[chip].keys():
+                    window[chip].setdefault(time, []).append(byte)
+                else:
+                    window[chip][time].append(byte)
+
+    for src in window.keys():
+        with open("pre/buffers/rop_buffer_" + str(src) + ".txt", "w") as file:
+            for time, byte in window[src].items():
+                file.write(str(time) + "\t" + str(byte) + "\n")
+
+
+def sm_buffer(packet):
+    window = {0 : {}, 1: {}, 2: {}, 3: {}}
+    lines = ""
+    for src in window.keys():
+        if os.path.isfile("pre/buffers/sm_buffer_" + str(src) + ".txt"):
+            with open("pre/buffers/sm_buffer_" + str(src) + ".txt", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                item = [x for x in line.split("\t") if x not in ['', '\t']]
+                time = int(item[0])
+                byte = item[1].split("\n")[0][1:][:-1].split(", ")
+                window[src].setdefault(time, [])
+                for b in byte:
+                    window[src][time].append(int(b))
+
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "SM pop":
+                chip = int(packet[i][j][6].split(": ")[1])
+                time = int(packet[i][j][TIME].split(": ")[1])
+                byte = int(packet[i][j][7].split(": ")[1])
+                if time not in window[chip].keys():
+                    window[chip].setdefault(time, []).append(byte)
+                else:
+                    window[chip][time].append(byte)
+                break
+
+    for src in window.keys():
+        with open("pre/buffers/sm_buffer_" + str(src) + ".txt", "w") as file:
+            for time, byte in window[src].items():
+                file.write(str(time) + "\t" + str(byte) + "\n")
+
+
+def fw_buffer(packet):
+    window = {0 : {}, 1: {}, 2: {}, 3: {}}
+    lines = ""
+    for src in window.keys():
+        if os.path.isfile("pre/buffers/fw_buffer_" + str(src) + ".txt"):
+            with open("pre/buffers/fw_buffer_" + str(src) + ".txt", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                item = [x for x in line.split("\t") if x not in ['', '\t']]
+                time = int(item[0])
+                byte = item[1].split("\n")[0][1:][:-1].split(", ")
+                window[src].setdefault(time, [])
+                for b in byte:
+                    window[src][time].append(int(b))
+
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "FW pop":
+                chip = int(packet[i][j][6].split(": ")[1])
+                time = int(packet[i][j][TIME_2].split(": ")[1])
+                byte = int(packet[i][j][7].split(": ")[1])
+                if time not in window[chip].keys():
+                    window[chip].setdefault(time, []).append(byte)
+                else:
+                    window[chip][time].append(byte)
+                break
+
+    for src in window.keys():
+        with open("pre/buffers/fw_buffer_" + str(src) + ".txt", "w") as file:
+            for time, byte in window[src].items():
+                file.write(str(time) + "\t" + str(byte) + "\n")
+
+
+def pending_buffer(packet):
+    window = {0 : {}, 1: {}, 2: {}, 3: {}}
+    lines = ""
+    for src in window.keys():
+        if os.path.isfile("pre/buffers/pending_buffer_" + str(src) + ".txt"):
+            with open("pre/buffers/pending_buffer_" + str(src) + ".txt", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                item = [x for x in line.split("\t") if x not in ['', '\t']]
+                time = int(item[0])
+                byte = item[1].split("\n")[0][1:][:-1].split(", ")
+                window[src].setdefault(time, [])
+                for b in byte:
+                    window[src][time].append(int(b))
+
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "L2_icnt_pop":
+                chip = int(packet[i][j][6].split(": ")[1])
+                time = int(packet[i][j][TIME].split(": ")[1])
+                byte = int(packet[i][j][7].split(": ")[1])
+                if time not in window[chip].keys():
+                    window[chip].setdefault(time, []).append(byte)
+                else:
+                    window[chip][time].append(byte)
+                break
 
     for src in window.keys():
         window[src] = dict(sorted(window[src].items(), key=lambda x: x[0]))
-    for src in dest_iat.keys():
-        dest_iat[src] = dict(sorted(dest_iat[src].items(), key=lambda x: x[0]))
 
-    for src in dest_iat.keys():
-        with open(dir + "response_injection/iat" + str(src) + ".csv", "w") as file:
-            for dur, freq in dest_iat[src].items():
-                file.write(str(dur) + "," + str(freq) + " \n")
-
-    """for src in window.keys():
-        with open(dir + "response_injection/dest_window" + str(src) + ".csv", "w") as file:
-            for win, freq in window[src].items():
-                file.write(str(win) + "," + str(freq) + " \n")"""
+    for src in window.keys():
+        with open("pre/buffers/pending_buffer_" + str(src) + ".txt", "w") as file:
+            for time, byte in window[src].items():
+                file.write(str(time) + "\t" + str(byte) + "\n")
 
 
-def buffer_latency(subpath):
-    buffer = {0: {}, 1: {}, 2: {}, 3: {}}
-    iat = {0: {}, 1: {}, 2: {}, 3: {}}
-    window = {0: {}, 1: {}, 2: {}, 3: {}}
-    for src in range(0, 4):
+def calculate_packet_type(packet):
+    type_ = {0: {0: 0, 1: 0, 2: 0, 3: 0}, 1: {0: 0, 1: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 2: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0, 3: 0}}
+    for src in type_.keys():
         lines = ""
-        with open(subpath + "buffers/pending_buffer_" + str(src) + ".txt", "r") as file:
+        if os.path.isfile("pre/throughput/packet_type_" + str(src) + ".txt"):
+            with open("pre/throughput/packet_type_" + str(src) + ".txt", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                t = int(line.split(",")[0])
+                v = int(line.split(",")[1])
+                type_[src][t] += v
+
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            src = int(packet[i][j][6].split(": ")[1])
+            t = int(packet[i][j][4].split(": ")[1])
+            if packet[i][j][0] == "injection buffer":
+                type_[src][t] += 1
+            elif packet[i][j][0] == "L2_icnt_push":
+                type_[src][t] += 1
+
+    for src in type_.keys():
+        with open("pre/throughput/packet_type_" + str(src) + ".txt", "w") as file:
+            for t, v in type_[src].items():
+                file.write(str(t) + "," + str(v) + "\n")
+
+
+def fw_injection_rate(packet):
+    forwarding = {0: 0, 1: 0, 2: 0, 3: 0}
+    fw = {0: {}, 1: {}, 2: {}, 3: {}}
+
+    if os.path.isfile("pre/forwarding.txt"):
+        lines = ""
+        with open("pre/forwarding.txt", "r") as file:
             lines = file.readlines()
         for line in lines:
-            item = [x for x in line.split("\t") if x not in ['', '\t']]
-            cycle = int(item[0])
-            byte = list(item[1].split("\n")[0][1:][:-1].split(", "))
-            buffer[src].setdefault(cycle, [])
-            for b in byte:
-                buffer[src][cycle].append(int(b))
+            items = line.split(", ")
+            forwarding[int(items[0])] = int(items[1])
 
-    for src in buffer.keys():
-        buffer[src] = dict(sorted(buffer[src].items(), key=lambda x: x[0]))
+    for i in packet.keys():
+        for j in range(len(packet[i])):
+            if packet[i][j][0] == "FW pop":
+                 src = int(packet[i][j][6].split(": ")[1])
+                 time = int(packet[i][j][8].split(": ")[1])
+                 byte = int(packet[i][j][7].split(": ")[1])
+                 if time not in fw[src].keys():
+                     fw[src].setdefault(time, []).append(byte)
+                 else:
+                     fw[src][time].append(byte)
+    for src in fw.keys():
+        for time, byte in fw[src].items():
+            forwarding[src] += 1
 
-    for src in buffer.keys():
-        start = 0
-        flag = 0
-        for cyc, byte in buffer[src].items():
-            if flag == 0:
-                flag = 1
-                start = cyc
-            elif flag == 1:
-                if (cyc - start) not in iat[src].keys():
-                    iat[src][cyc - start] = 1
+    with open("pre/forwarding.txt", "w") as file:
+         for src in forwarding.keys():
+            file.write(str(src) + ", " + str(forwarding[src]) +"\n")
+
+
+def fw_iat(packet,):
+    temp = {0: {}, 1: {}, 2: {}, 3: {}}
+    prev = 0
+    for src in temp.keys():
+        lines = ""
+        with open("pre/request_injection/fw_iat_" + str(src) + ".csv", "r") as file:
+            lines = file.readlines()
+        for line in lines:
+            items = line.split(", ")
+            duration = int(items[0])
+            freq     = int(items[1])
+            temp[duration] = freq
+
+    for src in packet.keys():
+        for j in range(len(packet[src])):
+            if packet[src][j][0] == "FW pop":
+                time = int(packet[src][j][TIME].split(": ")[1])
+                if(time - prev) not in temp[src].keys():
+                    temp[src][time - prev] = 1
                 else:
-                    iat[src][cyc - start] += 1
-                start = cyc
+                    temp[src][time - prev] += 1
+                prev = time
 
-            if len(byte) not in window[src].keys():
-                window[src][len(byte)] = 1
-            else:
-                window[src][len(byte)] += 1
-
-
-    """for src in iat.keys():
-        iat[src] = dict(sorted(iat[src].items(), key=lambda x: x[0]))
-    for src in iat.keys():
-        print(src)
-        for win, freq in iat[src].items():
-            print(str(win) + "\t" + str(freq))"""
-    for src in window.keys():
-        window[src] = dict(sorted(window[src].items(), key=lambda x: x[0]))
-    for src in window.keys():
-        print(src)
-        for win, freq in window[src].items():
-            print(str(win) + "\t" + str(freq))
+    for src in temp.keys():
+        with open("pre/request_injection/fw_iat_" + str(src) + ".csv", "w") as file:
+            for duration, freq in temp[src].items():
+                file.write(str(duration) + ", " + str(freq) + "\n")
 
 
-def destination_byte_dist():
+def l2_icnt_push(packet):
+    pending = {0: {}, 1: {}, 2: {}, 3: {}}
     dist = {0: {}, 1: {}, 2: {}, 3: {}}
-    for src in dest_traffic.keys():
-        for cyc, byte in dest_traffic[src].items():
-            if sum(byte) not in dist[src].keys():
-                dist[src][sum(byte)] = 1
+    for src in dist.keys():
+        if os.path.isfile("pre/response_injection/l2_icnt_" + str(src) + ".csv"):
+            lines = ""
+            with open("pre/response_injection/l2_icnt_" + str(src) + ".csv", "r") as file:
+                lines = file.readlines()
+            for line in lines:
+                items = line.split(",")
+                win = int(items[0])
+                freq = int(items[1])
+                dist[src][win] = freq
+
+    for id in packet.keys():
+        for j in range(len(packet[id])):
+            if packet[id][j][0] == "L2_icnt_push":
+                src = int(packet[i][j][6].split(": ")[1])
+                time = int(packet[i][j][8].split(": ")[1])
+                byte = int(packet[i][j][7].split(":")[1])
+                if time not in pending[src].keys():
+                    pending[src][time] = 1
+                else:
+                    pending[src][time] += 1
+    for src in pending.keys():
+        for time, freq in pending[src].items():
+            if freq not in dist[src].keys():
+                dist[src][freq] = 1
             else:
-                dist[src][sum(byte)] += 1
+                dist[src][freq] += 1
     for src in dist.keys():
         dist[src] = dict(sorted(dist[src].items(), key=lambda x: x[0]))
+
     for src in dist.keys():
-        print(src)
-        for byte, freq in dist[src].items():
-            print(str(byte) + "\t" + str(freq))
+        with open("pre/response_injection/l2_icnt_" + str(src) + ".csv", "w") as file:
+            for win, freq in dist[src].items():
+                file.write(str(win) + "," + str(freq) + "\n")
 
 
 if __name__ == '__main__':
-    dir = "benchmarks/Rodinia/cfd/pre/"
-    for src in range(0, 4):
-        for dst in range(0, 4):
-            if src != dst:
-                lined_list = {}
-                raw = ""
-                with open(dir + "request_injection/pre_" + str(src) +"_" + str(dst) + ".txt", "r") as file:
-                    raw = file.readlines()
-                for line in raw:
-                    item = [x for x in line.split("\t") if x not in ['', '\t']]
-                    y = len(item[1].split("\n")[0][1:][:-1].split(","))
-                    for index in range(y):
-                        if int(item[0]) not in lined_list.keys():
-                            lined_list.setdefault(int(item[0]), []).append(
-                                int(item[1].split("\n")[0][1:][:-1].split(",")[index]))
-                        else:
-                            lined_list[int(item[0])].append(int(item[1].split("\n")[0][1:][:-1].split(",")[index]))
-                generate_real_traffic_per_core(src, dst, lined_list)
-    update_traffic()
-    #packet_type_frequency()
-    #generate_packet_type_ratio()
-    #calculate_window_size(dir)
-    #byte_distribution(dir)
-    #IAT(dir)
-    #calculate_injection_rate()
-    #destination()
-    generate_traffic_pattern(dir)
-    #outser(dir)
-    #generate_destination_traffic(dir)
-    #destination_byte_dist()
-    #destination_IAT()
-    #buffer_latency(dir)
+    input_ = sys.argv[1]
+    file2 = open(input_, "r")
+    raw_content = ""
+    if file2.mode == "r":
+        raw_content = file2.readlines()
+    lined_list = []
+    for line in raw_content:
+        item = [x for x in line.split("\t") if x not in ['', '\t']]
+
+        lined_list.append(item)
+    del(raw_content)
+
+    if not os.path.isdir("pre/buffers/"):
+        os.mkdir("pre/buffers/")
+        os.mkdir("pre/cache_access/")
+        os.mkdir("pre/link_utilization/")
+        os.mkdir("pre/request_injection/")
+        os.mkdir("pre/response_injection/")
+        os.mkdir("pre/throughput/")
+    if not os.path.isdir("pre/link_utilization/total"):
+        os.mkdir("pre/link_utilization/total/")
+        os.mkdir("pre/link_utilization/request/")
+        os.mkdir("pre/link_utilization/response/")
+
+    packet = {}
+    for i in range(len(lined_list)):  # packet based classification
+        if check_local_or_remote(lined_list[i]):
+            if int(lined_list[i][3].split(": ")[1]) in packet.keys():
+                if lined_list[i] not in packet[int(lined_list[i][3].split(": ")[1])]:
+                    packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+            else:
+                packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+
+    request_byte_per_core(packet)
+    request_byte_per_core_out()
+    response_byte_per_core(packet)
+    response_byte_per_core_out()
+    generate_link_utilization(packet)
+    generate_throughput(packet)
+    calculate_overall_throughput()
+    calculate_packet_type(packet)
+
+    rop_buffer(packet)
+    sm_buffer(packet)
+    fw_buffer(packet)
+    pending_buffer(packet)
+    cache_access(packet)
+    fw_injection_rate(packet)
+    l2_icnt_push(packet)
