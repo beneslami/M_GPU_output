@@ -28,24 +28,14 @@ chiplet.append(chiplet_1)
 chiplet.append(chiplet_2)
 chiplet.append(chiplet_3)
 traffic = {0: {}, 1: {}, 2: {}, 3: {}}
-injection_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-initial_state = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-
-th = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-state_nums = {0: {}, 1: {}, 2: {}, 3: {}}
-inj_rate = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-window_size = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-dest_window_size = {0: {}, 1: {}, 2: {}, 3: {}}
-window_size_t = {0: {}, 1: {}, 2: {}, 3: {}}
-packet_type = {0: {}, 1: {}, 2: {}, 3: {}}
+window_size = {0: {}, 1: {}, 2: {}, 3: {}}
 destination = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
 packet_freq = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-temp = {0: {}, 1: {}, 2: {}, 3: {}}
-processing_time = {0: {}, 1: {}, 2: {}, 3: {}}
-main_transitions = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
-cycle_transision = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
 iat = {0: {}, 1: {}, 2: {}, 3: {}}
-inter_injection_rate = {0: {1: {}, 2: {}, 3: {}}, 1: {0: {}, 2: {}, 3: {}}, 2: {0: {}, 1: {}, 3: {}}, 3: {0: {}, 1: {}, 2: {}}}
+cache_hit = {0: {}, 1: {}, 2: {}, 3: {}}
+cache_miss = {0: {}, 1: {}, 2: {}, 3: {}}
+cache_hit_ratio = {0: 0, 1: 0, 2: 0, 3: 0}
+llc_boundary_buffer_delay = {0: {}, 1: {}, 2: {}, 3: {}}
 
 
 def chip_select(num):
@@ -106,85 +96,6 @@ def generate_real_traffic_per_core(source, dest, packet):
             else:
                 for b in byte:
                     traffic[source][cycle][dest].append(b)
-    """flag = prev = 0
-    for source in throughput.keys():
-        for dest in throughput[source].keys():
-            for cyc in throughput[source][dest].keys():
-                if flag == 0:
-                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
-                    prev = cyc
-                    flag = 1
-                elif flag == 1:
-                    if cyc - prev > 1:
-                        for k in range(prev + 1, cyc):
-                            throughput_update[source][dest].setdefault(k, []).append(0)
-                    throughput_update[source][dest][cyc] = throughput[source][dest][cyc]
-                    prev = cyc"""
-
-
-def calculate_injection_rate():
-    global traffic
-    global injection_rate
-    on = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    total = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    for source in traffic.keys():
-        for cyc in traffic[source].keys():
-            for dest in traffic[source][cyc].keys():
-                if len(traffic[source][cyc][dest]) != 0:
-                    on[source][dest] += 1
-                total[source][dest] += 1
-
-    for src in on.keys():
-        for dest in on[src].keys():
-            injection_rate[src][dest] = on[src][dest] / total[src][dest]
-    on.clear()
-
-
-def calculate_inter_injection_rate():
-    global traffic
-    global inter_injection_rate
-    start = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    flag = {0: {1: 0, 2: 0, 3: 0}, 1: {0: 0, 2: 0, 3: 0}, 2: {0: 0, 1: 0, 3: 0}, 3: {0: 0, 1: 0, 2: 0}}
-    """for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            for dest in traffic[src][cyc].keys():
-                if len(traffic[src][cyc][dest]) == 0:
-                    if flag[src][dest] == 0:
-                        start[src][dest] = cyc
-                        flag[src][dest] = 1
-                    elif flag[src][dest] == 1:
-                        continue
-                else:
-                    if flag[src][dest] == 1:
-                        if (cyc - start[src][dest]) not in inter_injection_rate[src][dest].keys():
-                            inter_injection_rate[src][dest][(cyc - start[src][dest])] = 1
-                        else:
-                            inter_injection_rate[src][dest][(cyc - start[src][dest])] += 1
-                        flag[src][dest] = 0"""
-
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            for dest in traffic[src][cyc].keys():
-                if len(traffic[src][cyc][dest]) == 0:
-                    if flag[src][dest] == 0:
-                        start[src][dest] += 1
-                        flag[src][dest] = 1
-                    else:
-                        start[src][dest] += 1
-                else:
-                    if flag[src][dest] == 1:
-                        if start[src][dest] not in inter_injection_rate[src][dest].keys():
-                            inter_injection_rate[src][dest][start[src][dest]] = 1
-                        else:
-                            inter_injection_rate[src][dest][start[src][dest]] += 1
-                        start[src][dest] = 0
-                        flag[src][dest] = 0
-                    else:
-                        continue
-
-    for src in inter_injection_rate.keys():
-        for dest in inter_injection_rate[src].keys():
-            inter_injection_rate[src][dest] = dict(sorted(inter_injection_rate[src][dest].items(), key=lambda x: x[0]))
 
 
 def packet_type_frequency():
@@ -199,89 +110,9 @@ def packet_type_frequency():
                             packet_freq[source][dest][i] = 1
                         else:
                             packet_freq[source][dest][i] += 1
-                else:
-                    if 0 not in packet_freq[source][dest].keys():
-                        packet_freq[source][dest][0] = 1
-                    else:
-                        packet_freq[source][dest][0] += 1
     for src in packet_freq.keys():
         for dest in packet_freq[src].keys():
             packet_freq[src][dest] = dict(sorted(packet_freq[src][dest].items(), key=lambda x: x[0]))
-
-
-def calculate_destination_window(subpath):
-    global dest_window_size
-    for source in range(0, 4):
-        path = subpath + "pre/out/dest_win_" + str(source) + ".txt"
-        file = open(path, "r")
-        raw_content = ""
-        if file.mode == "r":
-            raw_content = file.readlines()
-        for line in raw_content:
-            item = [x for x in line.split("\t") if x not in ['', '\t']]
-            y = len(item[1].split("\n")[0][1:][:-1].split(", "))
-            if y not in dest_window_size[source].keys():
-                dest_window_size[source][y] = 1
-            else:
-                dest_window_size[source][y] += 1
-
-        dest_window_size[source] = dict(sorted(dest_window_size[source].items(), key=lambda x: x[0]))
-
-
-def generate_processing_time(subpath):
-    global processing_time
-    for source in range(0, 4):
-        path = subpath + "pre/out/processing_time_" + str(source) + ".txt"
-        file = open(path, "r")
-        raw_content = ""
-        if file.mode == "r":
-            raw_content = file.readlines()
-        lined_list = {}
-        for line in raw_content:
-            item = [x for x in line.split("\t") if x not in ['', '\t']]
-            lined_list[int(item[0])] = int(item[1])
-        processing_time[source] = lined_list
-        processing_time[source] = dict(sorted(processing_time[source].items(), key=lambda x: x[0]))
-
-
-def inter_arrival_time():
-    global iat
-    """for source in range(0, 4):
-        with open(subpath + "pre/out/iat_" + str(source) + ".csv") as csv_file:
-            reader = csv.reader(csv_file, delimiter=',')
-            for item in reader:
-                iat[source][int(item[0])] = int(item[1])"""
-    flag = 0
-    start = -1
-    for source in traffic.keys():
-        for cycle in traffic[source].keys():
-            if flag == 0:
-                start = cycle
-                flag = 1
-            elif flag == 1:
-                if (cycle - start) not in iat[source].keys():
-                    iat[source][cycle - start] = 1
-                else:
-                    iat[source][cycle - start] += 1
-                start = cycle
-    for source in iat.keys():
-        iat[source] = dict(sorted(iat[source].items(), key=lambda x: x[0]))
-
-
-def generate_per_core_packet_number_per_cycle():
-    global traffic
-    global window_size
-    for source in traffic.keys():
-        for cycle in traffic[source].keys():
-            for dest in traffic[source][cycle].keys():
-                if len(traffic[source][cycle][dest]) not in window_size[source][dest].keys():
-                    window_size[source][dest][len(traffic[source][cycle][dest])] = 1
-                else:
-                    window_size[source][dest][len(traffic[source][cycle][dest])] += 1
-
-    for source in window_size.keys():
-        for dest in window_size[source].keys():
-            window_size[source][dest] = dict(sorted(window_size[source][dest].items(), key=lambda x: x[0]))
 
 
 def destination_choose():
@@ -299,108 +130,99 @@ def destination_choose():
         destination[src] = dict(sorted(destination[src].items(), key=lambda x: x[0]))
 
 
-def generate_markov_state(source, dest):
-    global throughput
-    global throughput_update
-    global packet_type
-    for cycle in throughput_update[source][dest].keys():
-        if throughput_update[source][dest][cycle][0] == 0:
-            continue
-        else:
-            for i in throughput_update[source][dest][cycle]:
-                if i not in packet_type[source].keys():
-                    packet_type[source][i] = 1
+def inter_arrival_time():
+    global iat
+    flag = 0
+    start = -1
+    for source in traffic.keys():
+        for cycle in traffic[source].keys():
+            if flag == 0:
+                start = cycle
+                flag = 1
+            elif flag == 1:
+                if (cycle - start) not in iat[source].keys():
+                    iat[source][cycle - start] = 1
                 else:
-                    packet_type[source][i] += 1
+                    iat[source][cycle - start] += 1
+                start = cycle
+    for source in iat.keys():
+        iat[source] = dict(sorted(iat[source].items(), key=lambda x: x[0]))
 
 
-def generate_transition_states(source, dest):
-    global throughput
-    global throughput_update
-    tmp = {source: {dest: {}}}
-    single = {source: {dest: {}}}
-    overall = {source: {dest: {}}}
-    overall_single = {source: {dest: {}}}
-    prev_line = 0
-    prev_cycle = 0
-    for packet in packet_freq[source][dest].keys():
-        if packet not in tmp[source][dest].keys():
-            tmp[source][dest].setdefault(packet, {})
-            single[source][dest].setdefault(packet, {})
-
-    for packet1 in packet_freq[source][dest].keys():
-        for packet2 in packet_freq[source][dest].keys():
-            if packet2 not in tmp[source][dest][packet1].keys():
-                tmp[source][dest][packet1][packet2] = 0
-                single[source][dest][packet1][packet2] = 0
-
-    for cycle in throughput[source][dest].keys():
-        if throughput[source][dest][cycle][0] == 0:
-            continue
-        else:
-            if len(throughput[source][dest][cycle]) > 1:
-                for i in range(len(throughput[source][dest][cycle])):
-                    if i == 0:
-                        prev_line = throughput[source][dest][cycle][i]
-                    else:
-                        if throughput[source][dest][cycle][i] not in tmp[source][dest][prev_line].keys():
-                            tmp[source][dest][prev_line][throughput[source][dest][cycle][i]] = 1
-                        else:
-                            tmp[source][dest][prev_line][throughput[source][dest][cycle][i]] += 1
-                        if prev_line not in overall[source][dest].keys():
-                            overall[source][dest][prev_line] = 1
-                        else:
-                            overall[source][dest][prev_line] += 1
-                        prev_line = throughput[source][dest][cycle][i]
-            elif len(throughput[source][dest][cycle]) == 1:
-                if prev_cycle == 0:
-                    prev_cycle = throughput[source][dest][cycle][0]
-                else:
-                    if throughput[source][dest][cycle][0] not in single[source][dest][prev_cycle].keys():
-                        single[source][dest][prev_cycle][throughput[source][dest][cycle][0]] = 1
-                    else:
-                        single[source][dest][prev_cycle][throughput[source][dest][cycle][0]] += 1
-                    if prev_cycle not in overall_single[source][dest].keys():
-                        overall_single[source][dest][prev_cycle] = 1
-                    else:
-                        overall_single[source][dest][prev_cycle] += 1
-                    prev_cycle = throughput[source][dest][cycle][0]
-
-    for state in tmp[source][dest].keys():
-        for next_state in tmp[source][dest][state].keys():
-            tmp[source][dest][state][next_state] = tmp[source][dest][state][next_state] / overall[source][dest][state]
-    main_transitions[source][dest] = tmp[source][dest]
-    for state in single[source][dest].keys():
-        for next_state in single[source][dest][state].keys():
-            single[source][dest][state][next_state] = single[source][dest][state][next_state] / overall_single[source][dest][state]
-
-    cycle_transision[source][dest] = single[source][dest]
-
-
-def state_number():
+def generate_source_window():
     global traffic
-    global state_nums
-    for src in traffic.keys():
-        for cyc in traffic[src].keys():
-            temp = 0
-            for dest in traffic[src][cyc].keys():
-                if len(traffic[src][cyc][dest]) != 0:
-                    temp += 1
-            if temp not in state_nums[src].keys():
-                state_nums[src][temp] = 1
+    global window_size
+    for source in traffic.keys():
+        for cycle in traffic[source].keys():
+            window = 0
+            for dest in traffic[source][cycle].keys():
+                window += len(traffic[source][cycle][dest])
+            if window not in window_size[source].keys():
+                window_size[source][window] = 1
             else:
-                state_nums[src][temp] += 1
-    for src in state_nums.keys():
-        destination[src] = dict(sorted(destination[src].items(), key=lambda x: x[0]))
+                window_size[source][window] += 1
+
+    for source in window_size.keys():
+        window_size[source] = dict(sorted(window_size[source].items(), key=lambda x: x[0]))
+
+
+def cache_hit_dist():
+    for src in range(0, 4):
+        lines = ""
+        with open("pre/cache_access/cache_access_hit" + str(src) + ".csv", "r") as file:
+            lines = file.readlines()
+
+        if len(lines) == 0:
+            cache_hit[src][0] = 0
+        else:
+            for line in lines:
+                items = line.split(",")
+                cache_hit[src][int(items[0])] = int(items[1])
+        cache_hit[src] = dict(sorted(cache_hit[src].items(), key=lambda x: x[0]))
+
+
+def cache_miss_dist():
+    for src in range(0, 4):
+        lines = ""
+        with open("pre/cache_access/cache_access_miss" + str(src) + ".csv", "r") as file:
+            lines = file.readlines()
+        if len(lines) == 0:
+            cache_miss[src][0] = 0
+        else:
+            for line in lines:
+                items = line.split(",")
+                cache_miss[src][int(items[0])] = int(items[1])
+        cache_miss[src] = dict(sorted(cache_miss[src].items(), key=lambda x: x[0]))
+
+
+def cache_access_ratio():
+    with open("pre/cache_access/cache_access.csv", "r") as file:
+        lines = file.readlines()
+    for line in lines:
+        chip = int(line.split("-")[0])
+        items = line.split("-")[1].split(",")
+        hit_val = int(items[0].split(":")[1])
+        miss_val = int(items[1].split(":")[1])
+        cache_hit_ratio[chip] = float(hit_val / (hit_val+miss_val))
+
+
+def llc_boundary_buffer_delay_dist():
+    for i in range(0, 4):
+        lines = ""
+        with open("pre/rop_delay" + str(i) + ".csv", "r") as file:
+            lines = file.readlines()
+        for line in lines:
+            items = line.split(",")
+            llc_boundary_buffer_delay[i][int(items[0])] = int(items[1])
 
 
 if __name__ == "__main__":
     model_name = "cfd"
-    subpath = "benchmarks/Rodinia/" + model_name + "/"
+    subpath = ""
     for src in range(0, 4):
         for dest in range(0, 4):
             if src != dest:
-                path = subpath + "pre/out/pre_" + str(src) + "_" + str(dest) + ".txt"
+                path = subpath + "pre/request_injection/pre_" + str(src) + "_" + str(dest) + ".txt"
                 file2 = open(path, "r")
                 raw_content = ""
                 if file2.mode == "r":
@@ -419,15 +241,15 @@ if __name__ == "__main__":
                 generate_real_traffic_per_core(src, dest, lined_list)
                 del(lined_list)
     update_traffic()
-    t0 = threading.Thread(target=calculate_injection_rate, args=())
-    t1 = threading.Thread(target=generate_per_core_packet_number_per_cycle, args=())
-    t2 = threading.Thread(target=packet_type_frequency, args=())
-    t3 = threading.Thread(target=calculate_destination_window, args=(subpath,))
-    t4 = threading.Thread(target=inter_arrival_time, args=())
-    t5 = threading.Thread(target=generate_processing_time, args=(subpath,))
-    t6 = threading.Thread(target=calculate_inter_injection_rate, args=())
-    t7 = threading.Thread(target=state_number, args=())
-    t8 = threading.Thread(target=destination_choose, args=())
+    t0 = threading.Thread(target=packet_type_frequency, args=())
+    t1 = threading.Thread(target=destination_choose, args=())
+    t2 = threading.Thread(target=inter_arrival_time, args=())
+    t3 = threading.Thread(target=generate_source_window, args=())
+    t4 = threading.Thread(target=cache_hit_dist, args=())
+    t5 = threading.Thread(target=cache_miss_dist, args=())
+    t6 = threading.Thread(target=cache_access_ratio, args=())
+    t7 = threading.Thread(target=llc_boundary_buffer_delay_dist, args=())
+    """t8 = threading.Thread(target=, args=())"""
     t0.start()
     t1.start()
     t2.start()
@@ -436,7 +258,7 @@ if __name__ == "__main__":
     t5.start()
     t6.start()
     t7.start()
-    t8.start()
+    """t8.start()"""
     t0.join()
     t1.join()
     t2.join()
@@ -445,23 +267,12 @@ if __name__ == "__main__":
     t5.join()
     t6.join()
     t7.join()
-    t8.join()
+    """t8.join()"""
 
     for i in range(0, 4):
         filename = subpath + model_name + "_core_" + str(i) + str(".model")
         with open(filename, "w") as file:
             file.write("core " + str(i) + "\n\n")
-            file.write("injection_rate_begin\n")
-            for dest, prob in injection_rate[i].items():
-                file.write(str(dest) + "\t" + str(prob) + "\n")
-            file.write("injection_rate_end\n")
-
-            file.write("\nwindow_size_begin\n")
-            for dest in window_size[i].keys():
-                file.write("destination " + str(dest) + "\n")
-                for size, freq in window_size[i][dest].items():
-                    file.write(str(size) + "\t" + str(freq) + "\n")
-            file.write("window_size_end\n\n")
 
             file.write("packet_distribution_begin\n")
             for dest, data in packet_freq[i].items():
@@ -475,56 +286,31 @@ if __name__ == "__main__":
                 file.write(str(dest) + "\t" + str(freq) + "\n")
             file.write("destination_end\n\n")
 
-            file.write("destination_window_begin\n")
-            for size, freq in dest_window_size[i].items():
-                file.write(str(size) + "\t" + str(freq) + "\n")
-            file.write("destination_window_end\n\n")
-
-            file.write("processing_time_begin\n")
-            for time, freq in processing_time[i].items():
-                file.write(str(time) + "\t" + str(freq) + "\n")
-            file.write("processing_time_end\n\n")
-
             file.write("Inter_arrival_time_begin\n")
             for duration, freq in iat[i].items():
                 file.write(str(duration) + "\t" + str(freq) + "\n")
-            file.write("Inter_arrival_time_end\n")
+            file.write("Inter_arrival_time_end\n\n")
 
-            file.write("\nInter_injection_time_begin\n")
-            for dest in inter_injection_rate[i].keys():
-                file.write("destination" + "\t" + str(dest) + "\n")
-                for duration, freq in inter_injection_rate[i][dest].items():
-                    file.write(str(duration) + "\t" + str(freq) + "\n")
-            file.write("Inter_injection_time_end\n")
+            file.write("total_window_size_begin\n")
+            for win, freq in window_size[i].items():
+                file.write(str(win) + "\t" + str(freq) + "\n")
+            file.write("total_window_size_end\n\n")
 
-            file.write("\nstate_number_begin\n")
-            for dest, freq in state_nums[i].items():
-                file.write(str(dest) + "\t" + str(freq) + "\n")
-            file.write("state_number_end\n")
+            file.write("cache_hit_begin\n")
+            for duration, freq in cache_hit[i].items():
+                file.write(str(duration) + "\t" + str(freq) + "\n")
+            file.write("cache_hit_end\n\n")
 
-    """file.write("cycle_transition_begin\n")
-        for dest in cycle_transision[i].keys():
-            file.write("destination " + str(dest) + "\n")
-            for source in cycle_transision[i][dest].keys():
-                file.write("\t\t" + str(source))
-            file.write("\n")
-            for source in cycle_transision[i][dest].keys():
-                file.write(str(source) + str("\t\t"))
-                for d in cycle_transision[i][dest][source].keys():
-                    file.write(str("{:.3f}".format(cycle_transision[i][dest][source][d])) + "\t\t")
-                file.write("\n")
-        file.write("cycle_transition_end\n\n")
+            file.write("cache_miss_begin\n")
+            for duration, freq in cache_miss[i].items():
+                file.write(str(duration) + "\t" + str(freq) + "\n")
+            file.write("cache_miss_end\n\n")
 
-        file.write("line_transition_begin\n")
-        for dest in main_transitions[i].keys():
-            file.write("destination " + str(dest) + "\n")
-            for source in main_transitions[i][dest].keys():
-                file.write("\t\t" + str(source))
-            file.write("\n")
-            for source in main_transitions[i][dest].keys():
-                file.write(str(source) + str("\t\t"))
-                for d in main_transitions[i][dest][source].keys():
-                    file.write(str("{:.3f}".format(main_transitions[i][dest][source][d])) + "\t\t")
-                file.write("\n")
-        file.write("line_transition_end\n\n")"""
+            file.write("cache_hit_probability_begin\n")
+            file.write(str(cache_hit_ratio[i]) + "\n")
+            file.write("cache_hit_probability_end\n\n")
 
+            file.write("llc_boundary_delay_begin\n")
+            for duration, freq in llc_boundary_buffer_delay[i].items():
+                file.write(str(duration) + "\t" + str(freq) + "\n")
+            file.write("llc_boundary_delay_end\n\n")
