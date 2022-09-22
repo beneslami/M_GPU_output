@@ -221,25 +221,25 @@ def byte_per_cycle_dist(dir):
 
     fields = ['byte', 'dist']
     byte_dist[0] = dict(sorted(byte_dist[0].items(), key=lambda x: x[0]))
-    with open(dir + "post/out/byte_0.csv", "w") as file:
+    with open(dir + "post/byte_0.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for cyc, byte in byte_dist[0].items():
             writer.writerow([cyc, byte])
     byte_dist[1] = dict(sorted(byte_dist[1].items(), key=lambda x: x[0]))
-    with open(dir + "post/out/byte_1.csv", "w") as file:
+    with open(dir + "post/byte_1.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for cyc, byte in byte_dist[1].items():
             writer.writerow([cyc, byte])
     byte_dist[2] = dict(sorted(byte_dist[2].items(), key=lambda x: x[0]))
-    with open(dir + "post/out/byte_2.csv", "w") as file:
+    with open(dir + "post/byte_2.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for cyc, byte in byte_dist[2].items():
             writer.writerow([cyc, byte])
     byte_dist[3] = dict(sorted(byte_dist[3].items(), key=lambda x: x[0]))
-    with open(dir + "post/out/byte_3.csv", "w") as file:
+    with open(dir + "post/byte_3.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for cyc, byte in byte_dist[3].items():
@@ -383,25 +383,25 @@ def inter_departure_dist(dir):
 
                     fields = ['IAT', 'dist']
                     dist[0] = dict(sorted(dist[0].items(), key=lambda x: x[0]))
-                    with open(dir + "post/out/iat_0.csv", "w") as file:
+                    with open(dir + "post/iat_0.csv", "w") as file:
                         writer = csv.writer(file)
                         writer.writerow(fields)
                         for cyc, byte in dist[0].items():
                             writer.writerow([cyc, byte])
                     dist[1] = dict(sorted(dist[1].items(), key=lambda x: x[0]))
-                    with open(dir + "post/out/iat_1.csv", "w") as file:
+                    with open(dir + "post/iat_1.csv", "w") as file:
                         writer = csv.writer(file)
                         writer.writerow(fields)
                         for cyc, byte in dist[1].items():
                             writer.writerow([cyc, byte])
                     dist[2] = dict(sorted(dist[2].items(), key=lambda x: x[0]))
-                    with open(dir + "post/out/iat_2.csv", "w") as file:
+                    with open(dir + "post/iat_2.csv", "w") as file:
                         writer = csv.writer(file)
                         writer.writerow(fields)
                         for cyc, byte in dist[2].items():
                             writer.writerow([cyc, byte])
                     dist[3] = dict(sorted(dist[3].items(), key=lambda x: x[0]))
-                    with open(dir + "post/out/iat_3.csv", "w") as file:
+                    with open(dir + "post/iat_3.csv", "w") as file:
                         writer = csv.writer(file)
                         writer.writerow(fields)
                         for cyc, byte in dist[3].items():
@@ -568,7 +568,7 @@ def generate_link_utilization(packet, dir):
         for dest in link[src].keys():
             link[src][dest] = dict(sorted(link[src][dest].items(), key=lambda x: x[0]))
 
-    with open(dir + "post/out/req_link_usage.csv", "w") as file:
+    with open(dir + "post/req_link_usage.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(['link', 'mean'])
         for i in link_req.keys():
@@ -577,7 +577,7 @@ def generate_link_utilization(packet, dir):
                 with warnings.catch_warnings():
                     m = np.nanmean(list(link_req[i][j].values()))
                     writer.writerow([j, m])
-    with open(dir + "post/out/resp_link_usage.csv", "w") as file:
+    with open(dir + "post/resp_link_usage.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(['link', 'mean'])
         for i in link_resp.keys():
@@ -586,7 +586,7 @@ def generate_link_utilization(packet, dir):
                 with warnings.catch_warnings():
                     m = np.nanmean(list(link_resp[i][j].values()))
                     writer.writerow([j, m])
-    with open(dir + "post/out/link_usage.csv", "w") as file:
+    with open(dir + "post/link_usage.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(['link', 'mean'])
         for i in link.keys():
@@ -737,7 +737,7 @@ def cache_latency(packet, path):
 
 
 if __name__ == "__main__":
-    path = "benchmarks/PolyBench/2MM/"
+    path = ""
     with open(path + 'post/out.txt', 'r') as file:
         reader = file.readlines()
     lined_list = []
@@ -760,9 +760,9 @@ if __name__ == "__main__":
     inter_departure_dist(path)
     generate_traffic_pattern(path)"""
     generate_link_utilization(packet, path)
-    calculate_throughput(packet, path)
+    """calculate_throughput(packet, path)
     calculate_throughput_param(path)
     cache_latency(packet, path)
     response_byte_per_core(packet, path)
-    response_iat(path)
+    response_iat(path)"""
 

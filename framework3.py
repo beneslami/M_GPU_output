@@ -36,6 +36,8 @@ cache_hit = {0: {}, 1: {}, 2: {}, 3: {}}
 cache_miss = {0: {}, 1: {}, 2: {}, 3: {}}
 cache_hit_ratio = {0: 0, 1: 0, 2: 0, 3: 0}
 llc_boundary_buffer_delay = {0: {}, 1: {}, 2: {}, 3: {}}
+destination_window_dist = {0: {}, 1: {}, 2: {}, 3: {}}
+destination_iat_dist = {0: {}, 1: {}, 2: {}, 3: {}}
 
 
 def chip_select(num):
@@ -216,6 +218,36 @@ def llc_boundary_buffer_delay_dist():
             llc_boundary_buffer_delay[i][int(items[0])] = int(items[1])
 
 
+def destination_widnow():
+    for i in range(0, 4):
+        lines = ""
+        with open("pre/response_injection/window_size.csv", "r") as file:
+            lines = file.readlines()
+        chip = -1
+        for line in lines:
+            item = line.split(",")
+            if len(item) == 1:
+                chip = int(item[0])
+            else:
+                win = int(item[0])
+                freq = int(item[1])
+                destination_window_dist[chip][win] = freq
+    for src in destination_window_dist.keys():
+        destination_window_dist[src] = dict(sorted(destination_window_dist[src].items(), key=lambda x: x[0]))
+
+
+def destination_iat():
+    for i in range(0, 4):
+        lines = ""
+        with open("pre/response_injection/dest_iat" + str(i) + ".csv", "r") as file:
+            lines = file.readlines()
+        for line in lines:
+            items = line.split(",")
+            duration = int(items[0])
+            freq = int(items[1])
+            destination_iat_dist[i][duration] = freq
+
+
 if __name__ == "__main__":
     model_name = "cfd"
     subpath = ""
@@ -249,7 +281,8 @@ if __name__ == "__main__":
     t5 = threading.Thread(target=cache_miss_dist, args=())
     t6 = threading.Thread(target=cache_access_ratio, args=())
     t7 = threading.Thread(target=llc_boundary_buffer_delay_dist, args=())
-    """t8 = threading.Thread(target=, args=())"""
+    t8 = threading.Thread(target=destination_widnow, args=())
+    t9 = threading.Thread(target=destination_iat, args=())
     t0.start()
     t1.start()
     t2.start()
@@ -258,7 +291,9 @@ if __name__ == "__main__":
     t5.start()
     t6.start()
     t7.start()
-    """t8.start()"""
+    t8.start()
+    t9.start()
+
     t0.join()
     t1.join()
     t2.join()
@@ -267,7 +302,8 @@ if __name__ == "__main__":
     t5.join()
     t6.join()
     t7.join()
-    """t8.join()"""
+    t8.join()
+    t9.join()
 
     for i in range(0, 4):
         filename = subpath + model_name + "_core_" + str(i) + str(".model")
@@ -314,3 +350,13 @@ if __name__ == "__main__":
             for duration, freq in llc_boundary_buffer_delay[i].items():
                 file.write(str(duration) + "\t" + str(freq) + "\n")
             file.write("llc_boundary_delay_end\n\n")
+
+            file.write("pending_buffer_begin\n")
+            for win, freq in destination_window_dist[i].items():
+                file.write(str(win) + "\t" + str(freq) + "\n")
+            file.write("pending_buffer_end\n\n")
+
+            file.write("dest_iat_begin\n")
+            for win, freq in destination_iat_dist[i].items():
+                file.write(str(win) + "\t" + str(freq) + "\n")
+            file.write("dest_iat_end\n\n")
