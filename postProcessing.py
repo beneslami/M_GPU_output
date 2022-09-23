@@ -602,7 +602,7 @@ def calculate_throughput(packet, dir):
     global total_throughput
     for i in packet.keys():
         for j in range(len(packet[i])):
-            if packet[i][j][8].find("packet injected") != -1 or packet[i][j][8].find("reply injected") != -1:
+            if packet[i][j][8].find("packet injected") != -1 or packet[i][j][8].find("pending reply") != -1:
                 src = int(packet[i][j][0].split(": ")[1])
                 time = int(packet[i][j][6].split(": ")[1])
                 byte = int(packet[i][j][4].split(": ")[1])
@@ -626,7 +626,7 @@ def calculate_throughput(packet, dir):
     total_throughput = dict(sorted(list(total_throughput.items()), key=lambda x: x[0]))
     for i in offered_throughput.keys():
         offered_throughput[i] = dict(sorted(list(offered_throughput[i].items()), key=lambda x: x[0]))
-    with open(dir + "post/out/total_throughput.csv", "w") as csv_file:
+    with open(dir + "post/total_throughput.csv", "w") as csv_file:
         writer = csv.writer(csv_file)
         for cyc, byte in total_throughput.items():
             writer.writerow([cyc, byte])
@@ -640,7 +640,10 @@ def calculate_throughput_param(dir):
                 data[src][byte] = 1
             else:
                 data[src][byte] += 1
-    with open(dir + "post/out/throughput_params.csv", "w") as file:
+
+    for src in data.keys():
+        data[src] = dict(sorted(data[src].items(), key=lambda x: x[0]))
+    with open(dir + "post/throughput_params.csv", "w") as file:
         writer = csv.writer(file)
         for src in data.keys():
             writer.writerow([src])
@@ -754,15 +757,14 @@ if __name__ == "__main__":
             packet_.setdefault(int(lined_list[i][2].split(": ")[1]), []).append(lined_list[i])
     packet = dict(sorted(packet_.items(), key=lambda x: x[0]))
     del packet_
-    """byte_per_cycle(packet)
+    byte_per_cycle(packet)
     byte_per_cycle_update()
     byte_per_cycle_dist(path)
     inter_departure_dist(path)
-    generate_traffic_pattern(path)"""
+    generate_traffic_pattern(path)
     generate_link_utilization(packet, path)
-    """calculate_throughput(packet, path)
+    calculate_throughput(packet, path)
     calculate_throughput_param(path)
     cache_latency(packet, path)
     response_byte_per_core(packet, path)
-    response_iat(path)"""
-
+    response_iat(path)
