@@ -279,46 +279,11 @@ def generate_packet_type_ratio(dir):
                             dist_total[src][b] = 1
                         else:
                             dist_total[src][b] += 1
-    with open(dir + "post/out/packet_ratio.csv", "w") as file:
+    with open(dir + "post/packet_ratio.csv", "w") as file:
         for src in dist_total.keys():
             file.write(str(src) + "\n")
             for packet, freq in dist_total[src].items():
                 file.write(str(packet) + "," + str(freq) + "\n")
-
-    """for i in packet.keys():
-        for j in range(len(packet[i])):
-            if len(packet[i][j]) == 6:
-                if int(packet[i][j][4].split(": ")[1]) == 0 or int(packet[i][j][4].split(": ")[1]) == 2:
-                    source = int(packet[i][j][0].split(": ")[1])
-                    dest = int(packet[i][j][1].split(": ")[1])
-                    time = int(packet[i][j][5].split(": ")[1])
-                    type = int(packet[i][j][4].split(": ")[1])
-                    if type not in packet_type_ratio[source].keys():
-                        packet_type_ratio[source][type] = 1
-                    else:
-                        packet_type_ratio[source][type] += 1
-                    if type not in packet_type_ratio_[source][dest].keys():
-                        packet_type_ratio_[source][dest][type] = 1
-                    else:
-                        packet_type_ratio_[source][dest][type] += 1
-    fields = ['packet_type', 'frequency']
-    with open(dir + "post/out/packet_ratio.csv", "w") as file:
-        writer = csv.writer(file)
-        writer.writerow(fields)
-        for core in packet_type_ratio.keys():
-            writer.writerow([str(core)])
-            for type, freq in packet_type_ratio[core].items():
-                writer.writerow([type, freq])"""
-    """fields = ['packet_type', 'frequency']
-    with open(dir + "post/out/packet_ratio_.csv", "w") as file:
-        writer = csv.writer(file)
-        writer.writerow(fields)
-        for core in packet_type_ratio_.keys():
-            writer.writerow([str(core)])
-            for dest in packet_type_ratio_[core].keys():
-                writer.writerow([str(dest)])
-                for type, freq in packet_type_ratio_[core][dest].items():
-                    writer.writerow([type, freq])"""
 
 
 def check_injection_rate(dir):
@@ -353,7 +318,7 @@ def generate_traffic_flow(dir):
                 traffic_flow[src][dest] += sum(throughput_byte[src][cycle][dest])
 
     fields = ['dest', 'byte']
-    with open(dir + "post/out/traffic_flow.csv", "w") as file:
+    with open(dir + "post/traffic_flow.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for src in traffic_flow.keys():
@@ -429,8 +394,11 @@ def response_byte_per_core(packet, dir):
                 byte_dist[src][sum(byte)] = 1
             else:
                 byte_dist[src][sum(byte)] += 1
+
     for src in byte_dist.keys():
-        with open(dir + "post/out/byte_dest_" + str(src) + ".csv", "w") as file:
+        byte_dist[src] = dict(sorted(byte_dist[src].items(), key=lambda x: x[0]))
+    for src in byte_dist.keys():
+        with open(dir + "post/byte_dest_" + str(src) + ".csv", "w") as file:
             for b, freq in byte_dist[src].items():
                 file.write(str(b) + "," + str(freq) + "\n")
 
@@ -457,7 +425,7 @@ def response_iat(dir):
         resp_iat[src] = dict(sorted(resp_iat[src].items(), key=lambda x: x[0]))
 
     for src in resp_iat.keys():
-        with open(dir + "post/out/dest_iat_" + str(src) + ".csv", "w") as file:
+        with open(dir + "post/dest_iat_" + str(src) + ".csv", "w") as file:
             for duration, freq in resp_iat[src].items():
                 file.write(str(duration) + "," + str(freq) + "\n")
 
@@ -665,7 +633,7 @@ def calculate_source_window(dir):
         for dst in src_window[src].keys():
             src_window[src][dst] = dict(sorted(src_window[src][dst].items(), key=lambda x: x[0]))
 
-    with open(dir + "post/out/source_window.csv", "w") as file:
+    with open(dir + "post/source_window.csv", "w") as file:
         writer = csv.writer(file)
         for src in src_window.keys():
             writer.writerow(["src", src])
@@ -684,6 +652,7 @@ def generate_traffic_pattern(dir):
             for dest in throughput_byte[src][cycle].keys():
                 byte = sum(throughput_byte[src][cycle][dest])
                 traffic_pattern[src][dest] = traffic_pattern[src][dest] + byte
+
     with open(dir + "post/traffic_pattern.csv", "w") as file:
         for src in traffic_pattern.keys():
             file.write(str(src) + "\n")
@@ -712,11 +681,11 @@ def cache_latency(packet, path):
     for i in packet.keys():
         for j in range(len(packet[i])):
             if packet[i][j][8].find("Request Received") == 0:
-                start = int(packet[i][j][7].split(": ")[1])
+                start = int(packet[i][j][6].split(": ")[1])
                 for k in range(j+1, len(packet[i])):
                     if packet[i][k][8].find("reply injected") == 0:
                         src = int(packet[i][k][3].split(": ")[1])
-                        time = int(packet[i][k][7].split(": ")[1])
+                        time = int(packet[i][k][6].split(": ")[1])
                         if packet[i][k][9].find("DRAM") == 0:
                             if (time - start) not in dram[src].keys():
                                 dram[src][time - start] = 1
@@ -728,7 +697,10 @@ def cache_latency(packet, path):
                             else:
                                 l2[src][time - start] += 1
                         break
-
+    for src in l2.keys():
+        l2[src] = dict(sorted(l2[src].items(), key=lambda x: x[0]))
+    for src in dram.keys():
+        dram[src] = dict(sorted(dram[src].items(), key=lambda x: x[0]))
     for src in l2.keys():
         with open(path + "l2_" + str(src) + ".csv", "w") as file:
             for duration, freq in l2[src].items():
