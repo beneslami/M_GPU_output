@@ -430,6 +430,23 @@ def response_iat(dir):
                 file.write(str(duration) + "," + str(freq) + "\n")
 
 
+def response_window_size(dir):
+    global response
+    resp_window_size = {0: {}, 1: {}, 2: {}, 3: {}}
+    for src in response.keys():
+        for cyc, byte in response[src].items():
+            length = len(byte)
+            if length not in resp_window_size[src].keys():
+                resp_window_size[src][length] = 1
+            else:
+                resp_window_size[src][length] += 1
+
+    for src in resp_window_size.keys():
+        resp_window_size[src] = dict(sorted(resp_window_size[src].items(), key=lambda x: x[0]))
+    for src in resp_window_size.keys():
+        print(str(src))
+        for length, freq in resp_window_size[src].items():
+            print(str(length) + "\t" + str(freq))
 # ------------------------------------------------------
 
 

@@ -249,7 +249,7 @@ def destination_iat():
 
 
 if __name__ == "__main__":
-    model_name = "2MM"
+    model_name = "cfd"
     subpath = ""
     for src in range(0, 4):
         for dest in range(0, 4):
