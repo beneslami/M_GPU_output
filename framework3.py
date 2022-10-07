@@ -249,12 +249,12 @@ def destination_iat(model_name):
 
 
 if __name__ == "__main__":
-    model_name = "NN"
+    model_name = "CFD"
     subpath = "pre/"
     for src in range(0, 4):
         for dest in range(0, 4):
             if src != dest:
-                path = "pre/" + model_name + "/request_injection/pre_" + str(src) + "_" + str(dest) + ".txt"
+                path = subpath + "/" + model_name + "/request_injection/pre_" + str(src) + "_" + str(dest) + ".txt"
                 file2 = open(path, "r")
                 raw_content = ""
                 if file2.mode == "r":

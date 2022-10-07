@@ -328,49 +328,49 @@ def generate_traffic_flow(dir):
 
 
 def inter_departure_dist(dir):
-                    dist = {0: {}, 1: {}, 2: {}, 3: {}}
-                    flag = 0
-                    start = -1
-                    global throughput_byte
-                    for source in throughput_byte.keys():
-                        for cycle in throughput_byte[source].keys():
-                            if flag == 0:
-                                start = cycle
-                                flag = 1
-                            elif flag == 1:
-                                if (cycle - start) not in dist[source].keys():
-                                    dist[source][cycle - start] = 1
-                                else:
-                                    dist[source][cycle - start] += 1
-                                start = cycle
-                        flag = 0
-                        start = -1
+    dist = {0: {}, 1: {}, 2: {}, 3: {}}
+    flag = 0
+    start = -1
+    global throughput_byte
+    for source in throughput_byte.keys():
+        for cycle in throughput_byte[source].keys():
+            if flag == 0:
+                start = cycle
+                flag = 1
+            elif flag == 1:
+                if (cycle - start) not in dist[source].keys():
+                    dist[source][cycle - start] = 1
+                else:
+                    dist[source][cycle - start] += 1
+                start = cycle
+        flag = 0
+        start = -1
 
-                    fields = ['IAT', 'dist']
-                    dist[0] = dict(sorted(dist[0].items(), key=lambda x: x[0]))
-                    with open(dir + "iat_0.csv", "w") as file:
-                        writer = csv.writer(file)
-                        writer.writerow(fields)
-                        for cyc, byte in dist[0].items():
-                            writer.writerow([cyc, byte])
-                    dist[1] = dict(sorted(dist[1].items(), key=lambda x: x[0]))
-                    with open(dir + "iat_1.csv", "w") as file:
-                        writer = csv.writer(file)
-                        writer.writerow(fields)
-                        for cyc, byte in dist[1].items():
-                            writer.writerow([cyc, byte])
-                    dist[2] = dict(sorted(dist[2].items(), key=lambda x: x[0]))
-                    with open(dir + "iat_2.csv", "w") as file:
-                        writer = csv.writer(file)
-                        writer.writerow(fields)
-                        for cyc, byte in dist[2].items():
-                            writer.writerow([cyc, byte])
-                    dist[3] = dict(sorted(dist[3].items(), key=lambda x: x[0]))
-                    with open(dir + "iat_3.csv", "w") as file:
-                        writer = csv.writer(file)
-                        writer.writerow(fields)
-                        for cyc, byte in dist[3].items():
-                            writer.writerow([cyc, byte])
+    fields = ['IAT', 'dist']
+    dist[0] = dict(sorted(dist[0].items(), key=lambda x: x[0]))
+    with open(dir + "iat_0.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[0].items():
+            writer.writerow([cyc, byte])
+    dist[1] = dict(sorted(dist[1].items(), key=lambda x: x[0]))
+    with open(dir + "iat_1.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[1].items():
+            writer.writerow([cyc, byte])
+    dist[2] = dict(sorted(dist[2].items(), key=lambda x: x[0]))
+    with open(dir + "iat_2.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[2].items():
+            writer.writerow([cyc, byte])
+    dist[3] = dict(sorted(dist[3].items(), key=lambda x: x[0]))
+    with open(dir + "iat_3.csv", "w") as file:
+        writer = csv.writer(file)
+        writer.writerow(fields)
+        for cyc, byte in dist[3].items():
+            writer.writerow([cyc, byte])
 
 # ------------------------------------------------------
 
@@ -448,7 +448,7 @@ def response_window_size(dir):
         for src in resp_window_size.keys():
             file.write(str(src) + "\n")
             for length, freq in resp_window_size[src].items():
-                file.write(str(length) + "," + str(freq))
+                file.write(str(length) + "," + str(freq) + "\n")
 # ------------------------------------------------------
 
 
@@ -760,3 +760,4 @@ if __name__ == "__main__":
     cache_latency(packet, path)
     response_byte_per_core(packet, path)
     response_iat(path)
+    response_window_size(path)
