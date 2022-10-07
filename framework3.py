@@ -168,10 +168,10 @@ def generate_source_window():
         window_size[source] = dict(sorted(window_size[source].items(), key=lambda x: x[0]))
 
 
-def cache_hit_dist():
+def cache_hit_dist(model_name):
     for src in range(0, 4):
         lines = ""
-        with open("pre/cache_access/cache_access_hit" + str(src) + ".csv", "r") as file:
+        with open("pre/" + model_name + "/cache_access/cache_access_hit" + str(src) + ".csv", "r") as file:
             lines = file.readlines()
 
         if len(lines) == 0:
@@ -183,10 +183,10 @@ def cache_hit_dist():
         cache_hit[src] = dict(sorted(cache_hit[src].items(), key=lambda x: x[0]))
 
 
-def cache_miss_dist():
+def cache_miss_dist(model_name):
     for src in range(0, 4):
         lines = ""
-        with open("pre/cache_access/cache_access_miss" + str(src) + ".csv", "r") as file:
+        with open("pre/" + model_name + "/cache_access/cache_access_miss" + str(src) + ".csv", "r") as file:
             lines = file.readlines()
         if len(lines) == 0:
             cache_miss[src][0] = 0
@@ -197,8 +197,8 @@ def cache_miss_dist():
         cache_miss[src] = dict(sorted(cache_miss[src].items(), key=lambda x: x[0]))
 
 
-def cache_access_ratio():
-    with open("pre/cache_access/cache_access.csv", "r") as file:
+def cache_access_ratio(model_name):
+    with open("pre/" + model_name + "/cache_access/cache_access.csv", "r") as file:
         lines = file.readlines()
     for line in lines:
         chip = int(line.split("-")[0])
@@ -208,20 +208,20 @@ def cache_access_ratio():
         cache_hit_ratio[chip] = float(hit_val / (hit_val+miss_val))
 
 
-def llc_boundary_buffer_delay_dist():
+def llc_boundary_buffer_delay_dist(model_name):
     for i in range(0, 4):
         lines = ""
-        with open("pre/rop_delay" + str(i) + ".csv", "r") as file:
+        with open("pre/" + model_name + "/rop_delay" + str(i) + ".csv", "r") as file:
             lines = file.readlines()
         for line in lines:
             items = line.split(",")
             llc_boundary_buffer_delay[i][int(items[0])] = int(items[1])
 
 
-def destination_widnow():
+def destination_widnow(model_name):
     for i in range(0, 4):
         lines = ""
-        with open("pre/response_injection/window_size.csv", "r") as file:
+        with open("pre/" + model_name + "/response_injection/window_size.csv", "r") as file:
             lines = file.readlines()
         chip = -1
         for line in lines:
@@ -236,10 +236,10 @@ def destination_widnow():
         destination_window_dist[src] = dict(sorted(destination_window_dist[src].items(), key=lambda x: x[0]))
 
 
-def destination_iat():
+def destination_iat(model_name):
     for i in range(0, 4):
         lines = ""
-        with open("pre/response_injection/dest_iat" + str(i) + ".csv", "r") as file:
+        with open("pre/" + model_name + "/response_injection/dest_iat" + str(i) + ".csv", "r") as file:
             lines = file.readlines()
         for line in lines:
             items = line.split(",")
@@ -249,12 +249,12 @@ def destination_iat():
 
 
 if __name__ == "__main__":
-    model_name = "cfd"
-    subpath = ""
+    model_name = "NN"
+    subpath = "pre/"
     for src in range(0, 4):
         for dest in range(0, 4):
             if src != dest:
-                path = subpath + "pre/request_injection/pre_" + str(src) + "_" + str(dest) + ".txt"
+                path = "pre/" + model_name + "/request_injection/pre_" + str(src) + "_" + str(dest) + ".txt"
                 file2 = open(path, "r")
                 raw_content = ""
                 if file2.mode == "r":
@@ -277,12 +277,12 @@ if __name__ == "__main__":
     t1 = threading.Thread(target=destination_choose, args=())
     t2 = threading.Thread(target=inter_arrival_time, args=())
     t3 = threading.Thread(target=generate_source_window, args=())
-    t4 = threading.Thread(target=cache_hit_dist, args=())
-    t5 = threading.Thread(target=cache_miss_dist, args=())
-    t6 = threading.Thread(target=cache_access_ratio, args=())
-    t7 = threading.Thread(target=llc_boundary_buffer_delay_dist, args=())
-    t8 = threading.Thread(target=destination_widnow, args=())
-    t9 = threading.Thread(target=destination_iat, args=())
+    t4 = threading.Thread(target=cache_hit_dist, args=(model_name,))
+    t5 = threading.Thread(target=cache_miss_dist, args=(model_name,))
+    t6 = threading.Thread(target=cache_access_ratio, args=(model_name,))
+    t7 = threading.Thread(target=llc_boundary_buffer_delay_dist, args=(model_name,))
+    t8 = threading.Thread(target=destination_widnow, args=(model_name,))
+    t9 = threading.Thread(target=destination_iat, args=(model_name,))
     t0.start()
     t1.start()
     t2.start()
@@ -306,7 +306,7 @@ if __name__ == "__main__":
     t9.join()
 
     for i in range(0, 4):
-        filename = subpath + model_name + "_core_" + str(i) + str(".model")
+        filename = subpath + "/" + model_name + "_core_" + str(i) + str(".model")
         with open(filename, "w") as file:
             file.write("core " + str(i) + "\n\n")
 

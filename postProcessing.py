@@ -221,25 +221,25 @@ def byte_per_cycle_dist(dir):
 
     fields = ['byte', 'dist']
     byte_dist[0] = dict(sorted(byte_dist[0].items(), key=lambda x: x[0]))
-    with open(dir + "post/byte_0.csv", "w") as file:
+    with open(dir + "byte_0.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for cyc, byte in byte_dist[0].items():
             writer.writerow([cyc, byte])
     byte_dist[1] = dict(sorted(byte_dist[1].items(), key=lambda x: x[0]))
-    with open(dir + "post/byte_1.csv", "w") as file:
+    with open(dir + "byte_1.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for cyc, byte in byte_dist[1].items():
             writer.writerow([cyc, byte])
     byte_dist[2] = dict(sorted(byte_dist[2].items(), key=lambda x: x[0]))
-    with open(dir + "post/byte_2.csv", "w") as file:
+    with open(dir + "byte_2.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for cyc, byte in byte_dist[2].items():
             writer.writerow([cyc, byte])
     byte_dist[3] = dict(sorted(byte_dist[3].items(), key=lambda x: x[0]))
-    with open(dir + "post/byte_3.csv", "w") as file:
+    with open(dir + "byte_3.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for cyc, byte in byte_dist[3].items():
@@ -250,7 +250,7 @@ def outser(dir):
     for src in throughput_byte.keys():
         for cyc in throughput_byte[src].keys():
             for dest in throughput_byte[src][cyc].keys():
-                with open(dir + "post/out/post_" + str(src) + "_" + str(dest) + ".txt", "a") as file:
+                with open(dir + "post_" + str(src) + "_" + str(dest) + ".txt", "a") as file:
                     file.write(str(cyc) + "\t" + str(throughput_byte[src][cyc][dest]) + "\n")
 
 
@@ -279,7 +279,7 @@ def generate_packet_type_ratio(dir):
                             dist_total[src][b] = 1
                         else:
                             dist_total[src][b] += 1
-    with open(dir + "post/packet_ratio.csv", "w") as file:
+    with open(dir + "packet_ratio.csv", "w") as file:
         for src in dist_total.keys():
             file.write(str(src) + "\n")
             for packet, freq in dist_total[src].items():
@@ -303,7 +303,7 @@ def check_injection_rate(dir):
             injection_rate[source][dst] = on[dst] / total
         total = 0
         on.clear()
-    with open(dir + "post/out/injection_rate.csv", "w") as file:
+    with open(dir + "injection_rate.csv", "w") as file:
         for src in injection_rate.keys():
             file.write(str(src) + "\n")
             for dest, rate in injection_rate[src].items():
@@ -318,7 +318,7 @@ def generate_traffic_flow(dir):
                 traffic_flow[src][dest] += sum(throughput_byte[src][cycle][dest])
 
     fields = ['dest', 'byte']
-    with open(dir + "post/traffic_flow.csv", "w") as file:
+    with open(dir + "traffic_flow.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(fields)
         for src in traffic_flow.keys():
@@ -348,25 +348,25 @@ def inter_departure_dist(dir):
 
                     fields = ['IAT', 'dist']
                     dist[0] = dict(sorted(dist[0].items(), key=lambda x: x[0]))
-                    with open(dir + "post/iat_0.csv", "w") as file:
+                    with open(dir + "iat_0.csv", "w") as file:
                         writer = csv.writer(file)
                         writer.writerow(fields)
                         for cyc, byte in dist[0].items():
                             writer.writerow([cyc, byte])
                     dist[1] = dict(sorted(dist[1].items(), key=lambda x: x[0]))
-                    with open(dir + "post/iat_1.csv", "w") as file:
+                    with open(dir + "iat_1.csv", "w") as file:
                         writer = csv.writer(file)
                         writer.writerow(fields)
                         for cyc, byte in dist[1].items():
                             writer.writerow([cyc, byte])
                     dist[2] = dict(sorted(dist[2].items(), key=lambda x: x[0]))
-                    with open(dir + "post/iat_2.csv", "w") as file:
+                    with open(dir + "iat_2.csv", "w") as file:
                         writer = csv.writer(file)
                         writer.writerow(fields)
                         for cyc, byte in dist[2].items():
                             writer.writerow([cyc, byte])
                     dist[3] = dict(sorted(dist[3].items(), key=lambda x: x[0]))
-                    with open(dir + "post/iat_3.csv", "w") as file:
+                    with open(dir + "iat_3.csv", "w") as file:
                         writer = csv.writer(file)
                         writer.writerow(fields)
                         for cyc, byte in dist[3].items():
@@ -398,7 +398,7 @@ def response_byte_per_core(packet, dir):
     for src in byte_dist.keys():
         byte_dist[src] = dict(sorted(byte_dist[src].items(), key=lambda x: x[0]))
     for src in byte_dist.keys():
-        with open(dir + "post/byte_dest_" + str(src) + ".csv", "w") as file:
+        with open(dir + "byte_dest_" + str(src) + ".csv", "w") as file:
             for b, freq in byte_dist[src].items():
                 file.write(str(b) + "," + str(freq) + "\n")
 
@@ -425,7 +425,7 @@ def response_iat(dir):
         resp_iat[src] = dict(sorted(resp_iat[src].items(), key=lambda x: x[0]))
 
     for src in resp_iat.keys():
-        with open(dir + "post/dest_iat_" + str(src) + ".csv", "w") as file:
+        with open(dir + "dest_iat_" + str(src) + ".csv", "w") as file:
             for duration, freq in resp_iat[src].items():
                 file.write(str(duration) + "," + str(freq) + "\n")
 
@@ -443,10 +443,12 @@ def response_window_size(dir):
 
     for src in resp_window_size.keys():
         resp_window_size[src] = dict(sorted(resp_window_size[src].items(), key=lambda x: x[0]))
-    for src in resp_window_size.keys():
-        print(str(src))
-        for length, freq in resp_window_size[src].items():
-            print(str(length) + "\t" + str(freq))
+
+    with open(dir + "dest_window_size.csv", "w") as file:
+        for src in resp_window_size.keys():
+            file.write(str(src) + "\n")
+            for length, freq in resp_window_size[src].items():
+                file.write(str(length) + "," + str(freq))
 # ------------------------------------------------------
 
 
@@ -553,7 +555,7 @@ def generate_link_utilization(packet, dir):
         for dest in link[src].keys():
             link[src][dest] = dict(sorted(link[src][dest].items(), key=lambda x: x[0]))
 
-    with open(dir + "post/req_link_usage.csv", "w") as file:
+    with open(dir + "req_link_usage.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(['link', 'mean'])
         for i in link_req.keys():
@@ -562,7 +564,7 @@ def generate_link_utilization(packet, dir):
                 with warnings.catch_warnings():
                     m = np.nanmean(list(link_req[i][j].values()))
                     writer.writerow([j, m])
-    with open(dir + "post/resp_link_usage.csv", "w") as file:
+    with open(dir + "resp_link_usage.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(['link', 'mean'])
         for i in link_resp.keys():
@@ -571,7 +573,7 @@ def generate_link_utilization(packet, dir):
                 with warnings.catch_warnings():
                     m = np.nanmean(list(link_resp[i][j].values()))
                     writer.writerow([j, m])
-    with open(dir + "post/link_usage.csv", "w") as file:
+    with open(dir + "link_usage.csv", "w") as file:
         writer = csv.writer(file)
         writer.writerow(['link', 'mean'])
         for i in link.keys():
@@ -611,7 +613,7 @@ def calculate_throughput(packet, dir):
     total_throughput = dict(sorted(list(total_throughput.items()), key=lambda x: x[0]))
     for i in offered_throughput.keys():
         offered_throughput[i] = dict(sorted(list(offered_throughput[i].items()), key=lambda x: x[0]))
-    with open(dir + "post/total_throughput.csv", "w") as csv_file:
+    with open(dir + "total_throughput.csv", "w") as csv_file:
         writer = csv.writer(csv_file)
         for cyc, byte in total_throughput.items():
             writer.writerow([cyc, byte])
@@ -628,7 +630,7 @@ def calculate_throughput_param(dir):
 
     for src in data.keys():
         data[src] = dict(sorted(data[src].items(), key=lambda x: x[0]))
-    with open(dir + "post/throughput_params.csv", "w") as file:
+    with open(dir + "throughput_params.csv", "w") as file:
         writer = csv.writer(file)
         for src in data.keys():
             writer.writerow([src])
@@ -650,7 +652,7 @@ def calculate_source_window(dir):
         for dst in src_window[src].keys():
             src_window[src][dst] = dict(sorted(src_window[src][dst].items(), key=lambda x: x[0]))
 
-    with open(dir + "post/source_window.csv", "w") as file:
+    with open(dir + "source_window.csv", "w") as file:
         writer = csv.writer(file)
         for src in src_window.keys():
             writer.writerow(["src", src])
@@ -670,7 +672,7 @@ def generate_traffic_pattern(dir):
                 byte = sum(throughput_byte[src][cycle][dest])
                 traffic_pattern[src][dest] = traffic_pattern[src][dest] + byte
 
-    with open(dir + "post/traffic_pattern.csv", "w") as file:
+    with open(dir + "traffic_pattern.csv", "w") as file:
         for src in traffic_pattern.keys():
             file.write(str(src) + "\n")
             for dest, byte in traffic_pattern[src].items():
@@ -685,7 +687,7 @@ def generate_traffic_pattern(dir):
                     else:
                         destination_spread[src][dest] += 1
 
-    with open(dir + "post/destination_spread.csv", "w") as file:
+    with open(dir + "destination_spread.csv", "w") as file:
         for src in destination_spread.keys():
             file.write(str(src) + "\n")
             for dest, freq in destination_spread[src].items():
@@ -729,8 +731,9 @@ def cache_latency(packet, path):
 
 
 if __name__ == "__main__":
-    path = ""
-    with open(path + 'post/out.txt', 'r') as file:
+    model_name = "CFD"
+    path = "post/" + model_name + "/"
+    with open(path + 'out.txt', 'r') as file:
         reader = file.readlines()
     lined_list = []
     for line in reader:
