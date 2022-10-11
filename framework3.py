@@ -171,7 +171,7 @@ def generate_source_window():
 def cache_hit_dist(model_name):
     for src in range(0, 4):
         lines = ""
-        with open("pre/" + model_name + "/cache_access/cache_access_hit" + str(src) + ".csv", "r") as file:
+        with open(model_name + "/cache_access/cache_access_hit" + str(src) + ".csv", "r") as file:
             lines = file.readlines()
 
         if len(lines) == 0:
@@ -186,7 +186,7 @@ def cache_hit_dist(model_name):
 def cache_miss_dist(model_name):
     for src in range(0, 4):
         lines = ""
-        with open("pre/" + model_name + "/cache_access/cache_access_miss" + str(src) + ".csv", "r") as file:
+        with open(model_name + "/cache_access/cache_access_miss" + str(src) + ".csv", "r") as file:
             lines = file.readlines()
         if len(lines) == 0:
             cache_miss[src][0] = 0
@@ -198,7 +198,7 @@ def cache_miss_dist(model_name):
 
 
 def cache_access_ratio(model_name):
-    with open("pre/" + model_name + "/cache_access/cache_access.csv", "r") as file:
+    with open(model_name + "/cache_access/cache_access.csv", "r") as file:
         lines = file.readlines()
     for line in lines:
         chip = int(line.split("-")[0])
@@ -211,7 +211,7 @@ def cache_access_ratio(model_name):
 def llc_boundary_buffer_delay_dist(model_name):
     for i in range(0, 4):
         lines = ""
-        with open("pre/" + model_name + "/rop_delay" + str(i) + ".csv", "r") as file:
+        with open(model_name + "/rop_delay" + str(i) + ".csv", "r") as file:
             lines = file.readlines()
         for line in lines:
             items = line.split(",")
@@ -221,7 +221,7 @@ def llc_boundary_buffer_delay_dist(model_name):
 def destination_widnow(model_name):
     for i in range(0, 4):
         lines = ""
-        with open("pre/" + model_name + "/response_injection/window_size.csv", "r") as file:
+        with open(model_name + "/response_injection/window_size.csv", "r") as file:
             lines = file.readlines()
         chip = -1
         for line in lines:
@@ -239,7 +239,7 @@ def destination_widnow(model_name):
 def destination_iat(model_name):
     for i in range(0, 4):
         lines = ""
-        with open("pre/" + model_name + "/response_injection/dest_iat" + str(i) + ".csv", "r") as file:
+        with open(model_name + "/response_injection/dest_iat" + str(i) + ".csv", "r") as file:
             lines = file.readlines()
         for line in lines:
             items = line.split(",")
@@ -249,12 +249,13 @@ def destination_iat(model_name):
 
 
 if __name__ == "__main__":
-    model_name = "CFD"
-    subpath = "pre/"
+    model_name = "2MM"
+    frequency = "6144"
+    subpath = "pre/" + model_name + "/" + frequency
     for src in range(0, 4):
         for dest in range(0, 4):
             if src != dest:
-                path = subpath + "/" + model_name + "/request_injection/pre_" + str(src) + "_" + str(dest) + ".txt"
+                path = subpath + "/request_injection/pre_" + str(src) + "_" + str(dest) + ".txt"
                 file2 = open(path, "r")
                 raw_content = ""
                 if file2.mode == "r":
@@ -277,12 +278,12 @@ if __name__ == "__main__":
     t1 = threading.Thread(target=destination_choose, args=())
     t2 = threading.Thread(target=inter_arrival_time, args=())
     t3 = threading.Thread(target=generate_source_window, args=())
-    t4 = threading.Thread(target=cache_hit_dist, args=(model_name,))
-    t5 = threading.Thread(target=cache_miss_dist, args=(model_name,))
-    t6 = threading.Thread(target=cache_access_ratio, args=(model_name,))
-    t7 = threading.Thread(target=llc_boundary_buffer_delay_dist, args=(model_name,))
-    t8 = threading.Thread(target=destination_widnow, args=(model_name,))
-    t9 = threading.Thread(target=destination_iat, args=(model_name,))
+    t4 = threading.Thread(target=cache_hit_dist, args=(subpath,))
+    t5 = threading.Thread(target=cache_miss_dist, args=(subpath,))
+    t6 = threading.Thread(target=cache_access_ratio, args=(subpath,))
+    t7 = threading.Thread(target=llc_boundary_buffer_delay_dist, args=(subpath,))
+    t8 = threading.Thread(target=destination_widnow, args=(subpath,))
+    t9 = threading.Thread(target=destination_iat, args=(subpath,))
     t0.start()
     t1.start()
     t2.start()

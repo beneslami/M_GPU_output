@@ -731,7 +731,7 @@ def cache_latency(packet, path):
 
 
 if __name__ == "__main__":
-    model_name = "CFD"
+    model_name = "2MM"
     path = "post/" + model_name + "/"
     with open(path + 'out.txt', 'r') as file:
         reader = file.readlines()
