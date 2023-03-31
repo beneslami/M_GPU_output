@@ -1,4 +1,6 @@
 import math
+import sys
+
 import matplotlib.pyplot as plt
 import scipy
 from scipy.stats import stats
@@ -126,13 +128,7 @@ def RS(lined_list):
 
 
 def hurst(lined_list):
-    time_byte = {}
-    for i in range(1, len(lined_list)):
-        if int(lined_list[i][0].split(",")[0]) in time_byte.keys():
-            time_byte[int(lined_list[i][0].split(",")[0])] += float(lined_list[i][0].split(",")[1])
-        else:
-            time_byte[int(lined_list[i][0].split(",")[0])] = float(lined_list[i][0].split(",")[1])
-    H, c, data = compute_Hc(list(time_byte.values()), simplified=True)
+    H, c, data = compute_Hc(lined_list, simplified=True)
     f, ax = plt.subplots()
     ax.plot(data[0], c * data[0] ** H, color="deepskyblue")
     ax.scatter(data[0], data[1], color="purple")
@@ -177,11 +173,67 @@ def KS():
 
 
 if __name__ == "__main__":
-    with open('synthetic.csv', 'r') as file:
-        reader = file.readlines()
+    input_ = sys.argv[1]
+    file2 = open(input_, "r")
+    raw_content = ""
+    if file2.mode == "r":
+        raw_content = file2.readlines()
     lined_list = []
-    for line in reader:
+    for line in raw_content:
         item = [x for x in line.split("\t") if x not in ['', '\t']]
+
         lined_list.append(item)
-    hurst(lined_list)
-    KS()
+    trace = {}
+    Trace = {}
+    del (raw_content)
+
+    for i in range(len(lined_list)):
+        if int(lined_list[i][1].split(": ")[1]) in trace.keys():
+            if lined_list[i] not in trace[int(lined_list[i][1].split(": ")[1])]:
+                trace.setdefault(int(lined_list[i][1].split(": ")[1]), []).append(lined_list[i])
+        else:
+            trace.setdefault(int(lined_list[i][1].split(": ")[1]), []).append(lined_list[i])
+
+    overall = {}
+    for chiplet in trace.keys():
+        for i in range(len(trace[chiplet])):
+            if trace[chiplet][i][0] == "request injected":
+                byte = int(trace[chiplet][i][7].split(": ")[1])
+                cycle = int(trace[chiplet][i][5].split(": ")[1])
+                if cycle not in overall.keys():
+                    overall[cycle] = byte
+                else:
+                    overall[cycle] += byte
+
+            if trace[chiplet][i][0] == "request received":
+                byte = int(trace[chiplet][i][7].split(": ")[1])
+                cycle = int(trace[chiplet][i][5].split(": ")[1])
+                if cycle not in overall.keys():
+                    overall[cycle] = -byte
+                else:
+                    overall[cycle] -= byte
+
+            if trace[chiplet][i][0] == "reply injected":
+                byte = int(trace[chiplet][i][7].split(": ")[1])
+                cycle = int(trace[chiplet][i][5].split(": ")[1])
+                if cycle not in overall.keys():
+                    overall[cycle] = byte
+                else:
+                    overall[cycle] += byte
+
+            if trace[chiplet][i][0] == "reply received":
+                byte = int(trace[chiplet][i][7].split(": ")[1])
+                cycle = int(trace[chiplet][i][5].split(": ")[1])
+                if cycle not in overall.keys():
+                    overall[cycle] = -byte
+                else:
+                    overall[cycle] -= byte
+    overall_ = {}
+    m = min(overall.keys())
+    M = max(overall.keys())
+    for i in range(m, M, 1):
+        if i not in overall.keys():
+            overall_[i] = 0
+        else:
+            overall_[i] = overall[i]
+    hurst(list(overall_.values()))
