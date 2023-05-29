@@ -127,113 +127,131 @@ def RS(lined_list):
     plt.show()
 
 
-def hurst(lined_list):
+def hurst(base_path, lined_list, string):
     H, c, data = compute_Hc(lined_list, simplified=True)
     f, ax = plt.subplots()
     ax.plot(data[0], c * data[0] ** H, color="deepskyblue")
     ax.scatter(data[0], data[1], color="purple")
     ax.set_xscale('log')
     ax.set_yscale('log')
-    plt.text(10000, 5, "slope = " + str("{:.3f}".format(H)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
+    min_xdim, max_xdim = plt.xlim()
+    min_ydim, max_ydim = plt.ylim()
+    plt.text((min_xdim+max_xdim)/3, (min_ydim+max_ydim)/3, "slope = " + str("{:.3f}".format(H)), bbox={'facecolor': 'blue', 'alpha': 0.1, 'pad': 10})
     ax.set_xlabel('Time interval')
     ax.set_ylabel('R/S ratio')
     #ax.grid(True)
-    plt.show()
+    plt.savefig(base_path + "/plots/hurst_" + string + ".jpg")
+    plt.close()
     print("H={:.4f}, c={:.4f}".format(H, c))
 
 
-def KS():
-    with open('synthetic.csv', 'r') as file:
-        reader = file.readlines()
-    observed = {}
-    for line in reader:
-        item = [x for x in line.split("\t") if x not in ['', '\t']]
-        if item[0].split(",")[0] == "cycle":
-            pass
-        else:
-            observed[int(item[0].split(",")[0])] = (math.floor(float(item[0].split(",")[1])))
-
-    with open('bicg.csv', 'r') as file:
-        reader = file.readlines()
-    expected = {}
-    for line in reader:
-        item = [x for x in line.split("\t") if x not in ['', '\t']]
-        if item[0].split(",")[0] == "cycle":
-            pass
-        else:
-            expected[int(item[0].split(",")[0])] = (math.floor(float(item[0].split(",")[1])))
-    l = list(observed.keys())
-    for i in l:
-        if i not in expected.keys():
-            observed.pop(i)
-
-    stat, p = scipy.stats.ttest_ind(list(observed.values()), list(expected.values()))
-    print(stat)
-    print(p)
-
-
-if __name__ == "__main__":
-    input_ = sys.argv[1]
-    file2 = open(input_, "r")
-    raw_content = ""
-    if file2.mode == "r":
-        raw_content = file2.readlines()
-    lined_list = []
-    for line in raw_content:
-        item = [x for x in line.split("\t") if x not in ['', '\t']]
-
-        lined_list.append(item)
-    trace = {}
-    Trace = {}
-    del (raw_content)
-
-    for i in range(len(lined_list)):
-        if int(lined_list[i][1].split(": ")[1]) in trace.keys():
-            if lined_list[i] not in trace[int(lined_list[i][1].split(": ")[1])]:
-                trace.setdefault(int(lined_list[i][1].split(": ")[1]), []).append(lined_list[i])
-        else:
-            trace.setdefault(int(lined_list[i][1].split(": ")[1]), []).append(lined_list[i])
-
-    overall = {}
-    for chiplet in trace.keys():
-        for i in range(len(trace[chiplet])):
-            if trace[chiplet][i][0] == "request injected":
-                byte = int(trace[chiplet][i][7].split(": ")[1])
-                cycle = int(trace[chiplet][i][5].split(": ")[1])
-                if cycle not in overall.keys():
-                    overall[cycle] = byte
+def hurst_compute(base_path, overall, string):
+    burst_length = []
+    burst_ratio = []
+    burst_length_dist = {}
+    burst_amount_dist = {}
+    burst_length_value = {}
+    burst_length_value_ = {}
+    start_flag = 0
+    prev_cycle = 0
+    aggregate_burst = 0
+    for cycle, byte in overall.items():
+        if byte != 0:
+            if start_flag == 0:
+                start_flag = 1
+                prev_cycle = cycle
+            aggregate_burst += byte
+        elif byte == 0:
+            if start_flag == 1:
+                burst_length.append(cycle - prev_cycle)
+                burst_ratio.append(aggregate_burst/(cycle - prev_cycle))
+                if cycle - prev_cycle not in burst_length_dist.keys():
+                    burst_length_dist[cycle - prev_cycle] = 1
                 else:
-                    overall[cycle] += byte
-
-            if trace[chiplet][i][0] == "request received":
-                byte = int(trace[chiplet][i][7].split(": ")[1])
-                cycle = int(trace[chiplet][i][5].split(": ")[1])
-                if cycle not in overall.keys():
-                    overall[cycle] = -byte
+                    burst_length_dist[cycle - prev_cycle] += 1
+                if aggregate_burst not in burst_amount_dist.keys():
+                    burst_amount_dist[aggregate_burst] = 1
                 else:
-                    overall[cycle] -= byte
-
-            if trace[chiplet][i][0] == "reply injected":
-                byte = int(trace[chiplet][i][7].split(": ")[1])
-                cycle = int(trace[chiplet][i][5].split(": ")[1])
-                if cycle not in overall.keys():
-                    overall[cycle] = byte
+                    burst_amount_dist[aggregate_burst] += 1
+                if cycle - prev_cycle not in burst_length_value.keys():
+                    burst_length_value[cycle - prev_cycle] = aggregate_burst
                 else:
-                    overall[cycle] += byte
+                    burst_length_value[cycle - prev_cycle] += aggregate_burst
 
-            if trace[chiplet][i][0] == "reply received":
-                byte = int(trace[chiplet][i][7].split(": ")[1])
-                cycle = int(trace[chiplet][i][5].split(": ")[1])
-                if cycle not in overall.keys():
-                    overall[cycle] = -byte
+                if cycle - prev_cycle not in burst_length_value_.keys():
+                    burst_length_value_.setdefault(cycle - prev_cycle, {})[aggregate_burst] = 1
                 else:
-                    overall[cycle] -= byte
-    overall_ = {}
-    m = min(overall.keys())
-    M = max(overall.keys())
-    for i in range(m, M, 1):
-        if i not in overall.keys():
-            overall_[i] = 0
-        else:
-            overall_[i] = overall[i]
-    hurst(list(overall_.values()))
+                    if aggregate_burst not in burst_length_value_[cycle - prev_cycle].keys():
+                        burst_length_value_[cycle - prev_cycle][aggregate_burst] = 1
+                    else:
+                        burst_length_value_[cycle - prev_cycle][aggregate_burst] += 1
+                start_flag = 0
+                aggregate_burst = 0
+
+    burst_length_dist = dict(sorted(burst_length_dist.items(), key=lambda x: x[0]))
+    burst_amount_dist = dict(sorted(burst_amount_dist.items(), key=lambda x: x[0]))
+    burst_length_value = dict(sorted(burst_length_value.items(), key=lambda x: x[0]))
+    burst_length_value_ = dict(sorted(burst_length_value_.items(), key=lambda x: x[0]))
+    for c in burst_length_value_.keys():
+        burst_length_value_[c] = dict(sorted(burst_length_value_[c].items(), key=lambda x: x[0]))
+
+    with open(base_path + "/data/burst_length_value_dependency.csv", "w") as file:
+        file.write("burst,amount,freq\n")
+        for c in burst_length_value_.keys():
+            file.write(str(c) + ",")
+            flag = 0
+            for byte, freq in burst_length_value_[c].items():
+                if flag == 0:
+                    file.write(str(byte) + "," + str(freq) + "\n")
+                    flag = 1
+                elif flag == 1:
+                    file.write("," + str(byte) + "," + str(freq) + "\n")
+
+    burst_length_pdf = {}
+    burst_amount_pdf = {}
+    for length, freq in burst_length_dist.items():
+        burst_length_pdf[length] = freq / sum(burst_length_dist.values())
+    for amount, freq in burst_amount_dist.items():
+        burst_amount_pdf[amount] = freq / sum(burst_amount_dist.values())
+    with open(base_path + "/data/burst_length_distribution.csv", "w") as file:
+        file.write("duration,pdf\n")
+        for k, v in burst_length_pdf.items():
+            file.write(str(k) + "," + str(v) + "\n")
+    with open(base_path + "/data/burst_amount_distribution.csv", "w") as file:
+        file.write("duration,pdf\n")
+        for k, v in burst_amount_pdf.items():
+            file.write(str(k) + "," + str(v) + "\n")
+    
+    burst_length_cdf = np.array(list(burst_length_dist.values())).cumsum() / np.array(list(burst_length_dist.values())).sum()
+    burst_length_ccdf = 1 - burst_length_cdf
+
+    for cycle, byte in burst_length_value.items():
+        burst_length_value[cycle] = byte / sum(list(burst_length_value.values()))
+    burst_amount_cdf = np.array(list(burst_length_value.values())).cumsum() / np.array(list(burst_length_value.values())).sum()
+    burst_amount_ccdf = 1 - burst_amount_cdf
+
+    plt.plot(list(burst_length_dist.keys()), burst_length_ccdf, marker="+", label="latency fraction")
+    plt.plot(list(burst_length_value.keys()), burst_amount_ccdf, marker="*", label="traffic fraction")
+    plt.xlabel("burst length (cycle)")
+    plt.ylabel("Fraction")
+    plt.title("Traffic and latency fractions")
+    plt.legend()
+    plt.savefig(base_path + "/plots/traffic_latency_fraction.jpg")
+    plt.close()
+    
+    plt.plot(burst_length_pdf.keys(), burst_length_pdf.values(), marker="*")
+    plt.xlabel("burst length")
+    plt.ylabel("PDF")
+    plt.savefig(base_path + "/plots/injected_burst_length_distribution.jpg")
+    plt.close()
+    plt.plot(burst_amount_pdf.keys(), burst_amount_pdf.values(), marker="*")
+    plt.xlabel("burst amount")
+    plt.ylabel("PDF")
+    plt.savefig(base_path + "/plots/injected_burst_amount_distribution.jpg")
+    plt.close()
+
+    with open(base_path + "/data/burst_ratio.csv", "w") as file:
+        file.write("ratio\n")
+        for r in burst_ratio:
+            file.write(str(r) + "\n")
+    hurst(base_path, burst_ratio, "temporal_burstiness")

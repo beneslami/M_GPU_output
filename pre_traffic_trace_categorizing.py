@@ -1,36 +1,19 @@
-import sys
+import os.path
 
 from matplotlib import pyplot as plt
+from RescaledRangeAnalysis import *
 
-if __name__ == '__main__':
-    input_ = sys.argv[1]
-    file2 = open(input_, "r")
-    raw_content = ""
-    if file2.mode == "r":
-        raw_content = file2.readlines()
-    lined_list = []
-    for line in raw_content:
-        item = [x for x in line.split("\t") if x not in ['', '\t']]
-
-        lined_list.append(item)
-    trace = {}
-    Trace = {}
-    del(raw_content)
-
-    for i in range(len(lined_list)):
-        if int(lined_list[i][1].split(": ")[1]) in trace.keys():
-            if lined_list[i] not in trace[int(lined_list[i][1].split(": ")[1])]:
-                trace.setdefault(int(lined_list[i][1].split(": ")[1]), []).append(lined_list[i])
-        else:
-            trace.setdefault(int(lined_list[i][1].split(": ")[1]), []).append(lined_list[i])
-
+def overall_plot(input_, trace):
+    base_path = os.path.dirname(input_)
     traffic = {}
     overall = {}
-    for chiplet in trace.keys():
-        for i in range(len(trace[chiplet])):
-            if trace[chiplet][i][0] == "request injected":
-                byte = int(trace[chiplet][i][7].split(": ")[1])
-                cycle = int(trace[chiplet][i][5].split(": ")[1])
+    positive_overall = {}
+    for id in trace.keys():
+        for i in range(len(trace[id])):
+            if trace[id][i][0] == "request injected":
+                chiplet = int(trace[id][i][1].split(": ")[1])
+                byte = int(trace[id][i][7].split(": ")[1])
+                cycle = int(trace[id][i][5].split(": ")[1])
                 if chiplet not in traffic.keys():
                     traffic.setdefault(chiplet, {})[cycle] = byte
                 else:
@@ -42,32 +25,65 @@ if __name__ == '__main__':
                     overall[cycle] = byte
                 else:
                     overall[cycle] += byte
+                if cycle not in positive_overall.keys():
+                    positive_overall[cycle] = byte
+                else:
+                    positive_overall[cycle] += byte
 
-            if trace[chiplet][i][0] == "request received":
-                byte = int(trace[chiplet][i][7].split(": ")[1])
-                cycle = int(trace[chiplet][i][5].split(": ")[1])
+            elif trace[id][i][0] == "request received":
+                chiplet = int(trace[id][i][2].split(": ")[1])
+                byte = int(trace[id][i][7].split(": ")[1])
+                cycle = int(trace[id][i][5].split(": ")[1])
+                """if chiplet not in traffic.keys():
+                    traffic.setdefault(chiplet, {})[cycle] = -byte
+                else:
+                    if cycle not in traffic[chiplet].keys():
+                        traffic[chiplet][cycle] = -byte
+                    else:
+                        traffic[chiplet][cycle] -= byte"""
                 if cycle not in overall.keys():
                     overall[cycle] = -byte
                 else:
                     overall[cycle] -= byte
 
-            if trace[chiplet][i][0] == "reply injected":
-                byte = int(trace[chiplet][i][7].split(": ")[1])
-                cycle = int(trace[chiplet][i][5].split(": ")[1])
+            elif trace[id][i][0] == "reply injected":
+                chiplet = int(trace[id][i][6].split(": ")[1])
+                byte = int(trace[id][i][7].split(": ")[1])
+                cycle = int(trace[id][i][5].split(": ")[1])
+                if chiplet not in traffic.keys():
+                    traffic.setdefault(chiplet, {})[cycle] = byte
+                else:
+                    if cycle not in traffic[chiplet].keys():
+                        traffic[chiplet][cycle] = byte
+                    else:
+                        traffic[chiplet][cycle] += byte
                 if cycle not in overall.keys():
                     overall[cycle] = byte
                 else:
                     overall[cycle] += byte
+                """if cycle not in positive_overall.keys():
+                    positive_overall[cycle] = byte
+                else:
+                    positive_overall[cycle] += byte"""
 
-            if trace[chiplet][i][0] == "reply received":
-                byte = int(trace[chiplet][i][7].split(": ")[1])
-                cycle = int(trace[chiplet][i][5].split(": ")[1])
+            elif trace[id][i][0] == "reply received":
+                chiplet = int(trace[id][i][6].split(": ")[1])
+                byte = int(trace[id][i][7].split(": ")[1])
+                cycle = int(trace[id][i][5].split(": ")[1])
+                """if chiplet not in traffic.keys():
+                    traffic.setdefault(chiplet, {})[cycle] = -byte
+                else:
+                    if cycle not in traffic[chiplet].keys():
+                        traffic[chiplet][cycle] = -byte
+                    else:
+                        traffic[chiplet][cycle] -= byte"""
                 if cycle not in overall.keys():
                     overall[cycle] = -byte
                 else:
                     overall[cycle] -= byte
 
     chiplet_num = len(traffic)
+    
     traffic_ = {}
     for i in range(chiplet_num):
         m = min(traffic[i].keys())
@@ -92,16 +108,29 @@ if __name__ == '__main__':
             overall_[i] = 0
         else:
             overall_[i] = overall[i]
-
-    fig = plt.figure(figsize=(20, 20))
+            
+    positive_overall_ = {}
+    m = min(positive_overall.keys())
+    M = max(positive_overall.keys())
+    for i in range(m, M, 1):
+        if i not in positive_overall.keys():
+            positive_overall_[i] = 0
+        else:
+            positive_overall_[i] = positive_overall[i]
+    #hurst_compute(overall_, "overall traffic") # from Rescaled Range analysis
+    hurst_compute(base_path, positive_overall_, "injected traffic") # from Rescaled Range analysis
+    """fig = plt.figure(figsize=(20, 20))
     plt.subplots_adjust(wspace=0.868, hspace=0.798, top=0.962, right=0.958, bottom=0.03, left=0.04)
     fig.tight_layout()
     ax = fig.subplots(chiplet_num+1, 1)
     for i in range(chiplet_num):
         ax[i].plot(list(traffic_[i].keys()), list(traffic_[i].values()))
         #ax[i].set_title("chiplet" + str(i))
-        ax[i].set_ylim(0, 20)
+        #ax[i].set_ylim(0, 20)
+        #ax[i].set_xlim(45000, 47000)
     ax[chiplet_num].plot(list(overall_.keys()), list(overall_.values()))
+    #ax[chiplet_num].set_xlim(45000, 47000)
     #ax[chiplet_num].set_title("overall aggregate traffic")
-    plt.savefig("traffic.jpg")
-    plt.show()
+    #plt.savefig(base_path + "/plots/traffic.jpg")
+    #plt.close()
+    #plt.show()"""
