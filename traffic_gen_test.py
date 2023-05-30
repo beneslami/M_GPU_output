@@ -93,77 +93,60 @@ def overall_injection_traffic(packet):
     #plt.legend()
     #plt.show()
 
-    on_off_cdf, _ = calculate_on_off_period(traffic)
-    min_off_period = int(np.floor(1/max(list(on_off_cdf.keys()))))
-    off_period = {}
-    on_period = {}
-    burst = {}
-    prev_macro_cycle = list(traffic.keys())[0]
-    prev_micro_cycle = list(traffic.keys())[0]
-    macro_phase_flag = 0
-    micro_phase_flag = 0
-    for cycle, byte in traffic.items():
-        if byte != 0:
-            if byte not in burst.keys():
-                burst[byte] = 1
-            else:
-                burst[byte] += 1
-            if micro_phase_flag == 0:
-                if macro_phase_flag == 1:
-                    prev_micro_cycle = cycle
-                else:
-                    if cycle - prev_micro_cycle >= 1:
-                        if (cycle - prev_micro_cycle) not in on_period.keys():
-                            on_period[cycle - prev_micro_cycle] = 1
-                        else:
-                            on_period[cycle - prev_micro_cycle] += 1
-                        if 0 not in burst.keys():
-                            burst[0] = 1
-                        else:
-                            burst[0] = cycle - prev_micro_cycle
-                    prev_micro_cycle = cycle
-
-            if macro_phase_flag == 1:
-                macro_phase_flag = 0
-                if (cycle - prev_macro_cycle) not in off_period.keys():
-                    off_period[cycle - prev_macro_cycle] = 1
-                else:
-                    off_period[cycle - prev_macro_cycle] += 1
-
-            micro_phase_flag = 1
-            prev_macro_cycle = cycle
+    feature_vector = []
+    window = 500
+    i = 0
+    temp = []
+    for cyc, byte in traffic.items():
+        temp.append(byte)
+        if i < window:
+            i += 1
         else:
-            if cycle - prev_macro_cycle >= min_off_period:
-                macro_phase_flag = 1
-            if micro_phase_flag == 1:
-                micro_phase_flag = 0
+            i = 0
+            vec = []
+            vec.append(min(temp))
+            vec.append(max(temp))
+            vec.append(np.mean(temp))
+            vec.append(np.std(temp))
+            vec.append(np.median(temp))
+            vec.append(statistics.mode(temp))
+            if math.isnan(scipy.stats.skew(np.array(temp))):
+                vec.append(1000000)
+            else:
+                vec.append(scipy.stats.skew(np.array(temp)))
+            if math.isnan(scipy.stats.kurtosis(np.array(temp))):
+                vec.append(1000000)
+            else:
+                vec.append(scipy.stats.kurtosis(np.array(temp)))
+            feature_vector.append(vec)
+            kde = KernelDensity(kernel='gaussian', bandwidth=0.2).fit(temp)
+            print(kde)
+            plt.hist(temp)
+            plt.hist(kde)
+            plt.show()
+            break
+            temp.clear()
 
-    on_period = dict(sorted(on_period.items(), key=lambda x: x[0]))
-    off_period = dict(sorted(off_period.items(), key=lambda x: x[0]))
-    burst = dict(sorted(burst.items(), key=lambda x: x[0]))
-    total = sum(list(on_period.values()))
-    for period, freq in on_period.items():
-        on_period[period] = freq / total
-    total = sum(list(off_period.values()))
-    for period, freq in off_period.items():
-        off_period[period] = freq / total
-    total = sum(list(burst.values()))
-    for b, freq in burst.items():
-        burst[b] = freq / total
-    prev = 0
-    for period, pdf in on_period.items():
-        on_period[period] = pdf + prev
-        prev += pdf
-    prev = 0
-    for period, pdf in off_period.items():
-        off_period[period] = pdf + prev
-        prev += pdf
-    prev = 0
-    for b, pdf in burst.items():
-        burst[b] = pdf + prev
-        prev += pdf
+    kmeans = KMeans(n_clusters=5)
+    kmeans = kmeans.fit(feature_vector)
+    print(kmeans.cluster_centers_)
+    labels = list(kmeans.labels_)
 
-    return off_period, on_period, burst, traffic
+    markov_chain = {}
+    for i in range(len(labels)):
+        if i < len(labels) - 1:
+            current_label = labels[i]
+            next_label = labels[i + 1]
+            if current_label not in markov_chain.keys():
+                markov_chain.setdefault(current_label, {})[next_label] = 1
+            else:
+                if next_label not in markov_chain[current_label].keys():
+                    markov_chain[current_label][next_label] = 1
+                else:
+                    markov_chain[current_label][next_label] += 1
+    markov_chain = dict(sorted(markov_chain.items(), key=lambda x: x[0]))
+    for c in markov_chain.keys():
+        markov_chain[c] = dict(sorted(markov_chain[c].items(), key=lambda x: x[0]))
 
 
 def generate_synthetic_traffic(off, on, burst):
