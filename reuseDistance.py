@@ -93,6 +93,7 @@ def burst_window_dependency(traffic):
         print("burst: " + str(b))
         for win, freq in burst_window_dist[b].items():
             print("\t" + str(win) + ": " + str(freq))"""
+    return burst_window_dist
 
 
 def reuse_distance(traffic):
@@ -100,64 +101,63 @@ def reuse_distance(traffic):
     for cyc in traffic.keys():
         for src in traffic[cyc].keys():
             if src not in destination.keys():
-                destination.setdefault(src, {}).setdefault(cyc, {})
+                destination.setdefault(src, {}).setdefault(cyc, [])
             else:
                 if cyc not in destination[src].keys():
-                    destination[src].setdefault(cyc, {})
+                    destination[src].setdefault(cyc, [])
             for dest, byte in traffic[cyc][src].items():
-                destination[src][cyc] = dest
-    stack = []
-    reuse = {}
-    distance ={}
+                if dest not in destination[src][cyc]:
+                    destination[src][cyc].append(dest)
+
+    reuse_distance = {}
     for src in destination.keys():
-        for cyc, dest in destination[src].items():
-            if dest not in stack:
-                stack.append(dest)
-                if dest not in reuse.keys():
-                    reuse.setdefault(dest, []).append(np.inf)
-            else:
-                temp = []
-                counter = 0
-                for b in stack:
-                    if b != dest:
-                        temp.append(stack.pop())
+        if src not in reuse_distance.keys():
+            reuse_distance.setdefault(src, {})
+        stack = [destination[src][list(destination[src].keys())[0]][0]]
+        for cyc, dest_list in destination[src].items():
+            for dest in dest_list:
+                if dest not in stack:
+                    stack.append(dest)
+                else:
+                    counter = 0
+                    temp = []
+                    b = stack.pop()
+                    while b != dest:
+                        temp.append(b)
                         counter += 1
+                        b = stack.pop()
+                    temp.append(b)
+                    if counter not in reuse_distance[src].keys():
+                        reuse_distance[src][counter] = 1
                     else:
-                        break
-                stack.pop()
-                reuse[dest].append(counter)
-                if len(temp) != 0:
+                        reuse_distance[src][counter] += 1
                     for b in temp:
                         stack.append(b)
-                    stack.append(dest)
         stack.clear()
-        if src not in distance.keys():
-            distance.setdefault(src, {})
-        for dest in reuse.keys():
-            if dest not in distance[src].keys():
-                distance[src].setdefault(dest, {})
-            for dist in reuse[dest]:
-                if dist != np.inf:
-                    if dist not in distance[src][dest].keys():
-                        distance[src][dest][dist] = 1
-                    else:
-                        distance[src][dest][dist] += 1
-        reuse.clear()
-    distance = dict(sorted(distance.items(), key=lambda x: x[0]))
-    for s in distance.keys():
-        distance[s] = dict(sorted(distance[s].items(), key=lambda x: x[0]))
-        for d in distance[s].keys():
-            distance[s][d] = dict(sorted(distance[s][d].items(), key=lambda x: x[0]))
-    for src in distance.keys():
-        for dest in distance[src].keys():
-            total = sum(list(distance[src][dest].values()))
-            for dist, freq in distance[src][dest].items():
-                distance[src][dest][dist] = freq / total
-    print(distance[3])
+
+    reuse_distance = dict(sorted(reuse_distance.items(), key=lambda x: x[0]))
+    for s in reuse_distance.keys():
+        reuse_distance[s] = dict(sorted(reuse_distance[s].items(), key=lambda x: x[0]))
+
+    for src in reuse_distance.keys():
+        total = sum(list(reuse_distance[src].values()))
+        for dist, freq in reuse_distance[src].items():
+            reuse_distance[src][dist] = freq / total
+    for src in reuse_distance.keys():
+        prev = 0
+        for dist, pdf in reuse_distance[src].items():
+            reuse_distance[src][dist] = pdf + prev
+            prev += pdf
+    """plt.bar(list(reuse_distance[2].keys()), list(reuse_distance[2].values()), width=0.5)
+    plt.xticks([0, 1, 2])
+    plt.xlabel("reuse distance")
+    plt.ylabel("CDF")
+    plt.show()"""
+    return reuse_distance
 
 
 if __name__ == '__main__':
-    input_ = "../benchmarks/b+tree/torus/NVLink4/4chiplet/b+tree-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
+    input_ = "b+tree-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
     file2 = open(input_, "r")
     raw_content = ""
     if file2.mode == "r":
@@ -178,5 +178,5 @@ if __name__ == '__main__':
     del (lined_list)
 
     traffic = generate_traffic_trace(request_packet)
-    burst_window_dependency(traffic)
-    reuse_distance(traffic)
+    burst_window_dependency_cdf = burst_window_dependency(traffic)
+    reuse_distance_cdf = reuse_distance(traffic)
