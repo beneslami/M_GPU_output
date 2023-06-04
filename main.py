@@ -13,6 +13,7 @@ from phaseClustering import *
 from temporalLocality import *
 from bufferStats import *
 from pre_traffic_trace_categorizing import *
+from generate_model import *
 
 def ipc(intput_):
     path_name = os.path.dirname(intput_)
@@ -125,7 +126,7 @@ def off_time(packet):
 
 if __name__ == "__main__":
     request_packet = {}
-    input_ = "../benchmarks/bicg/torus/NVLink4/4chiplet/polybench-bicg_NV4_1vc_4ch_2Dtorus_trace.txt"
+    input_ = "../benchmarks/b+tree/torus/NVLink4/4chiplet/b+tree-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
     #input_ = "../accelsim-chiplet/test/output.txt"
     chiplet_num = 4
     topology = ""
@@ -173,5 +174,6 @@ if __name__ == "__main__":
     #ipc(input_)
     #temporal_locality(request_packet)
     #buffer_stats(request_packet)
-    off_time(request_packet)
+    #off_time(request_packet)
     #overall_plot(input_, request_packet)
+    generate_model(input_)

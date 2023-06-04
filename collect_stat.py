@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 if __name__ == "__main__":
-    benchmark = "mri-gridding"
-    suite = "parboil"
+    benchmark = "gemm"
+    suite = "shoc"
     base_path = "../benchmarks/" + benchmark + "/"
+    #base_path = "../benchmarks/" + "shoc-gemm" + "/"
     topolist = ['fly', 'mesh', 'ring', 'torus']
     chiplet_num = [4, 8, 16]
     ipc_over_nvlink = {}
@@ -26,6 +27,8 @@ if __name__ == "__main__":
                         topoName = "2fly"
                 forth_path = third_path + str(c) + "chiplet/"
                 file_name = forth_path + suite + "-" + benchmark + "_NV" + str(i) + "_1vc_" + str(c) +"ch_" + topoName + ".txt"
+                #file_name = forth_path + "shoc-GEMM" + "_NV" + str(i) + "_1vc_" + str(c) + "ch_" + topoName + ".txt"
+                print(file_name)
                 if os.path.exists(file_name):
                     with open(file_name, "r") as file:
                         for lines in file.readlines():
