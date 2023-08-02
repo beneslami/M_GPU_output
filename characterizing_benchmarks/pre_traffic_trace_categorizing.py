@@ -1,7 +1,8 @@
 import os.path
-
+import gc
 from matplotlib import pyplot as plt
-from RescaledRangeAnalysis import *
+from statistics.RescaledRangeAnalysis import *
+
 
 def overall_plot(input_, trace):
     base_path = os.path.dirname(input_)
@@ -119,7 +120,7 @@ def overall_plot(input_, trace):
             positive_overall_[i] = positive_overall[i]
     #hurst_compute(overall_, "overall traffic") # from Rescaled Range analysis
     hurst_compute(base_path, positive_overall_, "injected traffic") # from Rescaled Range analysis
-    """fig = plt.figure(figsize=(20, 20))
+    fig = plt.figure(figsize=(20, 20))
     plt.subplots_adjust(wspace=0.868, hspace=0.798, top=0.962, right=0.958, bottom=0.03, left=0.04)
     fig.tight_layout()
     ax = fig.subplots(chiplet_num+1, 1)
@@ -131,6 +132,11 @@ def overall_plot(input_, trace):
     ax[chiplet_num].plot(list(overall_.keys()), list(overall_.values()))
     #ax[chiplet_num].set_xlim(45000, 47000)
     #ax[chiplet_num].set_title("overall aggregate traffic")
-    #plt.savefig(base_path + "/plots/traffic.jpg")
-    #plt.close()
-    #plt.show()"""
+    plt.savefig(base_path + "/plots/traffic.jpg")
+    plt.close()
+    plt.figure(figsize=(20, 7))
+    plt.plot(positive_overall_.keys(), positive_overall_.values(), marker="*")
+    plt.show()
+    plt.close()
+    gc.enable()
+    gc.collect()

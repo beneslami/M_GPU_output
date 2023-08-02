@@ -1,8 +1,10 @@
+import gc
 import sys
 import os
 
 import matplotlib.pyplot as plt
 import pandas as pd
+
 
 def generate_aggregate_byte_distribution(input_, packet):
     base_path = os.path.dirname(input_)
@@ -124,3 +126,5 @@ def generate_aggregate_byte_distribution(input_, packet):
     plt.ylabel("PDF")
     plt.savefig(base_path + "/plots/aggregate_response.jpg")
     plt.close()
+    gc.enable()
+    gc.collect()

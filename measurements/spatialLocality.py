@@ -1,3 +1,4 @@
+import gc
 import os.path
 import sys
 from scipy.optimize import curve_fit
@@ -5,6 +6,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
 import plotly.graph_objects as go
+from moviepy.editor import *
 
 
 def surface_distribution_plot(base_path, injection_per_chiplet_rate):
@@ -36,6 +38,8 @@ def surface_distribution_plot(base_path, injection_per_chiplet_rate):
         margin=dict(l=65, r=50, b=65, t=90))
     fig.update_traces(contours_z=dict(show=True, usecolormap=True, highlightcolor="limegreen", project_z=True))
     fig.write_html(base_path + "/plots/source_destination_distribution.html")
+    gc.enable()
+    gc.collect()
 
 
 def bar_distribution_plot(base_path, traffic, chiplet_num):
@@ -115,6 +119,8 @@ def bar_distribution_plot(base_path, traffic, chiplet_num):
         scene=dict(xaxis_title='source chiplet', yaxis_title='destination chiplet', zaxis_title='injection percentage'),
         margin=dict(l=65, r=50, b=65, t=90))
     fig.write_html(base_path + "/plots/packet_source_destination_distribution.html")
+    gc.enable()
+    gc.collect()
 
 
 def spatial_locality(input_, packet, chiplet_num):
@@ -194,6 +200,8 @@ def spatial_locality(input_, packet, chiplet_num):
 
     #surface_distribution_plot(base_path, injection_per_chiplet_rate)
     bar_distribution_plot(base_path, packet_dist_per_chiplet, chiplet_num)
+    gc.enable()
+    gc.collect()
 
     """fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(1, 1, 1, projection='3d')
@@ -220,3 +228,150 @@ def spatial_locality(input_, packet, chiplet_num):
     fig.tight_layout(pad=5.0)
     plt.savefig(base_path + "/plots/spatial_injection_distribution.jpg")
     plt.close()"""
+
+
+def traffic_pattern_examination(request_packet, chiplet_num, intput_):
+    base_path = os.path.dirname(intput_) + "/plots/"
+    name = os.path.basename(intput_).split("_")[0]
+    request_traffic = {}
+    reply_traffic = {}
+    template = {}
+    for id in request_packet.keys():
+        for j in range(len(request_packet[id])):
+            if request_packet[id][j][0] == "request injected":
+                src = int(request_packet[id][j][1].split(": ")[1])
+                dst = int(request_packet[id][j][2].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if cycle not in request_traffic.keys():
+                    request_traffic.setdefault(cycle, {}).setdefault(src, {})[dst] = byte
+                else:
+                    if src not in request_traffic[cycle].keys():
+                        request_traffic[cycle].setdefault(src, {})[dst] = byte
+                    else:
+                        if dst not in request_traffic[cycle][src].keys():
+                            request_traffic[cycle][src][dst] = byte
+                        else:
+                            request_traffic[cycle][src][dst] += byte
+            elif request_packet[id][j][0] == "reply injected":
+                src = int(request_packet[id][j][2].split(": ")[1])
+                dst = int(request_packet[id][j][1].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if cycle not in reply_traffic.keys():
+                    reply_traffic.setdefault(cycle, {}).setdefault(src, {})[dst] = byte
+                else:
+                    if src not in reply_traffic[cycle].keys():
+                        reply_traffic[cycle].setdefault(src, {})[dst] = byte
+                    else:
+                        if dst not in reply_traffic[cycle][src].keys():
+                            reply_traffic[cycle][src][dst] = byte
+                        else:
+                            reply_traffic[cycle][src][dst] += byte
+    del (request_packet)
+    for i in range(chiplet_num):
+        for j in range(chiplet_num):
+            template.setdefault(i, {})[j] = 0
+    flag = 0
+    interval = 1
+    interval_length = 1000
+    img_clips = []
+    for cycle in request_traffic.keys():
+        if cycle % interval_length == 0:
+            if flag == 1:
+                array = []
+                for src in template.keys():
+                    temp = []
+                    for dest, byte in template[src].items():
+                        temp.append(byte)
+                    array.append(temp)
+                plt.matshow(array, interpolation='nearest')
+                plt.xlabel("destination")
+                plt.ylabel("source")
+                plt.title("interval " + str(interval) + "(" + str(interval_length) + " cycles)")
+                plt.savefig(str(interval) + ".jpg")
+                slide = ImageClip(str(interval) + ".jpg", duration=.1)
+                img_clips.append(slide)
+                os.system("rm " + str(interval) + ".jpg")
+                interval += 1
+                plt.close()
+                for src in template.keys():
+                    for dest in template[src].keys():
+                        template[src][dest] = 0
+        else:
+            flag = 1
+            for src in request_traffic[cycle].keys():
+                for dest, byte in request_traffic[cycle][src].items():
+                    template[src][dest] += byte
+    video_slides = concatenate_videoclips(img_clips, method='compose')
+    video_slides.write_videofile(base_path + name + "_request.mp4", fps=24)
+    del(request_traffic)
+    img_clips.clear()
+    interval = 1
+    for src in template.keys():
+        for dest in template[src].keys():
+            template[src][dest] = 0
+    for cycle in reply_traffic.keys():
+        if cycle % interval_length == 0:
+            if flag == 1:
+                array = []
+                for src in template.keys():
+                    temp = []
+                    for dest, byte in template[src].items():
+                        temp.append(byte)
+                    array.append(temp)
+                plt.matshow(array, interpolation='nearest')
+                plt.xlabel("destination")
+                plt.ylabel("source")
+                plt.title("interval " + str(interval) + "(" + str(interval_length) + " cycles)")
+                plt.savefig(str(interval) + ".jpg")
+                slide = ImageClip(str(interval) + ".jpg", duration=.1)
+                img_clips.append(slide)
+                os.system("rm " + str(interval) + ".jpg")
+                interval += 1
+                plt.close()
+                for src in template.keys():
+                    for dest in template[src].keys():
+                        template[src][dest] = 0
+        else:
+            flag = 1
+            for src in reply_traffic[cycle].keys():
+                for dest, byte in reply_traffic[cycle][src].items():
+                    template[src][dest] += byte
+    del (reply_traffic)
+    video_slides = concatenate_videoclips(img_clips, method='compose')
+    video_slides.write_videofile(base_path + name + "_reply.mp4", fps=24)
+    gc.enable()
+    gc.collect()
+
+
+def destination_locality(request_packet):
+    locality = {}
+    for id in request_packet.keys():
+        for j in range(len(request_packet[id])):
+            if request_packet[id][j][0] == "request injected":
+                src = int(request_packet[id][j][1].split(": ")[1])
+                dst = int(request_packet[id][j][2].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if src not in locality.keys():
+                    locality.setdefault(src, {}).setdefault(cycle, []).append(dst)
+                else:
+                    if cycle not in locality[src].keys():
+                        locality[src].setdefault(cycle, []).append(dst)
+                    else:
+                        if dst not in locality[src][cycle]:
+                            locality[src][cycle].append(dst)
+    node = 2
+    x = list(locality[node].keys())
+    dest_chips = {}
+    for cyc, dest_list in locality[node].items():
+        for dest in dest_list:
+            if dest not in dest_chips.keys():
+                dest_chips.setdefault(dest, {})[cyc] = dest
+            else:
+                dest_chips[dest][cyc] = dest
+    for dest in dest_chips.keys():
+        plt.plot(dest_chips[dest].keys(), dest_chips[dest].values(), 'o', label=str(dest))
+    plt.legend()
+    plt.show()

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 from statsmodels.tsa.stattools import adfuller
+import gc
 
 
 def plot_aggregate_traffic_injection_distribution(base_path, aggreagate_injection):
@@ -21,7 +22,10 @@ def plot_aggregate_traffic_injection_distribution(base_path, aggreagate_injectio
             edgecolor='black')
     plt.title("PDF of aggregate traffic injection")
     plt.savefig(base_path + "/plots/aggregate_traffic_distribution.png")
+    plt.close()
     #plt.show()
+    gc.enable()
+    gc.collect()
 
 
 def check_stationary_distribution(base_path, aggreagate_injection_, M):
@@ -59,6 +63,8 @@ def check_stationary_distribution(base_path, aggreagate_injection_, M):
     plt.savefig(base_path + "/plots/second order examination (variance).jpg")
     plt.close()
     #plt.show()
+    gc.enable()
+    gc.collect()
 
 
 def check_autocorrelation(base_path, aggregate_injection_):
@@ -87,9 +93,11 @@ def check_autocorrelation(base_path, aggregate_injection_):
     #plt.ylim(0, 1)
     plt.title("Autocorrelation")
     plt.xlabel("Lag")
-    plt.savefig(base_path + "/plots/autocorrelation.png")
+    #plt.savefig(base_path + "/plots/autocorrelation.png")
+    plt.show()
     plt.close()
-    #plt.show()
+    gc.enable()
+    gc.collect()
 
 
 def dicky_fuller(aggregate_injection_):
@@ -105,6 +113,8 @@ def dicky_fuller(aggregate_injection_):
         print("Reject Ho - Time Series is Stationary")
     else:
         print("Failed to Reject Ho - Time Series is Non-Stationary")
+    gc.enable()
+    gc.collect()
 
 
 def check_source_correlation(base_path, request, chiplet_num):
@@ -336,9 +346,54 @@ def check_stationary(input_, packet, chiplet_num):
                 else:
                     per_chiplet_flow_[src][dest][i] = per_flow_request[src][dest][i]
 
-    #plot_aggregate_traffic_injection_distribution(base_path, aggreagate_injection)
+    plot_aggregate_traffic_injection_distribution(base_path, aggreagate_injection)
     #check_stationary_distribution(base_path, aggreagate_injection_, M)
     check_autocorrelation(base_path, aggreagate_injection_)
     #dicky_fuller(aggreagate_injection_)
     #check_source_correlation(base_path, aggregate_request_injection_, chiplet_num)
     #check_flow_correlation(base_path, per_chiplet_flow_, chiplet_num)
+    gc.enable()
+    gc.collect()
+
+
+if __name__ == "__main__":
+    request_packet = {}
+    input_ = "../benchmarks/hotspot3D/torus/NVLink4/4chiplet/hotspot3D-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
+    file2 = open(input_, "r")
+    raw_content = ""
+    if file2.mode == "r":
+        raw_content = file2.readlines()
+    file2.close()
+    lined_list = []
+    for line in raw_content:
+        item = [x for x in line.split("\t") if x not in ['', '\t']]
+        lined_list.append(item)
+    for i in range(len(lined_list)):
+        if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
+            if lined_list[i] not in request_packet[int(lined_list[i][3].split(": ")[1])]:
+                request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+        else:
+            request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+    del (raw_content)
+    del (lined_list)
+    traffic = {}
+    temp_item = {}
+    for id in request_packet.keys():
+        for j in range(len(request_packet[id])):
+            if request_packet[id][j][0] == "request injected":
+                src = int(request_packet[id][j][1].split(": ")[1])
+                dst = int(request_packet[id][j][2].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if cycle not in traffic.keys():
+                    traffic[cycle] = byte
+                else:
+                    traffic[cycle] += byte
+    minimum = min(list(traffic.keys()))
+    maximum = max(list(traffic.keys()))
+    for i in range(minimum, maximum):
+        if i not in traffic.keys():
+            traffic[i] = 0
+    traffic = dict(sorted(traffic.items(), key=lambda x: x[0]))
+    base_path = os.path.dirname(input_)
+    check_autocorrelation(base_path, traffic)
