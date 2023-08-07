@@ -48,9 +48,9 @@ def start_processing_portal(input_, chiplet_num):
         kernel_num = 1
     else:
         kernel_num = int(kernel_num)
-    #overall_plot(base_path, request_packet, kernel_num)
-    #traffic_pattern_examination(request_packet, chiplet_num, input_, kernel_num)
-    #spatial_locality(input_, request_packet, chiplet_num, kernel_num)
+    overall_plot(base_path, request_packet, kernel_num)
+    traffic_pattern_examination(request_packet, chiplet_num, input_, kernel_num)
+    spatial_locality(input_, request_packet, chiplet_num, kernel_num)
     per_chiplet_model(base_path, request_packet, chiplet_num, kernel_num)
     traffic_model(input_, request_packet, chiplet_num, kernel_num)
 

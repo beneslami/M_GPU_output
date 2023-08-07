@@ -15,29 +15,36 @@ if __name__ == "__main__":
         'parboil': ['bfs', 'cutcp', 'histo', 'mri-gridding', 'sgemm', 'spmv', 'stencil'],
         'polybench': ['2DConvolution', '2mm', '3mm', 'atax', 'bicg', 'correlation', 'covariance', 'fdtd2d', 'gemm',
                       'gesummv', 'mvt', 'syr2k', 'syrk'],
-        'rodinia': ['backprop', 'bfs', 'b+tree', 'cfd', 'gaussian', 'heartwall', 'hotspot', 'hotspot3D',
+        'rodinia': ['backprop', 'bfs', 'b+tree', 'cfd', 'gaussian', 'heartwall', 'hotspot', 'hotspot3D', 'huffman',
                      'hybridsort', 'kmeans', 'lavaMD', 'lud', 'nn', 'particlefilter-float', 'pathfinder', 'srad',
                     'streamcluster'],
-        'shoc': ['gemm'],
+        'shoc': ['fft', 'gemm', 'scan', 'Spmv'],
         'tango': ['AlexNet', 'ResNet', 'SqueezeNet']
     }
-    topology = ['torus']#, 'ring', 'mesh', 'fly']
-    NVLink = ['NVLink4']#, 'NVLink3', 'NVLink2', 'NVLink1']
-    chiplet_num = ['4chiplet']#, '8chiplet', '16chiplet']
+    topology = ['torus', 'ring', 'mesh', 'fly']
+    NVLink = ['NVLink4', 'NVLink3', 'NVLink2', 'NVLink1']
+    chiplet_num = ['4chiplet', '8chiplet', '16chiplet']
 
-    path = "../benchmarks/"
-    path += suits[2] + "/" + benchmarks[suits[2]][6] + "/" + topology[0] + "/" + NVLink[0] + "/" + chiplet_num[0] + "/kernels/"
-    chip_num = int(chiplet_num[0][0])
-
-    #rearrange_traces(suits, benchmarks, topology, NVLink, chiplet_num, path)
-    #check_kernel_traces(suits, benchmarks, topology, NVLink, chiplet_num, path)
-
-    for trace_file in os.listdir(path):
-        if Path(trace_file).suffix == '.txt':
-            print(trace_file)
-            if os.path.getsize(path + trace_file) > 100000:
-                start_processing_portal(path + trace_file, chip_num)
-                #trace_generator(path + trace_file)
+    path = "/home/ben/Desktop/benchmarks/"
+    for suite in suits:
+        if suite == "rodinia":
+            for bench in benchmarks[suite]:
+                if bench == "huffman":
+                    for topo in topology:
+                        for nv in NVLink:
+                            for ch in chiplet_num:
+                                sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
+                                if len(os.listdir(os.path.dirname(os.path.dirname(sub_path)))) != 0:
+                                    rearrange_traces(sub_path, suite, bench, topo, nv, ch)
+                                    check_kernel_traces(sub_path, suite, bench, topo, nv, ch)
+                                    chip_num = int(ch[0])
+                                    for trace_file in os.listdir(sub_path):
+                                        if Path(trace_file).suffix == '.txt':
+                                            if os.path.getsize(sub_path + trace_file) > 100000:
+                                                start_processing_portal(sub_path + trace_file, chip_num)
+                                                trace_generator(sub_path + trace_file)
+                                else:
+                                    print(Fore.YELLOW + "directory " + sub_path + " is empty" + Fore.WHITE)
 
     gc.enable()
     gc.collect()
