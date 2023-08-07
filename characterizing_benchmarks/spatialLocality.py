@@ -1,7 +1,5 @@
 import gc
 import os.path
-import sys
-from scipy.optimize import curve_fit
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.interpolate import interp1d
@@ -9,7 +7,7 @@ import plotly.graph_objects as go
 from moviepy.editor import *
 
 
-def surface_distribution_plot(base_path, injection_per_chiplet_rate):
+def surface_distribution_plot(base_path, injection_per_chiplet_rate, kernel_num):
     _x = np.arange(0, max(injection_per_chiplet_rate.keys()) + 1, 1)
     _y = np.arange(0, max(injection_per_chiplet_rate.keys()) + 1, 1)
     X, Y = np.meshgrid(_x, _y)
@@ -37,12 +35,12 @@ def surface_distribution_plot(base_path, injection_per_chiplet_rate):
         scene=dict(xaxis_title='Source chiplet', yaxis_title='Destination chiplet', zaxis_title='injection percentage'),
         margin=dict(l=65, r=50, b=65, t=90))
     fig.update_traces(contours_z=dict(show=True, usecolormap=True, highlightcolor="limegreen", project_z=True))
-    fig.write_html(base_path + "/plots/source_destination_distribution.html")
+    fig.write_html(base_path + "/plots/" + str(kernel_num) + "/source_destination_distribution.html")
     gc.enable()
     gc.collect()
 
 
-def bar_distribution_plot(base_path, traffic, chiplet_num):
+def bar_distribution_plot(base_path, traffic, chiplet_num, kernel_num):
     total = 0
     for x in traffic.keys():
         for y in traffic[x].keys():
@@ -118,13 +116,13 @@ def bar_distribution_plot(base_path, traffic, chiplet_num):
     fig.update_layout(
         scene=dict(xaxis_title='source chiplet', yaxis_title='destination chiplet', zaxis_title='injection percentage'),
         margin=dict(l=65, r=50, b=65, t=90))
-    fig.write_html(base_path + "/plots/packet_source_destination_distribution.html")
+    fig.write_html(base_path + "/plots/" + str(kernel_num) + "/packet_source_destination_distribution.html")
     gc.enable()
     gc.collect()
 
 
-def spatial_locality(input_, packet, chiplet_num):
-    base_path = os.path.dirname(input_)
+def spatial_locality(input_, packet, chiplet_num, kernel_num):
+    base_path = os.path.dirname(os.path.dirname(input_))
     aggreagate_injection = {}
     injection_per_chiplet = {}
     packet_dist_per_chiplet = {}
@@ -198,8 +196,8 @@ def spatial_locality(input_, packet, chiplet_num):
     for src in injection_per_chiplet_rate.keys():
         injection_per_chiplet_rate[src] = dict(sorted(injection_per_chiplet_rate[src].items(), key=lambda x: x[0]))
 
-    #surface_distribution_plot(base_path, injection_per_chiplet_rate)
-    bar_distribution_plot(base_path, packet_dist_per_chiplet, chiplet_num)
+    surface_distribution_plot(base_path, injection_per_chiplet_rate, kernel_num)
+    bar_distribution_plot(base_path, packet_dist_per_chiplet, chiplet_num, kernel_num)
     gc.enable()
     gc.collect()
 
@@ -215,8 +213,8 @@ def spatial_locality(input_, packet, chiplet_num):
     ax.xaxis._axinfo["grid"].update({"linewidth": 1, 'color': 'red'})
     ax.yaxis._axinfo["grid"].update({"linewidth": 1, 'color': 'red'})
     plt.savefig("3D-spatialLocality.jpg")
-    plt.close()"""
-    """fig = plt.figure(figsize=(20, 10))
+    plt.close()
+    fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(1, 1, 1)
     ax.scatter(list(spatial_distribution.keys()), list(spatial_distribution.values()), marker="*", label='actual')
     ax.plot(list(spatial_distribution.keys()), newArr, 'r', label='curve fitting')
@@ -230,8 +228,8 @@ def spatial_locality(input_, packet, chiplet_num):
     plt.close()"""
 
 
-def traffic_pattern_examination(request_packet, chiplet_num, intput_):
-    base_path = os.path.dirname(intput_) + "/plots/"
+def traffic_pattern_examination(request_packet, chiplet_num, intput_, kernel_num):
+    base_path = os.path.dirname(os.path.dirname(intput_)) + "/plots/"
     name = os.path.basename(intput_).split("_")[0]
     request_traffic = {}
     reply_traffic = {}
@@ -274,11 +272,13 @@ def traffic_pattern_examination(request_packet, chiplet_num, intput_):
             template.setdefault(i, {})[j] = 0
     flag = 0
     interval = 1
-    interval_length = 1000
+    interval_length = 200
     img_clips = []
+    start_interval = list(request_traffic.keys())[0]
     for cycle in request_traffic.keys():
-        if cycle % interval_length == 0:
+        if (cycle - start_interval) >= interval_length:
             if flag == 1:
+                start_interval = cycle
                 array = []
                 for src in template.keys():
                     temp = []
@@ -303,8 +303,9 @@ def traffic_pattern_examination(request_packet, chiplet_num, intput_):
             for src in request_traffic[cycle].keys():
                 for dest, byte in request_traffic[cycle][src].items():
                     template[src][dest] += byte
+
     video_slides = concatenate_videoclips(img_clips, method='compose')
-    video_slides.write_videofile(base_path + name + "_request.mp4", fps=24)
+    video_slides.write_videofile(base_path + str(kernel_num) + "/" + name + "_request.mp4", fps=24)
     del(request_traffic)
     img_clips.clear()
     interval = 1
@@ -340,7 +341,7 @@ def traffic_pattern_examination(request_packet, chiplet_num, intput_):
                     template[src][dest] += byte
     del (reply_traffic)
     video_slides = concatenate_videoclips(img_clips, method='compose')
-    video_slides.write_videofile(base_path + name + "_reply.mp4", fps=24)
+    video_slides.write_videofile(base_path + "/" + str(kernel_num) + "/" + name + "_reply.mp4", fps=24)
     gc.enable()
     gc.collect()
 

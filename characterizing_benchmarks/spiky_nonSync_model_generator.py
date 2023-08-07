@@ -749,9 +749,7 @@ def memoryless_distribution_generator(sequence):
 def generate_traffic_characteristics(traffic, string):
     off_cycle = 0
     on_cycle = 0
-    off_counter = 0
     off_burst_sequence = {}
-    burst_variation = {}
     burst_volume = {}
     byte_per_cycle = []
     big_byte_markov_chain = {}
@@ -759,7 +757,6 @@ def generate_traffic_characteristics(traffic, string):
     off_flag = 0
     on_flag = 0
     total_burst = 0
-    start_generating = 0
     prev = 0
     on_prev = 1
     if string == "request":
@@ -777,10 +774,6 @@ def generate_traffic_characteristics(traffic, string):
                             on_burst[on_prev][cyc - on_cycle] = 1
                         else:
                             on_burst[on_prev][cyc - on_cycle] += 1
-                    """if cyc - on_cycle not in on_burst.keys():
-                        on_burst[cyc - on_cycle] = 1
-                    else:
-                        on_burst[cyc - on_cycle] += 1"""
                     if cyc - on_cycle not in burst_volume.keys():
                         burst_volume.setdefault(cyc - on_cycle, {})[total_burst] = 1
                     else:
@@ -803,77 +796,16 @@ def generate_traffic_characteristics(traffic, string):
                 total_burst += byte
                 if byte not in byte_per_cycle:
                     byte_per_cycle.append(byte)
-                if byte not in big_byte_markov_chain.keys():
-                    big_byte_markov_chain[byte] = 1
+                if prev == 0:
+                    prev = byte
+                if prev not in big_byte_markov_chain.keys():
+                    big_byte_markov_chain.setdefault(prev, {})[byte] = 1
                 else:
-                    big_byte_markov_chain[byte] += 1
+                    if byte not in big_byte_markov_chain[prev].keys():
+                        big_byte_markov_chain[prev][byte] = 1
+                    else:
+                        big_byte_markov_chain[prev][byte] += 1
 
-        off_burst_sequence = dict(sorted(off_burst_sequence.items(), key=lambda x: x[0]))
-        byte_per_cycle.sort()
-        on_burst = dict(sorted(on_burst.items(), key=lambda x: x[0]))
-        for i in on_burst.keys():
-            on_burst[i] = dict(sorted(on_burst[i].items(), key=lambda x: x[0]))
-        for p in on_burst.keys():
-            total = sum(list(on_burst[p].values()))
-            for k, v in on_burst[p].items():
-                on_burst[p][k] = v / total
-        for p in on_burst.keys():
-            total = 0
-            for k, v in on_burst[p].items():
-                on_burst[p][k] = v + total
-                total += v
-        """total = sum(list(on_burst.values()))
-        for k, v in on_burst.items():
-            on_burst[k] = v / total
-        total = 0
-        for k, v in on_burst.items():
-            on_burst[k] = v + total
-            total += v"""
-
-        burst_volume = dict(sorted(burst_volume.items(), key=lambda x: x[0]))
-        for i in burst_volume.keys():
-            burst_volume[i] = dict(sorted(burst_volume[i].items(), key=lambda x: x[0]))
-        for p in burst_volume.keys():
-            total = sum(list(burst_volume[p].values()))
-            for k, v in burst_volume[p].items():
-                burst_volume[p][k] = v / total
-        for p in burst_volume.keys():
-            total = 0
-            for k, v in burst_volume[p].items():
-                burst_volume[p][k] = v + total
-                total += v
-        total = sum(list(off_burst_sequence.values()))
-        for k, v in off_burst_sequence.items():
-            off_burst_sequence[k] = v / total
-
-        big_byte_markov_chain = dict(sorted(big_byte_markov_chain.items(), key=lambda x: x[0]))
-        total = sum(list(big_byte_markov_chain.values()))
-        for k, v in big_byte_markov_chain.items():
-            big_byte_markov_chain[k] = v / total
-        total = 0
-        for k, v in big_byte_markov_chain.items():
-            big_byte_markov_chain[k] = v + total
-            total += v
-
-        total = 0
-        for k, v in off_burst_sequence.items():
-            off_burst_sequence[k] = v + total
-            total += v
-        #check_markov_chain(big_byte_markov_chain)
-
-        """with open("model.txt", "w") as file:
-            file.write("off_begin\n")
-            for k, v in off_transitions.items():
-                file.write(str(k) + "\t" + str(v) + "\n")
-            file.write("off_end\n\n")
-
-            file.write("burst_begin\n")
-            for burst_length in on_burst.keys():
-                file.write("period\t" + str(burst_length) + "\n")
-                for val, markov in on_burst[burst_length].items():
-                    file.write("burst\t" + str(val) + "\n")
-                    file.write(str(markov) + "\n")
-            file.write("burst_end\n\n")"""
     elif string == "reply":
         for cyc, byte in traffic.items():
             if byte == 0:
@@ -911,61 +843,73 @@ def generate_traffic_characteristics(traffic, string):
                 total_burst += byte
                 if byte not in byte_per_cycle:
                     byte_per_cycle.append(byte)
-                if byte not in big_byte_markov_chain.keys():
-                    big_byte_markov_chain[byte] = 1
+                if prev == 0:
+                    prev = byte
+                if prev not in big_byte_markov_chain.keys():
+                    big_byte_markov_chain.setdefault(prev, {})[byte] = 1
                 else:
-                    big_byte_markov_chain[byte] += 1
-        off_burst_sequence = dict(sorted(off_burst_sequence.items(), key=lambda x: x[0]))
-        byte_per_cycle.sort()
-        on_burst = dict(sorted(on_burst.items(), key=lambda x: x[0]))
-        for p in on_burst.keys():
-            total = sum(list(on_burst[p].values()))
-            for k, v in on_burst[p].items():
-                on_burst[p][k] = v / total
-        for p in on_burst.keys():
-            total = 0
-            for k, v in on_burst[p].items():
-                on_burst[p][k] = v + total
-                total += v
+                    if byte not in big_byte_markov_chain[prev].keys():
+                        big_byte_markov_chain[prev][byte] = 1
+                    else:
+                        big_byte_markov_chain[prev][byte] += 1
+    off_burst_sequence = dict(sorted(off_burst_sequence.items(), key=lambda x: x[0]))
+    big_byte_markov_chain = dict(sorted(big_byte_markov_chain.items(), key=lambda x: x[0]))
+    for prev in big_byte_markov_chain.keys():
+        big_byte_markov_chain[prev] = dict(sorted(big_byte_markov_chain[prev].items(), key=lambda x: x[0]))
+    byte_per_cycle.sort()
+    on_burst = dict(sorted(on_burst.items(), key=lambda x: x[0]))
+    for prev in on_burst.keys():
+        on_burst[prev] = dict(sorted(on_burst[prev].items(), key=lambda x: x[0]))
+    burst_volume = dict(sorted(burst_volume.items(), key=lambda x: x[0]))
+    for b in burst_volume.keys():
+        burst_volume[b] = dict(sorted(burst_volume[b].items(), key=lambda x: x[0]))
 
-        burst_volume = dict(sorted(burst_volume.items(), key=lambda x: x[0]))
-        for p in burst_volume.keys():
-            total = sum(list(burst_volume[p].values()))
-            for k, v in burst_volume[p].items():
-                burst_volume[p][k] = v / total
-        for p in burst_volume.keys():
-            total = 0
-            for k, v in burst_volume[p].items():
-                burst_volume[p][k] = v + total
-                total += v
-        total = sum(list(off_burst_sequence.values()))
-        for k, v in off_burst_sequence.items():
-            off_burst_sequence[k] = v / total
-        total = sum(list(big_byte_markov_chain.values()))
-        for k, v in big_byte_markov_chain.items():
-            big_byte_markov_chain[k] = v / total
-        total = 0
-        for k, v in big_byte_markov_chain.items():
-            big_byte_markov_chain[k] = v + total
-            total += v
-        total = 0
-        for k, v in off_burst_sequence.items():
-            off_burst_sequence[k] = v + total
-            total += v
-    plt.figure(figsize=(20, 7))
-    plt.plot(traffic.keys(), traffic.values())
-    plt.show()
-    plt.close()
     return off_burst_sequence, big_byte_markov_chain, on_burst, burst_volume, byte_per_cycle
 
 
+def generate_traffic_characteristics_wrapper(request_packet):
+    request_traffic = {}
+    reply_traffic = {}
+    for id in request_packet.keys():
+        for j in range(len(request_packet[id])):
+            if request_packet[id][j][0] == "request injected":
+                src = int(request_packet[id][j][1].split(": ")[1])
+                dst = int(request_packet[id][j][2].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if cycle not in request_traffic.keys():
+                    request_traffic[cycle] = byte
+                else:
+                    request_traffic[cycle] += byte
+            if request_packet[id][j][0] == "reply injected":
+                src = int(request_packet[id][j][2].split(": ")[1])
+                dst = int(request_packet[id][j][1].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if cycle not in reply_traffic.keys():
+                    reply_traffic[cycle] = byte
+                else:
+                    reply_traffic[cycle] += byte
+
+    minimum = min(list(request_traffic.keys()))
+    maximum = max(list(request_traffic.keys()))
+    for i in range(minimum, maximum):
+        if i not in request_traffic.keys():
+            request_traffic[i] = 0
+    request_traffic = dict(sorted(request_traffic.items(), key=lambda x: x[0]))
+    minimum = min(list(reply_traffic.keys()))
+    maximum = max(list(reply_traffic.keys()))
+    for i in range(minimum, maximum):
+        if i not in reply_traffic.keys():
+            reply_traffic[i] = 0
+    reply_traffic = dict(sorted(reply_traffic.items(), key=lambda x: x[0]))
+    req_off, req_byte_markov, req_burst_duration, req_burst_volume, req_byte_per_cycle = generate_traffic_characteristics(request_traffic, "request")
+    rep_off, rep_byte_markov, rep_burst_duration, rep_burst_volume, rep_byte_per_cycle = generate_traffic_characteristics(reply_traffic, "reply")
+    return req_off, req_byte_markov, req_burst_duration, req_burst_volume, req_byte_per_cycle, rep_off, rep_byte_markov, rep_burst_duration, rep_burst_volume, rep_byte_per_cycle
+
+
 if __name__ == "__main__":
-    #emp = "../benchmarks/stencil/torus/NVLink4/4chiplet/parboil-stencil_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/hotspot3D/torus/NVLink4/4chiplet/hotspot3D-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/hybridsort/torus/NVLink4/4chiplet/hybridsort-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/kmeans/torus/NVLink4/4chiplet/kmeans-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/particlefilter/torus/NVLink4/4chiplet/particlefilter_float-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/atax/torus/NVLink4/4chiplet/polybench-atax_NV4_1vc_4ch_2Dtorus_trace.txt"
+    emp = "../benchmarks/atax/torus/NVLink4/4chiplet/polybench-atax_NV4_1vc_4ch_2Dtorus_trace.txt"
     chiplet_num = -1
     request_packet = {}
     sub_str = os.path.basename(emp).split("_")

@@ -815,8 +815,10 @@ def generate_traffic_characteristics(traffic, string):
     on_burst = {}
     total_byte = {}
     total_byte_markov = {}
+    byte_per_cycle = []
     on_flag = 0
     on_cycle = 0
+    prev_burst = 0
 
     global_flag = 0
     prev = list(traffic.values())[0]
@@ -832,10 +834,16 @@ def generate_traffic_characteristics(traffic, string):
                     off_flag2 = 0
                     off_flag = 1
                     on_flag = 0
-                    if off_cycle - on_cycle not in on_duration.keys():
-                        on_duration[off_cycle - on_cycle] = 1
+                    if prev_burst == 0:
+                        prev_burst = off_cycle - on_cycle
+                    if prev_burst not in on_duration.keys():
+                        on_duration.setdefault(prev_burst, {})[off_cycle - on_cycle] = 1
                     else:
-                        on_duration[off_cycle - on_cycle] += 1
+                        if off_cycle - on_cycle not in on_duration[prev_burst].keys():
+                            on_duration[prev_burst][off_cycle - on_cycle] = 1
+                        else:
+                            on_duration[prev_burst][off_cycle - on_cycle] += 1
+                    prev_burst = off_cycle - on_cycle
                     if off_cycle - on_cycle not in on_burst.keys():
                         on_burst.setdefault(off_cycle - on_cycle, {})[aggregate_bye] = 1
                     else:
@@ -895,6 +903,8 @@ def generate_traffic_characteristics(traffic, string):
                 else:
                     total_byte[byte] += 1
                 prev = byte
+            if byte not in byte_per_cycle:
+                byte_per_cycle.append(byte)
     elif string == "reply":
         threshold = THRESHOLD_REP
         for cyc, byte in traffic.items():
@@ -907,10 +917,16 @@ def generate_traffic_characteristics(traffic, string):
                     off_flag2 = 0
                     off_flag = 1
                     on_flag = 0
-                    if off_cycle - on_cycle not in on_duration.keys():
-                        on_duration[off_cycle - on_cycle] = 1
+                    if prev_burst == 0:
+                        prev_burst = off_cycle - on_cycle
+                    if prev_burst not in on_duration.keys():
+                        on_duration.setdefault(prev_burst, {})[off_cycle - on_cycle] = 1
                     else:
-                        on_duration[off_cycle - on_cycle] += 1
+                        if off_cycle - on_cycle not in on_duration[prev_burst].keys():
+                            on_duration[prev_burst][off_cycle - on_cycle] = 1
+                        else:
+                            on_duration[prev_burst][off_cycle - on_cycle] += 1
+                    prev_burst = off_cycle - on_cycle
                     if off_cycle - on_cycle not in on_burst.keys():
                         on_burst.setdefault(off_cycle - on_cycle, {})[aggregate_bye] = 1
                     else:
@@ -971,59 +987,63 @@ def generate_traffic_characteristics(traffic, string):
                 else:
                     total_byte[byte] += 1
                 prev = byte
+            if byte not in byte_per_cycle:
+                byte_per_cycle.append(byte)
 
     on_burst = dict(sorted(on_burst.items(), key=lambda x: x[0]))
+    for prev in on_burst.keys():
+        on_burst[prev] = dict(sorted(on_burst[prev].items(), key=lambda x: x[0]))
     on_duration = dict(sorted(on_duration.items(), key=lambda x: x[0]))
+    for prev in on_duration.keys():
+        on_duration[prev] = dict(sorted(on_duration[prev].items(), key=lambda x: x[0]))
     off_duration = dict(sorted(off_duration.items(), key=lambda x: x[0]))
     total_byte = dict(sorted(total_byte.items(), key=lambda x: x[0]))
     total_byte_markov = dict(sorted(total_byte_markov.items(), key=lambda x: x[0]))
-    for p in total_byte_markov.keys():
-        total_byte_markov[p] = dict(sorted(total_byte_markov[p].items(), key=lambda x: x[0]))
     for prev in total_byte_markov.keys():
-        total = sum(list(total_byte_markov[prev].values()))
-        for k, v in total_byte_markov[prev].items():
-            total_byte_markov[prev][k] = v / total
-    for prev in total_byte_markov.keys():
-        total = 0
-        for k, v in total_byte_markov[prev].items():
-            total_byte_markov[prev][k] = v + total
-            total += v
-    total = sum(list(on_duration.values()))
-    for k, v in on_duration.items():
-        on_duration[k] = v / total
-    total = 0
-    for k, v in on_duration.items():
-        on_duration[k] = v + total
-        total += v
-    total = sum(list(off_duration.values()))
-    for k, v in off_duration.items():
-        off_duration[k] = v / total
-    total = 0
-    for k, v in off_duration.items():
-        off_duration[k] = v + total
-        total += v
-    for b in on_burst.keys():
-        total = sum(list(on_burst[b].values()))
-        for k, v in on_burst[b].items():
-            on_burst[b][k] = v / total
-    for b in on_burst.keys():
-        total = 0
-        for k, v in on_burst[b].items():
-            on_burst[b][k] = v + total
-            total += v
-    total = sum(list(total_byte.values()))
-    for k, v in total_byte.items():
-        total_byte[k] = v / total
-    total = 0
-    for k, v in total_byte.items():
-        total_byte[k] = v + total
-        total += v
-    plt.figure(figsize=(20, 7))
-    plt.plot(traffic.keys(), traffic.values())
-    plt.title("AccelSim " + string + " traffic")
-    plt.show()
-    plt.close()
-    return off_duration, on_duration, on_burst, total_byte_markov
+        total_byte_markov[prev] = dict(sorted(total_byte_markov[prev].items(), key=lambda x: x[0]))
+    byte_per_cycle.sort()
+    return off_duration, on_duration, on_burst, total_byte_markov, byte_per_cycle
+
+
+def generate_traffic_characteristics_wrapper(request_packet):
+    request_traffic = {}
+    reply_traffic = {}
+    for id in request_packet.keys():
+        for j in range(len(request_packet[id])):
+            if request_packet[id][j][0] == "request injected":
+                src = int(request_packet[id][j][1].split(": ")[1])
+                dst = int(request_packet[id][j][2].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if cycle not in request_traffic.keys():
+                    request_traffic[cycle] = byte
+                else:
+                    request_traffic[cycle] += byte
+            if request_packet[id][j][0] == "reply injected":
+                src = int(request_packet[id][j][2].split(": ")[1])
+                dst = int(request_packet[id][j][1].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if cycle not in reply_traffic.keys():
+                    reply_traffic[cycle] = byte
+                else:
+                    reply_traffic[cycle] += byte
+
+    minimum = min(list(request_traffic.keys()))
+    maximum = max(list(request_traffic.keys()))
+    for i in range(minimum, maximum):
+        if i not in request_traffic.keys():
+            request_traffic[i] = 0
+    request_traffic = dict(sorted(request_traffic.items(), key=lambda x: x[0]))
+    minimum = min(list(reply_traffic.keys()))
+    maximum = max(list(reply_traffic.keys()))
+    for i in range(minimum, maximum):
+        if i not in reply_traffic.keys():
+            reply_traffic[i] = 0
+    reply_traffic = dict(sorted(reply_traffic.items(), key=lambda x: x[0]))
+    req_off_duration, req_on_duration, req_on_burst, req_total_byte, req_byte_per_cycle = generate_traffic_characteristics(request_traffic, "request")
+    rep_off_duration, rep_on_duration, rep_on_burst, rep_total_byte, rep_byte_per_cycle = generate_traffic_characteristics(reply_traffic, "reply")
+    return req_off_duration, req_total_byte, req_on_duration, req_on_burst, req_byte_per_cycle, rep_off_duration, rep_total_byte, rep_on_duration, rep_on_burst, rep_byte_per_cycle
 
 
 if __name__ == "__main__":

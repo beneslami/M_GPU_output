@@ -1,16 +1,25 @@
 
 
 
-suits = ['parboil', 'rodinia', 'polybench', 'tango', 'ispass-2009', 'shoc', 'pannotia']
+suits = ['ispass-2009', 'pannotia', 'parboil', 'polybench', 'rodinia', 'shoc', 'tango']
 benchmarks = {
-            'ispass-2009': ['NQU', 'STO' """''bfs'"""],
-            'pannotia': ['color-max', 'fw'],
-            'parboil': ["""'bfs,""" 'cutcp', """'histo', """'mri-gridding', 'sgemm', 'spmv', 'stencil'],
-            'polybench': ['2DConvolution', '2mm', '3mm', 'atax', 'bicg', 'correlation', 'covariance', 'fdtd2d', 'gemm', 'gesummv', 'mvt', 'syr2k', 'syrk'],
-            'rodinia': ["""'backprop', 'bfs', """ 'b+tree', """'cfd', 'gaussian', """ 'heartwall', 'hotspot', 'hotspot3D', 'hybridsort', 'kmeans', 'lavaMD', """'lud', 'nn', """ 'particlefilter', 'pathfinder', 'srad', 'streamcluster'],
-            'shoc': ['gemm'],
-            'tango': ['AlexNet', 'ResNet', 'SqueezeNet']
-            }
+    'ispass-2009': ['NQU', 'STO', 'bfs'],
+    'pannotia': ['color-max', 'fw'],
+    'parboil': ['bfs', 'cutcp', 'histo', 'mri-gridding', 'sgemm', 'spmv', 'stencil'],
+    'polybench': ['2DConvolution', '2mm', '3mm', 'atax', 'bicg', 'correlation', 'covariance', 'fdtd2d', 'gemm',
+                  'gesummv', 'mvt', 'syr2k', 'syrk'],
+    'rodinia': ['backprop', 'bfs', 'b+tree', 'cfd', 'gaussian', 'heartwall', 'hotspot', 'hotspot3D',
+                 'hybridsort', 'kmeans', 'lavaMD', 'lud', 'nn', 'particlefilter-float', 'pathfinder', 'srad',
+                'streamcluster'],
+    'shoc': ['gemm'],
+    'tango': ['AlexNet', 'ResNet', 'SqueezeNet']
+}
+
+topology = ['torus']#, 'ring', 'mesh', 'fly']
+NVLink = ['NVLink4']#, 'NVLink3', 'NVLink2', 'NVLink1']
+chiplet_num = ['4chiplet']#, '8chiplet', '16chiplet']
+
+path = "../benchmarks/"
 
 
 #ispass-2009

@@ -1,8 +1,4 @@
 import gc
-import sys
-import os
-import re
-from contention import *
 import numpy as np
 import plotly.graph_objects as go
 import pandas as pd
