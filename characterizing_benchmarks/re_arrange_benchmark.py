@@ -2,6 +2,7 @@ import gc
 import os
 import shutil
 from colorama import Fore
+from pathlib import Path
 
 
 def determine_architecture(topo, nv, ch):
@@ -57,9 +58,11 @@ def rearrange_traces(path, suite, bench, topo, NV, ch):
         print(Fore.GREEN + "kernel directory exists" + Fore.WHITE)
         new_kernel_trace = path + suite + "-" + bench + "_NV" + str(nv) + "_1vc_" + str(chipNum) + "ch_" + topol + "_trace_"
         for f in os.listdir(path):
-            num = int(f.split(".")[0])
-            os.rename(path + f, new_kernel_trace + str(num) + ".txt")
-        print(Fore.GREEN + "trace file renaming done successfully" + Fore.WHITE)
+            if "_trace" not in f:
+                if Path(f).suffix == '.txt':
+                    num = int(f.split(".")[0])
+                    os.rename(path + f, new_kernel_trace + str(num) + ".txt")
+                print(Fore.GREEN + "trace file renaming done successfully" + Fore.WHITE)
     print(Fore.GREEN + "rearrange " + suite + "_" + bench + "_" + topo + "_" + NV + "_" + str(chipNum) + " [done " + u'\u2713]' + Fore.WHITE)
 
     gc.enable()

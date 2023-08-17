@@ -1008,6 +1008,9 @@ def generate_traffic_characteristics(traffic, string):
 def generate_traffic_characteristics_wrapper(request_packet):
     request_traffic = {}
     reply_traffic = {}
+    req_window = {}
+    total_window = {}
+    source = {}
     for id in request_packet.keys():
         for j in range(len(request_packet[id])):
             if request_packet[id][j][0] == "request injected":
@@ -1019,6 +1022,13 @@ def generate_traffic_characteristics_wrapper(request_packet):
                     request_traffic[cycle] = byte
                 else:
                     request_traffic[cycle] += byte
+                if cycle not in req_window.keys():
+                    req_window.setdefault(cycle, {}).setdefault(src, []).append(byte)
+                else:
+                    if src not in req_window[cycle].keys():
+                        req_window[cycle].setdefault(src, []).append(byte)
+                    else:
+                        req_window[cycle][src].append(byte)
             if request_packet[id][j][0] == "reply injected":
                 src = int(request_packet[id][j][2].split(": ")[1])
                 dst = int(request_packet[id][j][1].split(": ")[1])
@@ -1028,7 +1038,29 @@ def generate_traffic_characteristics_wrapper(request_packet):
                     reply_traffic[cycle] = byte
                 else:
                     reply_traffic[cycle] += byte
-
+    req_window = dict(sorted(req_window.items(), key=lambda x: x[0]))
+    for cyc in req_window.keys():
+        win = len(req_window[cyc])
+        agg_byte = 0
+        for src in req_window[cyc].keys():
+            agg_byte += sum(req_window[cyc][src])
+        if agg_byte not in total_window.keys():
+            total_window.setdefault(agg_byte, {})[win] = 1
+        else:
+            if win not in total_window[agg_byte].keys():
+                total_window[agg_byte][win] = 1
+            else:
+                total_window[agg_byte][win] += 1
+    total_window = dict(sorted(total_window.items(), key=lambda x: x[0]))
+    for ag in total_window.keys():
+        total_window[ag] = dict(sorted(total_window[ag].items(), key=lambda x: x[0]))
+    for cyc in req_window.keys():
+        for src, byte_list in req_window[cyc].items():
+            if src not in source.keys():
+                source[src] = len(byte_list)
+            else:
+                source[src] += len(byte_list)
+    source = dict(sorted(source.items(), key=lambda x: x[0]))
     minimum = min(list(request_traffic.keys()))
     maximum = max(list(request_traffic.keys()))
     for i in range(minimum, maximum):
@@ -1043,7 +1075,7 @@ def generate_traffic_characteristics_wrapper(request_packet):
     reply_traffic = dict(sorted(reply_traffic.items(), key=lambda x: x[0]))
     req_off_duration, req_on_duration, req_on_burst, req_total_byte, req_byte_per_cycle = generate_traffic_characteristics(request_traffic, "request")
     rep_off_duration, rep_on_duration, rep_on_burst, rep_total_byte, rep_byte_per_cycle = generate_traffic_characteristics(reply_traffic, "reply")
-    return req_off_duration, req_total_byte, req_on_duration, req_on_burst, req_byte_per_cycle, rep_off_duration, rep_total_byte, rep_on_duration, rep_on_burst, rep_byte_per_cycle
+    return req_off_duration, total_window, req_total_byte, req_on_duration, req_on_burst, req_byte_per_cycle, source, rep_off_duration, rep_total_byte, rep_on_duration, rep_on_burst, rep_byte_per_cycle
 
 
 if __name__ == "__main__":

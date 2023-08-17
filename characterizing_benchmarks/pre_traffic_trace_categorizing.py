@@ -120,3 +120,37 @@ def overall_plot(base_path, trace, kernel_num):
     plt.savefig(base_path + "/plots/" + str(kernel_num) + "/overall_request_reply_injected_traffic.jpg")
     gc.enable()
     gc.collect()
+
+
+if __name__ == "__main__":
+    input_ = "/home/ben/Desktop/benchmarks/pannotia/bc/torus/NVLink4/4chiplet/kernels/"
+    base_path = os.path.dirname(os.path.dirname(input_))
+    request_packet = {}
+    for file in os.listdir(input_):
+        file2 = open(file, "r")
+        raw_content = ""
+        if file2.mode == "r":
+            raw_content = file2.readlines()
+        file2.close()
+        del (file2)
+        lined_list = []
+        for line in raw_content:
+            item = [x for x in line.split("\t") if x not in ['', '\t']]
+            lined_list.append(item)
+        del (raw_content)
+        for i in range(len(lined_list)):
+            if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
+                if lined_list[i] not in request_packet[int(lined_list[i][3].split(": ")[1])]:
+                    request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+            else:
+                request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+        del (lined_list)
+        gc.enable()
+        gc.collect()
+    kernel_num = list(file_name.split("_"))[-1].split(".")[0]
+    if kernel_num == "trace":
+        kernel_num = 1
+    else:
+        kernel_num = int(kernel_num)
+
+    overall_plot(base_path, request_packet, kernel_num)

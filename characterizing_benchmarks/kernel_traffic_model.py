@@ -20,6 +20,8 @@ def per_chiplet_model(base_path, request_packet, chiplet_num, kernel_num):
     reply_window = {}
     request_sequence = {}
     reply_sequence = {}
+    dest_win = {}
+    destination_window = {}
     for id in request_packet.keys():
         for j in range(len(request_packet[id])):
             if request_packet[id][j][0] == "request injected":
@@ -57,6 +59,16 @@ def per_chiplet_model(base_path, request_packet, chiplet_num, kernel_num):
                             request_packet_type[chiplet][dest][byte] = 1
                         else:
                             request_packet_type[chiplet][dest][byte] += 1
+                if chiplet not in dest_win.keys():
+                    dest_win.setdefault(chiplet, {}).setdefault(cycle, {})[dest] = 1
+                else:
+                    if cycle not in dest_win[chiplet].keys():
+                        dest_win[chiplet].setdefault(cycle, {})[dest] = 1
+                    else:
+                        if dest not in dest_win[chiplet][cycle].keys():
+                            dest_win[chiplet][cycle][dest] = 1
+                        else:
+                            dest_win[chiplet][cycle][dest] += 1
 
             elif request_packet[id][j][0] == "request received":
                 chiplet = int(request_packet[id][j][6].split(": ")[1])
@@ -101,6 +113,19 @@ def per_chiplet_model(base_path, request_packet, chiplet_num, kernel_num):
                         else:
                             reply_packet_type[chiplet][dest][byte] += 1
 
+    for chiplet in dest_win.keys():
+        for cyc in dest_win[chiplet].keys():
+            for dest, freq in dest_win[chiplet][cyc].items():
+                if chiplet not in destination_window.keys():
+                    destination_window.setdefault(chiplet, {}).setdefault(dest, {})[freq] = 1
+                else:
+                    if dest not in destination_window[chiplet].keys():
+                        destination_window[chiplet].setdefault(dest, {})[freq] = 1
+                    else:
+                        if freq not in destination_window[chiplet][dest].keys():
+                            destination_window[chiplet][dest][freq] = 1
+                        else:
+                            destination_window[chiplet][dest][freq] += 1
     for chiplet in request_sequence.keys():
         if len(request_sequence[chiplet]) > 0:
             request_sequence[chiplet].sort()
@@ -144,6 +169,11 @@ def per_chiplet_model(base_path, request_packet, chiplet_num, kernel_num):
                 else:
                     window[chiplet][len(win)][sum(win)] += 1
 
+    destination_window = dict(sorted(destination_window.items(), key=lambda x: x[0]))
+    for c in destination_window.keys():
+        destination_window[c] = dict(sorted(destination_window[c].items(), key=lambda x: x[0]))
+        for d in destination_window[c].keys():
+            destination_window[c][d] = dict(sorted(destination_window[c][d].items(), key=lambda x: x[0]))
     iat_over_time = dict(sorted(iat_over_time.items(), key=lambda x: x[0]))
     for chiplet in iat_over_time.keys():
         iat_over_time[chiplet] = dict(sorted(iat_over_time[chiplet].items(), key=lambda x: x[0]))
@@ -213,27 +243,23 @@ def per_chiplet_model(base_path, request_packet, chiplet_num, kernel_num):
                 pass
             file.write("destination_end\n")
 
-            file.write("\nInter_arrival_time_begin\n")
+            """file.write("\nInter_arrival_time_begin\n")
             try:
                 for duration, freq in iat[i].items():
                     file.write(str(duration) + "\t" + str(freq) + "\n")
             except KeyError:
                 pass
-            file.write("Inter_arrival_time_end\n")
+            file.write("Inter_arrival_time_end\n")"""
 
-            file.write("\ntotal_window_size_begin\n")
+            file.write("\ndest_window_begin\n")
             try:
-                for win, val in window[i].items():
-                    tot_freq = 0
-                    for burst, freq in val.items():
-                        tot_freq += freq
-                    file.write(str(win) + "\t" + str(tot_freq) + "\tbegin\t")
-                    for burst, freq in val.items():
-                        file.write(str(burst) + "\t" + str(freq) + "\t")
-                    file.write("end\n")
+                for dest in destination_window[i].keys():
+                    file.write("dest\t" + str(dest) + "\n")
+                    for win, freq in destination_window[i][dest].items():
+                        file.write(str(win) + "\t" + str(freq) + "\n")
             except KeyError:
                 pass
-            file.write("total_window_size_end\n")
+            file.write("dest_window_end\n")
 
             file.write("\nprocessing_time_begin\n")
             try:
@@ -251,13 +277,13 @@ def per_chiplet_model(base_path, request_packet, chiplet_num, kernel_num):
                 pass
             file.write("reply_window_size_end\n")
 
-            file.write("\nreply_inter_arrival_time_begin\n")
+            """file.write("\nreply_inter_arrival_time_begin\n")
             try:
                 for duration, freq in reply_iat[i].items():
                     file.write(str(duration) + "\t" + str(freq) + "\n")
             except KeyError:
                 pass
-            file.write("reply_inter_arrival_time_end\n")
+            file.write("reply_inter_arrival_time_end\n")"""
     print(Fore.GREEN + "chiplet models for kernel " + str(kernel_num) + " is generated " + u'\u2713' + Fore.WHITE)
 
 
@@ -272,13 +298,15 @@ def traffic_model(input_, request_packet, chiplet_num, kernel_num):
     rep_burst_duration = {}
     rep_burst_volume = {}
     rep_byte_per_cycle = {}
+    total_window = {}
+    source = {}
     traffic_type = kernel_detection(input_)
     if traffic_type == "homogeneous":
-        req_off, req_byte_markov, req_burst_duration, req_burst_volume, req_byte_per_cycle, rep_off, rep_byte_markov, rep_burst_duration, rep_burst_volume, rep_byte_per_cycle = homogeneous_mode_generator_engine.generate_traffic_characteristics_wrapper(request_packet)
+        req_off, total_window, req_byte_markov, req_burst_duration, req_burst_volume, req_byte_per_cycle, source, rep_off, rep_byte_markov, rep_burst_duration, rep_burst_volume, rep_byte_per_cycle = homogeneous_mode_generator_engine.generate_traffic_characteristics_wrapper(request_packet)
     elif traffic_type == "spiky-sync":
-        req_off, req_byte_markov, req_burst_duration, req_burst_volume, req_byte_per_cycle, rep_off, rep_byte_markov, rep_burst_duration, rep_burst_volume, rep_byte_per_cycle = spiky_sync_model.generate_traffic_characteristics_wrapper(request_packet)
+        req_off, total_window, req_byte_markov, req_burst_duration, req_burst_volume, req_byte_per_cycle, source, rep_off, rep_byte_markov, rep_burst_duration, rep_burst_volume, rep_byte_per_cycle = spiky_sync_model.generate_traffic_characteristics_wrapper(request_packet)
     elif traffic_type == "spiky-async":
-        req_off, req_byte_markov, req_burst_duration, req_burst_volume, req_byte_per_cycle, rep_off, rep_byte_markov, rep_burst_duration, rep_burst_volume, rep_byte_per_cycle = spiky_nonSync_model_generator.generate_traffic_characteristics_wrapper(request_packet)
+        req_off, total_window, req_byte_markov, req_burst_duration, req_burst_volume, req_byte_per_cycle, source, rep_off, rep_byte_markov, rep_burst_duration, rep_burst_volume, rep_byte_per_cycle = spiky_nonSync_model_generator.generate_traffic_characteristics_wrapper(request_packet)
     base_path = os.path.dirname(os.path.dirname(input_))
     if os.path.exists(base_path + "/models/"):
         if os.path.exists(base_path + "/models/" + str(kernel_num)):
@@ -294,13 +322,6 @@ def traffic_model(input_, request_packet, chiplet_num, kernel_num):
             file.write(str(k) + "\t" + str(v) + "\n")
         file.write("req_off_time_end\n\n")
 
-        file.write("req_byte_markov_begin\n")
-        for byte in req_byte_markov.keys():
-            file.write("b\t" + str(byte) + "\n")
-            for k, v in req_byte_markov[byte].items():
-                file.write(str(k) + "\t" + str(v) + "\n")
-        file.write("req_byte_markov_end\n\n")
-
         file.write("req_burst_time_begin\n")
         for prev in req_burst_duration.keys():
             file.write("burst\t" + str(prev) + "\n")
@@ -315,22 +336,34 @@ def traffic_model(input_, request_packet, chiplet_num, kernel_num):
                 file.write(str(k) + "\t" + str(v) + "\n")
         file.write("req_burst_vol_end\n\n")
 
+        file.write("req_window_begin\n")
+        for byte in total_window.keys():
+            file.write("byte\t" + str(byte) + "\n")
+            for k, v in total_window[byte].items():
+                file.write(str(k) + "\t" + str(v) + "\n")
+        file.write("req_window_end\n\n")
+
+        file.write("req_byte_markov_begin\n")
+        for byte in req_byte_markov.keys():
+            file.write("b\t" + str(byte) + "\n")
+            for k, v in req_byte_markov[byte].items():
+                file.write(str(k) + "\t" + str(v) + "\n")
+        file.write("req_byte_markov_end\n\n")
+
         file.write("req_byte_begin\n")
         for byte in req_byte_per_cycle:
             file.write(str(byte) + "\t")
         file.write("\nreq_byte_end\n\n")
 
+        file.write("source_begin\n")
+        for k, v in source.items():
+            file.write(str(k) + "\t" + str(v) + "\n")
+        file.write("source_end\n\n")
+
         file.write("rep_off_time_begin\n")
         for k, v in rep_off.items():
             file.write(str(k) + "\t" + str(v) + "\n")
         file.write("rep_off_time_end\n\n")
-
-        file.write("rep_byte_markov_begin\n")
-        for byte in rep_byte_markov.keys():
-            file.write("b\t" + str(byte) + "\n")
-            for k, v in rep_byte_markov[byte].items():
-                file.write(str(k) + "\t" + str(v) + "\n")
-        file.write("rep_byte_markov_end\n\n")
 
         file.write("rep_burst_time_begin\n")
         for prev in rep_burst_duration.keys():
@@ -346,8 +379,16 @@ def traffic_model(input_, request_packet, chiplet_num, kernel_num):
                 file.write(str(k) + "\t" + str(v) + "\n")
         file.write("rep_burst_vol_end\n\n")
 
+        file.write("rep_byte_markov_begin\n")
+        for byte in rep_byte_markov.keys():
+            file.write("b\t" + str(byte) + "\n")
+            for k, v in rep_byte_markov[byte].items():
+                file.write(str(k) + "\t" + str(v) + "\n")
+        file.write("rep_byte_markov_end\n\n")
+
         file.write("rep_byte_begin\n")
         for byte in rep_byte_per_cycle:
             file.write(str(byte) + "\t")
         file.write("\nrep_byte_end\n\n")
+
     print(Fore.GREEN + "traffic model for kernel " + str(kernel_num) + " is generated " + u'\u2713' + Fore.WHITE)
