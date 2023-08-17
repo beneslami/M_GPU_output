@@ -1,7 +1,24 @@
+import os
 import gc
+
+import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 import pandas as pd
+from pathlib import Path
+import plotly.express as px
+from colorama import Fore
+
+
+def return_pdf(data):
+    pdf = {}
+    for k, v in data.items():
+        if v not in pdf.keys():
+            pdf[v] = 1
+        else:
+            pdf[v] += 1
+    pdf = dict(sorted(pdf.items(), key=lambda x: x[0]))
+    return pdf
 
 
 def bar_distribution_plot(base_path, traffic, chiplet_num, plot_name):
@@ -106,223 +123,109 @@ def bar_distribution_plot(base_path, traffic, chiplet_num, plot_name):
     gc.collect()
 
 
-def measure_average_link_usage_between_routers(input_, chiplet_num):
-    base_path = os.path.dirname(input_)
-    path = base_path + "/link_usage/"
-    link = {}
-    link_usage = {}
-    avg_channel_bw = {}
-    max_duration = {}
+def measure_throughput_per_link(emp_links, syn_links, path):
+    for src in emp_links.keys():
+        for dest in emp_links[src].keys():
+            emp_pdf = return_pdf(emp_links[src][dest])
+            syn_pdf = return_pdf(syn_links[src][dest])
+            if len(emp_pdf) != 0 and len(syn_pdf) != 0:
+                plt.plot(list(emp_pdf.keys()), list(emp_pdf.values()), marker="o", labels="AccelSim")
+                plt.plot(list(syn_pdf.keys()), list(syn_pdf.values()), marker="o", labels="Synthetic")
+                plt.xlabel("byte per cycle")
+                plt.ylabel("density")
+                plt.legend()
+                if not os.path.exists(path + "plots/link_usage/"):
+                    os.makedirs(path + "plots/link_usage/")
+                plt.savefig(path + "plots/link_usage/channel " + str(src) + str(dest) + ".jpg")
+    gc.enable()
+    gc.collect()
 
-    if base_path.__contains__("fly"):
-        if base_path.__contains__("4chiplet") or base_path.__contains__("8chiplet"):
-            for i in range(chiplet_num):
-                file_name = path + "side_link_usage_" + str(i) + "0.csv"
-                if os.path.exists(file_name):
-                    if i not in link.keys():
-                        link.setdefault(i, {}).setdefault(0, {})
-                        link_usage.setdefault(i, {}).setdefault(0, [])
-                        avg_channel_bw.setdefault(i, {}).setdefault(0, [])
-                        max_duration.setdefault(i, {}).setdefault(0, [])
-                    df = pd.read_csv(file_name)
-                    x = df['cycle']
-                    y = df['byte']
-                    res = {x[i]: y[i] for i in range(len(x))}
-                    minimum = min(x)
-                    maximum = max(x)
-                    max_duration[i][0] = maximum - minimum
-                    for c in range(minimum, maximum + 1):
-                        if c not in res.keys():
-                            res[c] = 0
-                    res = dict(sorted(res.items(), key=lambda x: x[0]))
-                    for cycle, byte in res.items():
-                        link[i][0][cycle] = byte
-            for src in link.keys():
-                for dest in link[src].keys():
-                    cycle_flag = 0
-                    aggregate_byte = 0
-                    prev_cycle = 0
-                    for cycle, byte in link[src][dest].items():
-                        if byte != 0:
-                            if cycle_flag == 0:
-                                prev_cycle = cycle
-                                cycle_flag = 1
-                            aggregate_byte += byte
-                        elif byte == 0:
-                            if cycle_flag == 1:
-                                duration = cycle - prev_cycle
-                                link_usage[src][dest].append(aggregate_byte / duration)
-                                avg_channel_bw[src][dest].append(duration)
-                                cycle_flag = 0
-                                aggregate_byte = 0
-            for src in avg_channel_bw.keys():
-                avg_channel_bw[src][0] = np.sum(avg_channel_bw[src][0]) / max_duration[src][0]
-            bar_distribution_plot(base_path, avg_channel_bw, chiplet_num, "average_channel_use")
-        else:
-            pass
+
+def extract_link_usage(file):
+    print(Fore.YELLOW + "for now there is no data regarding link usage for this benchmark" + Fore.RESET)
+
+
+def calculate_link_usage_(target_path, kernel_name):
+    emp_links = {}
+    syn_links = {}
+    for input_ in target_path:
+        base_path = os.path.dirname(input_)
+        if "kernels" in input_:
+            if os.path.exists(base_path + "/link_usage") and len(os.listdir(base_path + "/link_usage")) != 0:
+                directory_path = base_path + "/link_usage/" + str(kernel_name) + "/"
+                for files in os.listdir(directory_path):
+                    src = int(files.split("_")[-1].split(".")[0][0])
+                    dst = int(files.split("_")[-1].split(".")[0][1])
+                    if src not in emp_links.keys():
+                        emp_links.setdefault(src, {}).setdefault(dst, {})
+                    else:
+                        if dst not in emp_links[src].keys():
+                            emp_links[src].setdefault(dst, {})
+                    if os.path.getsize(files) > 50:
+                        content = ""
+                        with open(directory_path + files, "r") as f:
+                            content = f.readlines()
+                        x = []
+                        y = []
+                        if "cycle" in content[0]:
+                            df = pd.read_csv(directory_path + files)
+                            x = df['cycle']
+                            y = df['byte']
+                        else:
+                            os.system("sed -i '1s/^/cycle,byte\n/' " + directory_path + str(files))
+                            df = pd.read_csv(directory_path + files)
+                            x = df['cycle']
+                            y = df['byte']
+                        fig = px.line(x=list(x), y=list(y))
+                        if not os.path.exists(base_path + "/plots/" + str(kernel_name) + "/link_usage"):
+                            os.mkdir(base_path + "/plots/" + str(kernel_name) + "/link_usage")
+                        fig.write_html(base_path + "/plots/" + str(kernel_name) + "/link_usage/accelSim_link_" + str(src) + str(dst) + ".html")
+                        for i in range(x):
+                            emp_links[src][dst][x[i]] = y[i]
+            else:
+                for file in os.listdir(input_):
+                    if Path(file).suffix == '.txt':
+                        extract_link_usage(input_ + "/" + file)
+        elif "synthetic_trace" in input_:
+            if os.path.exists(input_ + "/link_usage/") and len(os.listdir(input_ + "/link_usage/")) != 0:
+                directory_path = input_ + "/link_usage/"
+                for file in os.listdir(directory_path):
+                    src = int(file.split("_")[-1].split(".")[0][0])
+                    dst = int(file.split("_")[-1].split(".")[0][1])
+                    if src not in syn_links.keys():
+                        syn_links.setdefault(src, {}).setdefault(dst, {})
+                    else:
+                        if dst not in syn_links[src].keys():
+                            syn_links[src].setdefault(dst, {})
+                    if os.path.getsize(file) > 50:
+                        content = ""
+                        with open(directory_path + file, "r") as f:
+                            content = f.readlines()
+                        x = []
+                        y = []
+                        if "cycle" in content[0]:
+                            df = pd.read_csv(directory_path + file)
+                            x = df['cycle']
+                            y = df['byte']
+                        else:
+                            os.system("sed -i '1s/^/cycle,byte\n/' " + directory_path + str(file))
+                            df = pd.read_csv(directory_path + file)
+                            x = df['cycle']
+                            y = df['byte']
+                        fig = px.line(x=list(x), y=list(y))
+                        if not os.path.exists(base_path + "/plots/" + str(kernel_name) + "/link_usage"):
+                            os.mkdir(base_path + "/plots/" + str(kernel_name) + "/link_usage")
+                        fig.write_html(base_path + "/plots/" + str(kernel_name) + "/link_usage/synthetic_link_" + str(src) + str(dst) + ".html")
+                        for i in range(x):
+                            syn_links[src][dst][x[i]] = y[i]
+                else:
+                    for file in os.listdir(input_):
+                        if Path(file).suffix == '.txt':
+                            extract_link_usage(input_ + "/" + file)
+
+    if len(emp_links) != 0 and len(syn_links) != 0:
+        measure_throughput_per_link(emp_links, syn_links, os.path.dirname(target_path[0]))
     else:
-        for src in range(chiplet_num):
-            for dest in range(chiplet_num):
-                if src != dest:
-                    file_name = path + "link_usage_" + str(src) + str(dest) + ".csv"
-                    if os.path.exists(file_name) and os.path.getsize(file_name) > 500:
-                        if src not in link.keys():
-                            link.setdefault(src, {})
-                            link_usage.setdefault(src, {})
-                            avg_channel_bw.setdefault(src, {})
-                            max_duration.setdefault(src, {})
-                        if dest not in link[src].keys():
-                            link[src].setdefault(dest, {})
-                            link_usage[src].setdefault(dest, [])
-                            avg_channel_bw[src].setdefault(dest, [])
-                        df = pd.read_csv(file_name)
-                        x = df['cycle']
-                        y = df['byte']
-                        res = {x[i]: y[i] for i in range(len(x))}
-                        minimum = min(x)
-                        maximum = max(x)
-                        max_duration[src][dest] = maximum - minimum
-                        for c in range(minimum, maximum+1):
-                            if c not in res.keys():
-                                res[c] = 0
-                        res = dict(sorted(res.items(), key=lambda x: x[0]))
-                        for cycle, byte in res.items():
-                            link[src][dest][cycle] = byte
-        for src in link.keys():
-            for dest in link[src].keys():
-                cycle_flag = 0
-                aggregate_byte = 0
-                prev_cycle = 0
-                for cycle, byte in link[src][dest].items():
-                    if byte != 0:
-                        if cycle_flag == 0:
-                            prev_cycle = cycle
-                            cycle_flag = 1
-                        aggregate_byte += byte
-                    elif byte == 0:
-                        if cycle_flag == 1:
-                            duration = cycle - prev_cycle
-                            link_usage[src][dest].append(aggregate_byte / duration)
-                            avg_channel_bw[src][dest].append(duration)
-                            cycle_flag = 0
-                            aggregate_byte = 0
-        for src in avg_channel_bw.keys():
-            for dest in avg_channel_bw[src].keys():
-                avg_channel_bw[src][dest] = np.sum(avg_channel_bw[src][dest]) / max_duration[src][dest]
-        bar_distribution_plot(base_path, avg_channel_bw, chiplet_num, "average_channel_use")
-    gc.enable()
-    gc.collect()
-
-
-def measure_throughput_per_link(input_, chiplet_num):
-    base_path = os.path.dirname(input_)
-    path = base_path + "/link_usage/"
-    link = {}
-    throughput = {}
-    if base_path.__contains__("fly"):
-        if base_path.__contains__("4chiplet") or base_path.__contains__("8chiplet"):
-            for i in range(chiplet_num):
-                file_name = path + "side_link_usage_" + str(i) + "0.csv"
-                if os.path.exists(file_name):
-                    if i not in link.keys():
-                        link.setdefault(i, {}).setdefault(0, {})
-                        throughput.setdefault(i, {})
-                    df = pd.read_csv(file_name)
-                    x = df['cycle']
-                    y = df['byte']
-                    res = {x[i]: y[i] for i in range(len(x))}
-                    minimum = min(x)
-                    maximum = max(x)
-                    for c in range(minimum, maximum + 1):
-                        if c not in res.keys():
-                            res[c] = 0
-                    res = dict(sorted(res.items(), key=lambda x: x[0]))
-                    for cycle, byte in res.items():
-                        link[i][0][cycle] = byte
-            for src in link.keys():
-                minimum = min(list(link[src][0].keys()))
-                maximum = max(list(link[src][0].keys()))
-                throughput[src][0] = np.sum(list(link[src][0].values())) / (maximum - minimum)
-            bar_distribution_plot(base_path, throughput, chiplet_num, "average_throughput")
-        else:
-            pass
-    else:
-        for src in range(chiplet_num):
-            for dest in range(chiplet_num):
-                if src != dest:
-                    file_name = path + "link_usage_" + str(src) + str(dest) + ".csv"
-                    if os.path.exists(file_name) and os.path.getsize(file_name) > 500:
-                        if src not in link.keys():
-                            link.setdefault(src, {})
-                            throughput.setdefault(src, {})
-                        if dest not in link[src].keys():
-                            link[src].setdefault(dest, {})
-                        df = pd.read_csv(file_name)
-                        x = df['cycle']
-                        y = df['byte']
-                        res = {x[i]: y[i] for i in range(len(x))}
-                        minimum = min(x)
-                        maximum = max(x)
-                        for c in range(minimum, maximum + 1):
-                            if c not in res.keys():
-                                res[c] = 0
-                        res = dict(sorted(res.items(), key=lambda x: x[0]))
-                        for cycle, byte in res.items():
-                           link[src][dest][cycle] = byte
-        for src in link.keys():
-            for dest in link[src].keys():
-                minimum = min(list(link[src][dest].keys()))
-                maximum = max(list(link[src][dest].keys()))
-                throughput[src][dest] = np.sum(list(link[src][dest].values())) / (maximum - minimum)
-        bar_distribution_plot(base_path, throughput, chiplet_num, "average_throughput")
-    gc.enable()
-    gc.collect()
-
-
-def measure_router_inter_arrival_time(input_, chiplet_num):
-    router = {}
-    base_path = os.path.dirname(input_)
-    path = base_path + "/link_usage/"
-    for src in range(chiplet_num):
-        for dest in range(chiplet_num):
-            if src != dest:
-                file_name = path + "link_usage_" + str(src) + str(dest) + ".csv"
-                if os.path.exists(file_name):
-                    if src not in router.keys():
-                        router.setdefault(src, {})
-                    if dest not in router[src].keys():
-                        router[src].setdefault(dest, {})
-                    if os.path.getsize(file_name) > 0:
-                        df = pd.read_csv(file_name)
-                        x = df['cycle']
-                        y = df['byte']
-                        res = {x[i]: y[i] for i in range(len(x))}
-                        prev_cycle = list(res.keys())[0]
-                        for cyc, byte in res.items():
-                            if cyc - prev_cycle > 1:
-                                if cyc - prev_cycle not in router[src][dest].keys():
-                                    router[src][dest][cyc - prev_cycle] = 1
-                                else:
-                                    router[src][dest][cyc - prev_cycle] += 1
-                                prev_cycle = cyc
-                        router[src][dest] = dict(sorted(router[src][dest].items(), key=lambda x: x[0]))
-
-    for src in router.keys():
-        for dest in router[src].keys():
-            total = sum(router[src][dest].values())
-            for cycle in router[src][dest].keys():
-                router[src][dest][cycle] = router[src][dest][cycle] / total
-    plt.plot(router[2][3].keys(), router[2][3].values(), marker="*")
-    plt.show()
-    gc.enable()
-    gc.collect()
-
-
-def calculate_link_usage_(input_, chiplet_num):
-    base_path = os.path.dirname(input_)
-    if os.path.exists(base_path + "/link_usage"):
-        measure_average_link_usage_between_routers(input_, chiplet_num)
-        measure_throughput_per_link(input_, chiplet_num)
-        measure_router_inter_arrival_time(input_, chiplet_num)
+        print(Fore.YELLOW + "Unable to measure link usage" + Fore.RESET)
     gc.enable()
     gc.collect()

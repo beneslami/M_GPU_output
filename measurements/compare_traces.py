@@ -1,79 +1,103 @@
 import seaborn as sn
 import os
-import re
+from pathlib import Path
 import gc
 from measurements.cnf import *
+import math
+import calculate_link_usage
+import benchlist
 
 
-def Hellinger_distance(emp, syn):
-    local_emp = emp
-    local_syn = syn
-    for item, pdf in local_emp.items():
-        if item not in local_syn.keys():
-            local_syn[item] = 0
-    for item, pdf in local_syn.items():
-        if item not in local_emp.keys():
-            emp[item] = 0
-    local_emp = dict(sorted(local_emp.items(), key=lambda x: x[0]))
-    local_syn = dict(sorted(local_syn.items(), key=lambda x: x[0]))
-    sum = 0
-    for item in local_syn.keys():
-        p = local_emp[item]
-        q = local_syn[item]
-        sum += (np.sqrt(p) - np.sqrt(q))**2
-    total = np.sqrt(sum)/np.sqrt(2)
-    gc.enable()
-    gc.collect()
-    return total
+def determine_architecture(topo, nv, ch):
+    topol = ""
+    chipNum = -1
+    NV = -1
+    if topo == "torus":
+        topol = "2Dtorus"
+    elif topo == "ring":
+        topol = "ring"
+    elif topo == "mesh":
+        topol = "2Dmesh"
+    elif topo == "fly":
+        if ch == "4chiplet" or ch == "8chiplet":
+            topol = "1fly"
+        else:
+            topol = "2fly"
+    if ch == "4chiplet":
+        chipNum = 4
+    elif ch == "8chiplet":
+        chipNum = 8
+    elif ch == "16chiplet":
+        chipNum = 16
+    if nv == "NVLink4":
+        NV = 4
+    elif nv == "NVLink3":
+        NV = 3
+    elif nv == "NVLink2":
+        NV = 2
+    elif nv == "NVLink1":
+        NV = 1
+    return topol, NV, chipNum
+
+
+def MAPE(emp, syn):
+    summation = 0
+    length = 0
+    for k, v in syn.items():
+        if k in emp.keys() and emp[k] > 0:
+            summation += np.abs((emp[k] - v)/emp[k])
+            length += 1
+    return summation/length
+
+
+def MAE(emp, syn):
+    summation = 0
+    length = 0
+    for k, v in syn.items():
+        if k in emp.keys() and emp[k] > 0:
+            summation += np.abs((emp[k] - v))
+            length += 1
+    return summation / length
 
 
 def MSE(emp, syn):
-    local_emp = emp
-    local_syn = syn
-    for item, pdf in local_emp.items():
-        if item not in local_syn.keys():
-            local_syn[item] = 0
-    for item, pdf in local_syn.items():
-        if item not in local_emp.keys():
-            emp[item] = 0
-    local_emp = dict(sorted(local_emp.items(), key=lambda x: x[0]))
-    local_syn = dict(sorted(local_syn.items(), key=lambda x: x[0]))
-    sum = 0
-    for item in local_syn.keys():
-        p = local_emp[item]
-        q = local_syn[item]
-        sum += (p - q)**2
-    total = sum/len(syn.keys())
-    gc.enable()
-    gc.collect()
-    return total
+    summation = 0
+    length = 0
+    for k, v in syn.items():
+        if k in emp.keys() and emp[k] > 0:
+            summation += (emp[k] - v)**2
+            length += 1
+    return summation / length
 
 
 def kullback_leibler_divergence(emp, syn):
-    local_emp = emp
-    local_syn = syn
-    for item, pdf in local_emp.items():
-        if item not in local_syn.keys():
-            local_syn[item] = 0
-    for item, pdf in local_syn.items():
-        if item not in local_emp.keys():
-            emp[item] = 0
-    local_emp = dict(sorted(local_emp.items(), key=lambda x: x[0]))
-    local_syn = dict(sorted(local_syn.items(), key=lambda x: x[0]))
     sum = 0
-    for item in local_syn.keys():
-        p = local_emp[item]
-        q = local_syn[item]
-        try:
+    for item in syn.keys():
+        if item in emp.keys() and emp[item] > 0:
+            p = emp[item]
+            q = syn[item]
             sum += p*(np.log(p/q))
-        except ZeroDivisionError:
-            continue
     gc.enable()
     gc.collect()
     return sum
 
 
-def generate_request_injected_traffic(request_packet, string):
+def hellinger_distance(emp, syn):
+    p = []
+    q = []
+    for item in syn.keys():
+        if item in emp.keys():
+            p.append(syn[item])
+            q.append(emp[item])
+    list_of_squares = []
+    for p_i, q_i in zip(p, q):
+        s = (math.sqrt(p_i) - math.sqrt(q_i)) ** 2
+        list_of_squares.append(s)
+    sosq = math.sqrt(sum(list_of_squares)/2)
+    print("H(p,q): " + str(sosq))
+
+
+def generate_request_injected_traffic(request_packet):
     traffic = {}
     temp_item = {}
     for id in request_packet.keys():
@@ -119,7 +143,7 @@ def generate_request_injected_traffic(request_packet, string):
         traffic[c] = dict(sorted(traffic[c].items(), key=lambda x: x[0]))
         for s in traffic[c].keys():
             traffic[c][s] = dict(sorted(traffic[c][s].items(), key=lambda x: x[0]))
-    plt.figure(figsize=(20, 8))
+    """plt.figure(figsize=(20, 8))
     plt.plot(aggregate_traffic.keys(), aggregate_traffic.values())
     if string == "AccelSim":
         plt.title("AccelSim traffic")
@@ -128,7 +152,7 @@ def generate_request_injected_traffic(request_packet, string):
     plt.xlabel("cycle")
     plt.ylabel("aggregate request bytes")
     plt.show()
-    del(aggregate_traffic)
+    del(aggregate_traffic)"""
     gc.enable()
     gc.collect()
     return traffic
@@ -180,7 +204,7 @@ def generate_reply_injected_traffic(request_packet, string):
         if i not in traffic.keys():
             traffic[i] = temp_item
     traffic = dict(sorted(traffic.items(), key=lambda x: x[0]))
-    aggregate_traffic = dict(sorted(aggregate_traffic.items(), key=lambda x: x[0]))
+    """aggregate_traffic = dict(sorted(aggregate_traffic.items(), key=lambda x: x[0]))
     plt.figure(figsize=(20, 8))
     plt.plot(aggregate_traffic.keys(), aggregate_traffic.values(), marker="*")
     if string == "AccelSim":
@@ -190,13 +214,13 @@ def generate_reply_injected_traffic(request_packet, string):
     plt.xlabel("cycle")
     plt.ylabel("aggregate reply bytes")
     plt.show()
-    del (aggregate_traffic)
+    del (aggregate_traffic)"""
     gc.enable()
     gc.collect()
     return traffic
 
 
-def compare_overall_traffic_cdf(emp_injected_traffic, syn_injected_traffic, string):
+def compare_overall_traffic_cdf(emp_injected_traffic, syn_injected_traffic, string, path, kernel_name):
     emp_cdf = {}
     syn_cdf = {}
 
@@ -249,26 +273,31 @@ def compare_overall_traffic_cdf(emp_injected_traffic, syn_injected_traffic, stri
     emp_cdf = dict(sorted(emp_cdf.items(), key=lambda x: x[0]))
     syn_cdf = dict(sorted(syn_cdf.items(), key=lambda x: x[0]))
 
+    if not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots"):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots")
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+    elif not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name)):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+
     plt.plot(list(emp_cdf.keys()), list(emp_cdf.values()), color='red', linestyle='--', marker='o', label="AccelSim")
     plt.plot(list(syn_cdf.keys()), list(syn_cdf.values()), color='blue', linestyle='-', marker='*', label="Synthetic")
     plt.legend()
     plt.title("aggregate " + string + " CDF")
     plt.xlabel("aggregate " + string + " byte")
     plt.ylabel("CDF")
-    plt.show()
+    plt.savefig(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name) + "/aggregate_" + string + "_byte_CDF.jpg")
     plt.close()
-    H = Hellinger_distance(emp_cdf, syn_cdf)
-    KL = kullback_leibler_divergence(emp_cdf, syn_cdf)
-    print(string + " comparison: ")
-    mse = MSE(emp_cdf, syn_cdf)
-    print("hellinger: " + str(H))
-    print("KL divergence: " + str(KL))
-    print("MSE: " + str(mse))
+    print("--------" + string + " comparison: ----------")
+    hellinger_distance(emp_cdf, syn_cdf)
+    print("KL: " + str(kullback_leibler_divergence(emp_cdf, syn_cdf)))
+    print("MSE: " + str(MSE(emp_cdf, syn_cdf)))
+    print("MAE: " + str(MAE(emp_cdf, syn_cdf)))
+    print("MAPE: " + str(MAPE(emp_cdf, syn_cdf)))
     gc.enable()
     gc.collect()
 
 
-def compare_traffic_pattern(emp_injected_traffic, syn_injected_traffic, chiplet_num):
+def compare_traffic_pattern(emp_injected_traffic, syn_injected_traffic, chiplet_num, path, kernel_name):
     data1 = []
     data2 = []
     pattern = {}
@@ -343,6 +372,12 @@ def compare_traffic_pattern(emp_injected_traffic, syn_injected_traffic, chiplet_
             temp.append(frac)
         data2.append(temp)
 
+    if not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots"):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots")
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+    elif not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name)):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+
     fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(20, 20))
     fig.subplots_adjust(wspace=0.01)
     sn.heatmap(data1, cmap="hot", ax=ax1, cbar=True, linewidth=.3, annot=True)
@@ -352,12 +387,12 @@ def compare_traffic_pattern(emp_injected_traffic, syn_injected_traffic, chiplet_
     ax2.yaxis.tick_right()
 
     fig.subplots_adjust(wspace=0.1)
-    plt.show()
+    plt.savefig(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name) + "/traffic_pattern_comparison.jpg")
     gc.enable()
     gc.collect()
 
 
-def compare_burst_variability(emp_injected_traffic, syn_injected_traffic, string):
+def compare_burst_variability(emp_injected_traffic, syn_injected_traffic, string, path, kernel_name):
     emp_burst = {}
     syn_burst = {}
     flag = 0
@@ -425,21 +460,27 @@ def compare_burst_variability(emp_injected_traffic, syn_injected_traffic, string
     for burst, pdf in syn_burst.items():
         syn_burst[burst] = pdf + prev
         prev += pdf
+
+    if not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots"):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots")
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+    elif not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name)):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+
     plt.plot(list(emp_burst.keys()), list(emp_burst.values()), color='green', linestyle='--', marker='o', label="AccelSim")
     plt.plot(list(syn_burst.keys()), list(syn_burst.values()), color='black', linestyle='-', marker='*', label="Synthetic")
     plt.legend()
     plt.xlabel("burst per unit time")
     plt.ylabel("CDF")
     plt.title(string + " network burst variation")
-    plt.show()
+    plt.savefig(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name) + "/" + string + "_burst_variability.jpg")
     plt.close()
-    H = Hellinger_distance(emp_burst, syn_burst)
-    KL = kullback_leibler_divergence(emp_burst, syn_burst)
-    mse = MSE(emp_burst, syn_burst)
-    print("burst comparison: ")
-    print("hellinger: " + str(H))
-    print("KL divergence: " + str(KL))
-    print("MSE: " + str(mse))
+    print("-------" + string + "burst comparison: -------")
+    hellinger_distance(emp_burst, syn_burst)
+    print("KL divergence: " + str(kullback_leibler_divergence(emp_burst, syn_burst)))
+    print("MSE: " + str(MSE(emp_burst, syn_burst)))
+    print("MAE: " + str(MAE(emp_burst, syn_burst)))
+    print("MAPE: " + str(MAE(emp_burst, syn_burst)))
     gc.enable()
     gc.collect()
 
@@ -510,7 +551,7 @@ def measure_packet_latency(packet, string):
     return packet_latency
 
 
-def compare_packet_latency(emp, syn):
+def compare_packet_latency(emp, syn, path, kernel_name):
     prev = 0
     for lat, pdf in emp.items():
         emp[lat] = pdf + prev
@@ -521,28 +562,34 @@ def compare_packet_latency(emp, syn):
         prev += pdf
     emp = dict(sorted(emp.items(), key=lambda x: x[0]))
     syn = dict(sorted(syn.items(), key=lambda x: x[0]))
+
+    if not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots"):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots")
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+    elif not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name)):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+
     plt.plot(emp.keys(), emp.values(), color='red', linestyle='--', marker='o', label="AccelSim")
     plt.plot(syn.keys(), syn.values(), color='black', linestyle='-', marker='*', label="Synthetic")
     plt.title("packet latency")
     plt.xlabel("end-to-end latency (cycle)")
     plt.ylabel("CDF")
     plt.legend()
-    plt.show()
+    plt.savefig(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name) + "/packet_latency_CDF_comparison.jpg")
     plt.close()
     emp = dict(sorted(emp.items(), key=lambda x: x[0]))
     syn = dict(sorted(syn.items(), key=lambda x: x[0]))
-    H = Hellinger_distance(emp, syn)
-    KL = kullback_leibler_divergence(emp, syn)
-    mse = MSE(emp, syn)
-    print("packet latency comparison: ")
-    print("hellinger: " + str(H))
-    print("KL divergence: " + str(KL))
-    print("MSE: " + str(mse))
+    print("-----packet latency comparison: -------")
+    hellinger_distance(emp, syn)
+    print("KL: " + str(kullback_leibler_divergence(emp, syn)))
+    print("MSE: " + str(MSE(emp, syn)))
+    print("MAE: " + str(MAE(emp, syn)))
+    print("MAPE: " + str(MAPE(emp, syn)))
     gc.enable()
     gc.collect()
 
 
-def measure_network_latency(packet, string):
+def measure_network_latency(packet):
     network_latency = {}
     start = end = src = dst = -1
     for id in packet.keys():
@@ -607,7 +654,7 @@ def measure_network_latency(packet, string):
     return network_latency
 
 
-def compare_network_latency(emp, syn):
+def compare_network_latency(emp, syn, path, kernel_name):
     prev = 0
     for lat, pdf in emp.items():
         emp[lat] = pdf + prev
@@ -618,87 +665,94 @@ def compare_network_latency(emp, syn):
         prev += pdf
     emp = dict(sorted(emp.items(), key=lambda x: x[0]))
     syn = dict(sorted(syn.items(), key=lambda x: x[0]))
+
+    if not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots"):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots")
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+    elif not os.path.exists(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name)):
+        os.mkdir(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name))
+
     plt.plot(emp.keys(), emp.values(), color='red', linestyle='--', marker='o', label="AccelSim")
     plt.plot(syn.keys(), syn.values(), color='black', linestyle='-', marker='*', label="Synthetic")
     plt.title("Network latency")
     plt.xlabel("Network latency (cycle)")
     plt.ylabel("CDF")
     plt.legend()
-    plt.show()
+    plt.savefig(os.path.dirname(os.path.dirname(path)) + "/plots/" + str(kernel_name) + "/network_latency_CDF_comparison.jpg")
     gc.enable()
     gc.collect()
 
 
 if __name__ == "__main__":
-    #emp = "../benchmarks/stencil/torus/NVLink4/4chiplet/parboil-stencil_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/b+tree/torus/NVLink4/4chiplet/b+tree-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/spmv/torus/NVLink4/4chiplet/parboil-spmv_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/hotspot3D/torus/NVLink4/4chiplet/hotspot3D-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/3mm/new/torus/NVLink4/4chiplet/polybench-3mm_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #emp = "../benchmarks/2mm/torus/NVLink4/4chiplet/polybench-2mm_NV4_1vc_4ch_2Dtorus_trace.txt"
-    emp = "../benchmarks/2DConvolution/torus/NVLink4/4chiplet/polybench-2DConvolution_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #syn = "../b_ooksim2/src/examples/out.txt"
-    syn = "/home/ben/Downloads/booksim2.0-2014.03.08/src/examples/out.txt"
-    chiplet_num = -1
-    sub_str = os.path.basename(emp).split("_")
-    for sub_s in sub_str:
-        if sub_str.index(sub_s) != 0:
-            if sub_s.__contains__("ch"):
-                chiplet_num = int(re.split(r'(\d+)', sub_s)[1])
-                break
+    base_path = benchlist.bench_path
+    suite = "parboil"
+    benchmark = "spmv"
+    topology = "torus-new"
+    NVLink = "NVLink4"
+    chiplet = "4chiplet"
+    base_emp = base_path + suite + "/" + benchmark + "/" + topology + "/" + NVLink + "/" + chiplet + "/kernels/"
+    base_syn = base_path + suite + "/" + benchmark + "/" + topology + "/" + NVLink + "/" + chiplet + "/synthetic_trace/"
+    chiplet_num = int(chiplet[0])
+    target_path = [base_emp, base_syn]
+    for input_ in os.listdir(base_syn):
+        kernel_num = int(input_)
+        for file_trace in os.listdir(base_syn + input_):
+            if Path(file_trace).suffix == '.txt':
+                assert os.path.exists(base_emp + file_trace)
+                emp_request_injected_traffic = {}
+                syn_request_injected_traffic = {}
+                emp_reply_injected_traffic = {}
+                syn_reply_injected_traffic = {}
+                emp_packet_latency_dist = {}
+                syn_packet_latency_dist = {}
+                emp_network_latency_dist = {}
+                syn_network_latency_dist = {}
+                topo, nv, ch = determine_architecture(topology, NVLink, chiplet)
+                request_packet = {}
+                for tr_path in target_path:
+                    if "kernels" in tr_path:
+                        pass
+                    elif "synthetic_trace" in tr_path:
+                        file_trace = str(kernel_num) + "/" + file_trace
+                    file = open(tr_path + file_trace, "r")
+                    raw_content = ""
+                    if file.mode == "r":
+                        raw_content = file.readlines()
+                    file.close()
+                    lined_list = []
+                    for line in raw_content:
+                        item = [x for x in line.split("\t") if x not in ['', '\t']]
+                        lined_list.append(item)
+                    for i in range(len(lined_list)):
+                        if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
+                            if lined_list[i] not in request_packet[int(lined_list[i][3].split(": ")[1])]:
+                                request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                        else:
+                            request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                    del (raw_content)
+                    del (lined_list)
 
-    request_packet = {}
-    emp_request_injected_traffic = {}
-    syn_request_injected_traffic = {}
-    emp_reply_injected_traffic = {}
-    syn_reply_injected_traffic = {}
-    emp_packet_latency_dist = {}
-    syn_packet_latency_dist = {}
-    emp_network_latency_dist = {}
-    syn_network_latency_dist = {}
-    input_list = [emp, syn]
-    for input_ in input_list:
-        file = open(input_, "r")
-        raw_content = ""
-        if file.mode == "r":
-            raw_content = file.readlines()
-        file.close()
-        lined_list = []
-        for line in raw_content:
-            item = [x for x in line.split("\t") if x not in ['', '\t']]
-            lined_list.append(item)
-        for i in range(len(lined_list)):
-            if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
-                if lined_list[i] not in request_packet[int(lined_list[i][3].split(": ")[1])]:
-                    request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-            else:
-                request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-        del (raw_content)
-        del (lined_list)
+                    if tr_path.__str__() == base_emp:
+                        emp_request_injected_traffic = generate_request_injected_traffic(request_packet)
+                        emp_reply_injected_traffic = generate_reply_injected_traffic(request_packet, "AccelSim")
+                        emp_packet_latency_dist = measure_packet_latency(request_packet, "AccelSim")
+                        emp_network_latency_dist = measure_network_latency(request_packet)
+                    elif tr_path.__str__() == base_syn:
+                        syn_request_injected_traffic = generate_request_injected_traffic(request_packet)
+                        syn_reply_injected_traffic = generate_reply_injected_traffic(request_packet, "Synthetic")
+                        syn_packet_latency_dist = measure_packet_latency(request_packet, "Synthetic")
+                        syn_network_latency_dist = measure_network_latency(request_packet)
+                    request_packet = {}
 
-        if input_.__str__() == emp:
-            pass
-            emp_request_injected_traffic = generate_request_injected_traffic(request_packet, "AccelSim")
-            emp_reply_injected_traffic = generate_reply_injected_traffic(request_packet, "AccelSim")
-            emp_packet_latency_dist = measure_packet_latency(request_packet, "AccelSim")
-            #emp_network_latency_dist = measure_network_latency(request_packet, "AccelSim")
-            #cnf_graph(request_packet, chiplet_num, "AccelSim")
-        elif input_.__str__() == syn:
-            pass
-            syn_request_injected_traffic = generate_request_injected_traffic(request_packet, "Synthetic")
-            syn_reply_injected_traffic = generate_reply_injected_traffic(request_packet, "Synthetic")
-            syn_packet_latency_dist = measure_packet_latency(request_packet, "Synthetic")
-            #syn_network_latency_dist = measure_network_latency(request_packet, "Synthetic")
-            #cnf_graph(request_packet, chiplet_num, "Synthetic")
-        request_packet = {}
-    del(request_packet)
-
-    compare_overall_traffic_cdf(emp_request_injected_traffic, syn_request_injected_traffic, "request")
-    compare_overall_traffic_cdf(emp_reply_injected_traffic, syn_reply_injected_traffic, "reply")
-    compare_burst_variability(emp_request_injected_traffic, syn_request_injected_traffic, "request")
-    compare_burst_variability(emp_reply_injected_traffic, syn_reply_injected_traffic, "reply")
-    #compare_traffic_pattern(emp_request_injected_traffic, syn_request_injected_traffic, chiplet_num=chiplet_num)
-    compare_packet_latency(emp_packet_latency_dist, syn_packet_latency_dist)
-    #compare_network_latency(emp_network_latency_dist, syn_network_latency_dist)
-    gc.enable()
-    gc.collect()
+                kernel_name = int(input_.split("_")[-1].split(".")[0])
+                compare_overall_traffic_cdf(emp_request_injected_traffic, syn_request_injected_traffic, "request", base_emp, kernel_name)
+                compare_overall_traffic_cdf(emp_reply_injected_traffic, syn_reply_injected_traffic, "reply", base_emp, kernel_name)
+                compare_burst_variability(emp_request_injected_traffic, syn_request_injected_traffic, "request", base_emp, kernel_name)
+                compare_burst_variability(emp_reply_injected_traffic, syn_reply_injected_traffic, "reply", base_emp, kernel_name)
+                compare_traffic_pattern(emp_request_injected_traffic, syn_request_injected_traffic, chiplet_num, base_emp, kernel_name)
+                compare_packet_latency(emp_packet_latency_dist, syn_packet_latency_dist, base_emp, kernel_name)
+                compare_network_latency(emp_network_latency_dist, syn_network_latency_dist, base_emp, kernel_name)
+                cnf_graph(target_path, file_trace.split("/")[1], topo, nv, ch, kernel_name)
+                #calculate_link_usage.calculate_link_usage_(target_path, kernel_name)
+                gc.enable()
+                gc.collect()
