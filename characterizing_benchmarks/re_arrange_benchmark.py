@@ -1,6 +1,9 @@
 import gc
 import os
 import shutil
+import sys
+sys.path.append("../")
+import benchlist
 from colorama import Fore
 from pathlib import Path
 
@@ -40,7 +43,7 @@ def determine_architecture(topo, nv, ch):
 def rearrange_traces(path, suite, bench, topo, NV, ch):
     topol, nv, chipNum = determine_architecture(topo, NV, ch)
     if not os.path.exists(path):
-        print(Fore.YELLOW + "kernel directory does not exist" + Fore.WHITE)
+        print(Fore.YELLOW + "kernel directory does not exist" + Fore.RESET)
         old_kernel_trace = ""
         ch_sub_path = os.path.dirname(path)
         for file in os.listdir(ch_sub_path):
@@ -67,3 +70,33 @@ def rearrange_traces(path, suite, bench, topo, NV, ch):
 
     gc.enable()
     gc.collect()
+
+
+def rename_output(path, suite, bench, topo, NV, ch):
+    topol, nv, chipNum = determine_architecture(topo, NV, ch)
+    file_name = "_NV" + str(nv) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
+    for file in os.listdir(path):
+        if file_name in file:
+            os.rename(path + file, path + suite + "-" + bench + file_name)
+
+
+if __name__ == "__main__":
+    suits = benchlist.suits
+    benchmarks = benchlist.benchmarks
+    topology = benchlist.topology
+    NVLink = benchlist.NVLink
+    chiplet_num = benchlist.chiplet_num
+    path = benchlist.bench_path
+
+    for suite in suits:
+        if suite == "pannotia":
+            for bench in benchmarks[suite]:
+                if bench == "color-max":
+                    for topo in topology:
+                        for nv in NVLink:
+                            #if nv == "NVLink1":
+                            for ch in chiplet_num:
+                                if ch == "4chiplet":
+                                    bench_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
+                                    print(bench_path)
+                                    rename_output(bench_path, suite, bench, topo, nv, ch)

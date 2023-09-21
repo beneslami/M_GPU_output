@@ -1,24 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy
-import pandas as pd
-from scipy.signal import find_peaks, spectrogram
-from scipy.fft import fft, fftfreq
+from scipy.signal import find_peaks
 from scipy import signal
-import statistics
 import math
-import statsmodels.api as sm
-from sklearn.cluster import KMeans
 from scipy.spatial import distance
-from gensim.matutils import hellinger
 import re
 import os
 import gc
-from pydtmc import MarkovChain, plot_graph
-import networkx as nx
-from networkx.drawing.nx_agraph import to_agraph
-import imageio
-import itertools
 
 
 def MAPE(emp, syn):

@@ -17,7 +17,9 @@ def surface_distribution_plot(base_path, injection_per_chiplet_rate, kernel_num)
     for dst in range(0, dest, 1):
         temp = []
         for src in range(0, source, 1):
-            temp.append(injection_per_chiplet_rate[src][dst])
+            if src in injection_per_chiplet_rate.keys():
+                if dst in injection_per_chiplet_rate[src].keys():
+                    temp.append(injection_per_chiplet_rate[src][dst])
         Z.append(temp)
 
     fig = go.Figure()

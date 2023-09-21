@@ -1,11 +1,15 @@
 import os
 import re
 import gc
+import sys
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from tabulate import tabulate
-
+sys.path.append("..")
+import benchlist
+from pathlib import Path
+import homogeneous_mode_generator_engine
 ORDER = 2
 
 
@@ -127,32 +131,88 @@ def generate_model(traffic):
     return total_window, source, window, byte
 
 
-def generate_synthetic_sequence(total_window, source, window, byte):
-    j = 0
-    traffic = {}
-    while j < 50000:
-        total_win = generate_random_state(total_window)
-        i = 0
-        source_list = []
-        while i < total_win:
-            src = generate_random_state(source)
-            if src not in source_list:
-                source_list.append(src)
-                i += 1
-        for src in source_list:
-            src_win = generate_random_state(window[src])
-            for k in range(src_win):
-                b = generate_random_state(byte[src])
-                if j not in traffic.keys():
-                    traffic.setdefault(j, {}).setdefault(src, []).append(b)
+def generate_synthetic_sequence(off, byte_markov, burst_duration, burst_volume, byte_per_cycle, source, byte_req, src_window, window):
+    i = 0
+    prev_burst_duration = list(burst_duration.keys())[0]
+    synthetic_traffic = {}
+    byte_state = list(byte_markov.keys())[0]
+    while i < 30000:
+        on_period = generate_random_state(burst_duration[prev_burst_duration])
+        prev_burst_duration = on_period
+        volume = generate_random_state(burst_volume[on_period])
+        temp = []
+        j = 0
+        while True:
+            byte = generate_random_state(byte_markov[byte_state])
+            temp.append(byte)
+            j += 1
+            byte_state = byte
+            if j == on_period:
+                if volume < sum(temp):
+                    residual = sum(temp) - volume
+                    j_ = 0
+                    while residual > 0:
+                        temp_byte = generate_random_state(byte_markov[byte_state])
+                        byte_state = temp_byte
+                        while temp_byte > residual:
+                            temp_byte = generate_random_state(byte_markov[byte_state])
+                            byte_state = temp_byte
+                        if temp[j_] - temp_byte > 0 and (temp[j_] - temp_byte) in byte_per_cycle:
+                            temp[j_] -= temp_byte
+                            residual -= temp_byte
+                        j_ += 1
+                        if j_ == len(temp):
+                            j_ = 0
+                elif sum(temp) < volume:
+                    residual = volume - sum(temp)
+                    j_ = 0
+                    while residual > 0:
+                        temp_byte = generate_random_state(byte_markov[byte_state])
+                        byte_state = temp_byte
+                        # temp_byte = choose_correct_byte(byte_markov, synthetic_traffic, residual, "increment")
+                        while temp_byte > residual:
+                            temp_byte = generate_random_state(byte_markov[byte_state])
+                            byte_state = temp_byte
+                            # temp_byte = choose_correct_byte(byte_markov, synthetic_traffic, residual, "increment")
+                        if temp[j_] + temp_byte in byte_per_cycle:
+                            temp[j_] += temp_byte
+                            residual -= temp_byte
+                        j_ += 1
+                        # print("vol: " + str(volume) + "\tperiod: " + str(on_period) + "\tgen: " + str(sum(temp)) + "\tresidual: " + str(residual) + "\tbyte: " + str(temp_byte))
+                        if j_ == len(temp):
+                            j_ = 0
+                if sum(temp) in burst_volume[on_period].keys():
+                    break
                 else:
-                    if src not in traffic[j].keys():
-                        traffic[j].setdefault(src, []).append(b)
-                    else:
-                        traffic[j][src].append(b)
-        j += 1
-    return traffic
+                    temp = []
 
+        j = 0
+        while j < on_period:
+            while temp[j] > 0:
+                src = generate_random_state(source)
+                win = generate_random_state(window[src])
+                for k in range(win):
+                    b = generate_random_state(byte_req[src])
+                    if i + j not in synthetic_traffic.keys():
+                        synthetic_traffic.setdefault(i + j, {}).setdefault(src, []).append(b)
+                    else:
+                        if src not in synthetic_traffic[i + j].keys():
+                            synthetic_traffic[i + j].setdefault(src, []).append(b)
+                        else:
+                            synthetic_traffic[i + j][src].append(b)
+                    temp[j] -= b
+            j += 1
+        i += on_period
+
+        off_period = generate_random_state(off)
+        for j in range(off_period):
+            pass
+        i += off_period
+
+    gc.enable()
+    gc.collect()
+
+    return synthetic_traffic
 
 def measure_throughput(traffic):
     temp = {}
@@ -170,101 +230,114 @@ def measure_throughput(traffic):
 
 
 if __name__ == "__main__":
-    benchlist = []
-    emp = "../benchmarks/stencil/torus/NVLink4/4chiplet/parboil-stencil_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/b+tree/torus/NVLink4/4chiplet/b+tree-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/spmv/torus/NVLink4/4chiplet/parboil-spmv_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/hotspot3D/torus/NVLink4/4chiplet/hotspot3D-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/3mm/new/torus/NVLink4/4chiplet/polybench-3mm_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/mri-gridding/torus/NVLink4/4chiplet/parboil-mri-gridding_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/2mm/torus/NVLink4/4chiplet/polybench-2mm_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/lavaMD/torus/NVLink4/4chiplet/lavaMD-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/kmeans/torus/NVLink4/4chiplet/kmeans-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/hybridsort/torus/NVLink4/4chiplet/hybridsort-rodinia-3.1_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/2DConvolution/torus/NVLink4/4chiplet/polybench-2DConvolution_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/AlexNet/torus/NVLink4/4chiplet/tango-alexnet_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/streamcluster/torus/NVLink4/4chiplet/streamcluster-rodinia-2.0-ft_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/atax/torus/NVLink4/4chiplet/polybench-atax_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    emp = "../benchmarks/bicg/torus/NVLink4/4chiplet/polybench-bicg_NV4_1vc_4ch_2Dtorus_trace.txt"
-    benchlist.append(emp)
-    #emp = "../benchmarks/correlation/torus/NVLink4/4chiplet/polybench-correlation_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #benchlist.append(emp)
-    #emp = "../benchmarks/covariance/torus/NVLink4/4chiplet/polybench-covariance_NV4_1vc_4ch_2Dtorus_trace.txt"
-    #benchlist.append(emp)
+    suits = benchlist.suits
+    benchmarks = benchlist.single_kernels
+    topology = benchlist.topology
+    NVLink = benchlist.NVLink
+    chiplet_num = benchlist.chiplet_num
+    path = benchlist.bench_path
+    req_window = {}
+    total_window_per_cycle = {}
     error = [['', '0', '1', '2', '3']]
-    for emp in benchlist:
-        temp = []
-        chiplet_num = -1
-        request_packet = {}
-        sub_str = os.path.basename(emp).split("_")
-        temp.append(sub_str[0])
-        for sub_s in sub_str:
-            if sub_str.index(sub_s) != 0:
-                if sub_s.__contains__("ch"):
-                    chiplet_num = int(re.split(r'(\d+)', sub_s)[1])
-                    break
-        file = open(emp, "r")
-        raw_content = ""
-        if file.mode == "r":
-            raw_content = file.readlines()
-        file.close()
-        lined_list = []
-        for line in raw_content:
-            item = [x for x in line.split("\t") if x not in ['', '\t']]
-            lined_list.append(item)
-        for i in range(len(lined_list)):
-            if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
-                if lined_list[i] not in request_packet[int(lined_list[i][3].split(": ")[1])]:
-                    request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-            else:
-                request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-        del (raw_content)
-        del (lined_list)
 
-        gc.enable()
-        gc.collect()
+    for suite in suits:
+        if suite == "parboil":
+            for bench in benchmarks[suite]:
+                if bench != "aaa":
+                    for topo in topology:
+                        if topo == "torus":
+                            for nv in NVLink:
+                                if nv == "NVLink4":
+                                    for ch in chiplet_num:
+                                        if ch == "4chiplet":
+                                            sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
+                                            print(sub_path)
+                                            if len(os.listdir(os.path.dirname(os.path.dirname(sub_path)))) != 0:
+                                                for trace_file in os.listdir(sub_path):
+                                                    if Path(trace_file).suffix == '.txt':
+                                                        file = open(sub_path + trace_file, "r")
+                                                        raw_content = ""
+                                                        if file.mode == "r":
+                                                            raw_content = file.readlines()
+                                                        file.close()
+                                                        lined_list = []
+                                                        for line in raw_content:
+                                                            item = [x for x in line.split("\t") if x not in ['', '\t']]
+                                                            lined_list.append(item)
+                                                        request_packet = {}
+                                                        for i in range(len(lined_list)):
+                                                            if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
+                                                                if lined_list[i] not in request_packet[int(lined_list[i][3].split(": ")[1])]:
+                                                                    request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                                                            else:
+                                                                request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+                                                        del (raw_content)
+                                                        del (lined_list)
+                                                        request_traffic = {}
+                                                        traffic = {}
+                                                        reply_traffic = {}
+                                                        for id in request_packet.keys():
+                                                            for j in range(len(request_packet[id])):
+                                                                if request_packet[id][j][0] == "request injected":
+                                                                    src = int(request_packet[id][j][1].split(": ")[1])
+                                                                    dst = int(request_packet[id][j][2].split(": ")[1])
+                                                                    cycle = int(request_packet[id][j][5].split(": ")[1])
+                                                                    byte = int(request_packet[id][j][7].split(": ")[1])
+                                                                    if cycle not in request_traffic.keys():
+                                                                        request_traffic.setdefault(cycle, {}).setdefault(src, []).append(byte)
+                                                                    else:
+                                                                        if src not in request_traffic[cycle].keys():
+                                                                            request_traffic[cycle].setdefault(src, []).append(byte)
+                                                                        else:
+                                                                            request_traffic[cycle][src].append(byte)
+                                                                    if cycle not in traffic.keys():
+                                                                        traffic[cycle] = byte
+                                                                    else:
+                                                                        traffic[cycle] += byte
+                                                                    if cycle not in req_window.keys():
+                                                                        req_window.setdefault(cycle, {}).setdefault(src,[]).append(byte)
+                                                                    else:
+                                                                        if src not in req_window[cycle].keys():
+                                                                            req_window[cycle].setdefault(src, []).append(byte)
+                                                                        else:
+                                                                            req_window[cycle][src].append(byte)
+                                                        minimum = min(list(request_traffic.keys()))
+                                                        maximum = max(list(request_traffic.keys()))
+                                                        for i in range(minimum, maximum):
+                                                            if i not in traffic.keys():
+                                                                traffic[i] = 0
+                                                        for cyc in req_window.keys():
+                                                            win = len(req_window[cyc])
+                                                            agg_byte = 0
+                                                            for src in req_window[cyc].keys():
+                                                                agg_byte += sum(req_window[cyc][src])
+                                                            if agg_byte not in total_window_per_cycle.keys():
+                                                                total_window_per_cycle.setdefault(agg_byte, {})[win] = 1
+                                                            else:
+                                                                if win not in total_window_per_cycle[agg_byte].keys():
+                                                                    total_window_per_cycle[agg_byte][win] = 1
+                                                                else:
+                                                                    total_window_per_cycle[agg_byte][win] += 1
+                                                        total_window = dict(sorted(total_window_per_cycle.items(), key=lambda x: x[0]))
+                                                        for ag in total_window_per_cycle.keys():
+                                                            total_window_per_cycle[ag] = dict(sorted(total_window_per_cycle[ag].items(), key=lambda x: x[0]))
+                                                            total_window_per_cycle[ag] = frequency_to_cdf(total_window_per_cycle[ag])
+                                                        traffic = dict(sorted(traffic.items(), key=lambda x: x[0]))
+                                                        off, byte_markov, burst_duration, burst_volume, byte_per_cycle = homogeneous_mode_generator_engine.generate_traffic_characteristics(traffic, "request")
 
-        traffic = {}
-        for id in request_packet.keys():
-            for j in range(len(request_packet[id])):
-                if request_packet[id][j][0] == "request injected":
-                    src = int(request_packet[id][j][1].split(": ")[1])
-                    dst = int(request_packet[id][j][2].split(": ")[1])
-                    cycle = int(request_packet[id][j][5].split(": ")[1])
-                    byte = int(request_packet[id][j][7].split(": ")[1])
-                    if cycle not in traffic.keys():
-                        traffic.setdefault(cycle, {}).setdefault(src, []).append(byte)
-                    else:
-                        if src not in traffic[cycle].keys():
-                            traffic[cycle].setdefault(src, []).append(byte)
-                        else:
-                            traffic[cycle][src].append(byte)
-
-        observed_throughput = measure_throughput(traffic)
-        total_window, source, window, byte = generate_model(traffic)
-        synthetic_traffic = generate_synthetic_sequence(total_window, source, window, byte)
-        synthetic_throughput = measure_throughput(synthetic_traffic)
-        abs_error = {}
-        for i in error[0][1:]:
-            if int(i) in observed_throughput.keys():
-                temp.append(100*(np.abs(observed_throughput[int(i)] - synthetic_throughput[int(i)])/observed_throughput[int(i)]))
-            else:
-                temp.append(0)
-        error.append(temp)
-        gc.enable()
-        gc.collect()
+                                                        observed_throughput = measure_throughput(request_traffic)
+                                                        total_window, source, window, byte = generate_model(request_traffic)
+                                                        synthetic_traffic = generate_synthetic_sequence(off, byte_markov, burst_duration, burst_volume, byte_per_cycle, source, byte, total_window_per_cycle, window)
+                                                        synthetic_throughput = measure_throughput(synthetic_traffic)
+                                                        abs_error = {}
+                                                        temp = []
+                                                        temp.append(bench)
+                                                        for i in error[0][1:]:
+                                                            if int(i) in observed_throughput.keys():
+                                                                temp.append(100*((observed_throughput[int(i)] - synthetic_throughput[int(i)])/observed_throughput[int(i)]))
+                                                            else:
+                                                                temp.append(0)
+                                                        error.append(temp)
+                                                        gc.enable()
+                                                        gc.collect()
     print(tabulate(error))

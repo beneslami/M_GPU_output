@@ -1,0 +1,1 @@
+pip3 intall pandas moviepy matplotlib shutil numpy pydtmc statsmodels sklearn

@@ -231,12 +231,14 @@ def bandwidth_sensitivity(path, suite, bench):
                     ipc = []
                     for line in content:
                         if "gpu_ipc" in line:
-                            ipc.append(float(line.split(" = ")[1]))
+                            if "nan" not in line.split(" = ")[1]:
+                                ipc.append(float(line.split(" = ")[1]))
                         elif "gpu_sim_cycle" in line:
                             duration = int(line.split(" = ")[1])
                             tot_cycle += duration
                         elif "gpu_throughput" in line:
-                            partial_sum += float(line.split(" = ")[1]) * duration
+                            if "nan" not in line.split(" = ")[1]:
+                                partial_sum += float(line.split(" = ")[1]) * duration
                     if topo not in bandwidth_ipc.keys():
                         bandwidth_ipc.setdefault(topo, {})[nv] = np.mean(ipc)
                     else:
@@ -248,6 +250,8 @@ def bandwidth_sensitivity(path, suite, bench):
                 else:
                     print(Fore.YELLOW + "directory " + sub_path + " is empty" + Fore.WHITE)
 
+        for topo in bandwidth_ipc.keys():
+            bandwidth_ipc[topo] = dict(sorted(bandwidth_ipc[topo].items(), key=lambda x: x[0]))
         if len(bandwidth_ipc) != 0:
             plt.figure(figsize=(10, 7))
             for topo in bandwidth_ipc.keys():
@@ -257,20 +261,69 @@ def bandwidth_sensitivity(path, suite, bench):
             plt.title(suite + "-" + bench + " bandwidth/ipc sensitivity")
             plt.tight_layout()
             plt.legend()
-            plt.show()
             plt.savefig(path + "/bandwidth_ipc_" + str(ch) + ".jpg")
             plt.close()
 
+        for topo in bandwidth_throughput.keys():
+            bandwidth_throughput[topo] = dict(sorted(bandwidth_throughput[topo].items(), key=lambda x: x[0]))
         if len(bandwidth_throughput) != 0:
             plt.figure(figsize=(10, 7))
             for topo in bandwidth_throughput.keys():
                 plt.plot(list(bandwidth_throughput[topo].keys()), list(bandwidth_throughput[topo].values()), marker="o", label=topo)
             plt.xlabel("Bandwidth")
-            plt.ylabel("throughput")
+            plt.ylabel("throughput(byte/cycle/chiplet)")
             plt.title(suite + "-" + bench + " bandwidth/throughput sensitivity")
             plt.legend()
             plt.tight_layout()
-            plt.show()
             plt.savefig(path + "/bandwidth_throughput_" + str(ch) + ".jpg")
             plt.close()
 
+
+def kernel_sensitivity_test(): # number of remote request per kilo instruction
+    topology = benchlist.topology
+    NVLink = benchlist.NVLink
+    chiplet = benchlist.chiplet_num
+    benchmarks = benchlist.nominated_benchmarks
+    path = benchlist.bench_path
+    benchmark_data = {}
+    for suite in benchmarks.keys():
+        if suite == "pannotia":
+            for benchmark in benchmarks[suite]:
+                if benchmark == "pagerank":
+                    for topo in topology:
+                        if topo == "torus":
+                            for nv in NVLink:
+                                if nv == "NVLink4":
+                                    kernel_num = 0
+                                    for ch in chiplet:
+                                        if ch == "4chiplet":
+                                            topol, NV, chip = determine_architecture(topo, nv, ch)
+                                            file_path = path + suite + "/" + benchmark + "/" + topo + "/" + nv + "/" + ch + "/"
+                                            file_name = suite + "-" + benchmark + "_NV" + str(NV) + "_1vc_" + str(chip) + "ch_" + topol + ".txt"
+                                            content = ""
+                                            with open(file_path + file_name, "r") as file:
+                                                content = file.readlines()
+                                            remote_req = -1
+                                            instructions = -1
+                                            for line in content:
+                                                if "Hossein: Number of Remote Requests" in line:
+                                                    remote_req = int(line.split(": ")[2])
+                                                if "gpu_tot_sim_insn" in line:
+                                                    if "nan" not in line.split(" = ")[1]:
+                                                        instructions = int(line.split(" = ")[1])
+                                            if remote_req != -1 and instructions != -1 and instructions != 0:
+                                                ratio = (remote_req / instructions)*100
+                                                if suite not in benchmark_data.keys():
+                                                    benchmark_data.setdefault(suite, {})[benchmark] = ratio
+                                                else:
+                                                    if benchmark not in benchmark_data[suite].keys():
+                                                        benchmark_data[suite][benchmark] = ratio
+
+    for suite in benchmark_data.keys():
+        print(suite)
+        for bench, ratio in benchmark_data[suite].items():
+            print("\t" + bench + " -> " + str(ratio))
+
+
+if __name__ == "__main__":
+    kernel_sensitivity_test()

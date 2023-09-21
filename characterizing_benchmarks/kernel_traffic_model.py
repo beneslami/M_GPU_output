@@ -6,6 +6,38 @@ import spiky_sync_model
 import spiky_nonSync_model_generator
 
 
+def determine_architecture(topo, nv, ch):
+    topol = ""
+    chipNum = -1
+    NV = -1
+    if topo == "torus":
+        topol = "2Dtorus"
+    elif topo == "ring":
+        topol = "ring"
+    elif topo == "mesh":
+        topol = "2Dmesh"
+    elif topo == "fly":
+        if ch == "4chiplet" or ch == "8chiplet":
+            topol = "1fly"
+        else:
+            topol = "2fly"
+    if ch == "4chiplet":
+        chipNum = 4
+    elif ch == "8chiplet":
+        chipNum = 8
+    elif ch == "16chiplet":
+        chipNum = 16
+    if nv == "NVLink4":
+        NV = 4
+    elif nv == "NVLink3":
+        NV = 3
+    elif nv == "NVLink2":
+        NV = 2
+    elif nv == "NVLink1":
+        NV = 1
+    return topol, NV, chipNum
+
+
 def per_chiplet_model(base_path, request_packet, chiplet_num, kernel_num):
     destination = {}
     request_packet_type = {}
@@ -392,3 +424,55 @@ def traffic_model(input_, request_packet, chiplet_num, kernel_num):
         file.write("\nrep_byte_end\n\n")
 
     print(Fore.GREEN + "traffic model for kernel " + str(kernel_num) + " is generated " + u'\u2713' + Fore.WHITE)
+
+
+def ipc_model(base_path, suite, bench, topo, nv, ch):
+    topol, NV, chip = determine_architecture(topo, nv, ch)
+    file_name = base_path + "/" + suite + "-" + bench + "_NV" + str(NV) + "_1vc_" + str(chip) + "ch_" + topol + ".txt"
+    with open(base_path + "/" + file_name, "r") as file:
+        content = file.readlines()
+    local_noc_flag = 0
+    remote_noc_flag = 0
+    for line in content:
+        if "Destroy streams for kernel" in line:
+            kernel_num = int(line.split(":")[0][-1])
+        elif "Number of Local Requests" in line:
+            local_req = int(line.split(": ")[2])
+        elif "Number of Remote Requests" in line:
+            remote_req = int(line.split(": ")[2])
+        elif "gpu_sim_cycle" in line:
+            gpu_cycle = int(line.split(" = ")[1])
+        elif "gpu_sim_insn" in line:
+            gpu_inst = int(line.split(" = ")[1])
+        elif "gpu_ipc" in line:
+            gpu_ipc = float(line.split(" = ")[1])
+        elif "gpu_throughput" in line:
+            gpu_throughput = float(line.split(" = ")[1])
+        elif "NOC-DETAILS" in line:
+            local_noc_flag = 1
+        elif local_noc_flag == 1 and "Packet latency average" in line:
+            local_lat = float(line.split(" = ")[1])
+        elif local_noc_flag == 1 and "minimum" in line:
+            local_min = int(line.split(" = ")[1])
+        elif local_noc_flag == 1 and "maximum" in line:
+            local_max = int(line.split(" = ")[1])
+            local_noc_flag = 0
+        elif "chLet-DETAILS" in line:
+            remote_noc_flag = 1
+        elif remote_noc_flag == 1 and "Packet latency average" in line:
+            remote_lat = float(line.split(" = ")[1])
+        elif remote_noc_flag == 1 and "minimum" in line:
+            remote_min = int(line.split(" = ")[1])
+        elif remote_noc_flag == 1 and "maximum" in line:
+            remote_max = int(line.split(" = ")[1])
+            remote_noc_flag = 0
+            assert(os.path.exists(base_path + "/models/" + str(kernel_num)))
+            with open(base_path + "/models/" + str(kernel_num) + "/info.txt", "w") as file:
+                file.write("local = " + str(local_req) + "\n")
+                file.write("remote = " + str(remote_req) + "\n")
+                file.write("cycle = " + str(gpu_cycle) + "\n")
+                file.write("inst = " + str(gpu_inst) + "\n")
+                file.write("ipc = " + str(gpu_ipc) + "\n")
+                file.write("thr = " + str(gpu_throughput) + "\n")
+                file.write("local lat = " + str(local_lat) + ":" + str(local_min) + ":" + str(local_max) + "\n")
+                file.write("remote lat = " + str(remote_lat) + ":" + str(remote_min) + ":" + str(remote_max))

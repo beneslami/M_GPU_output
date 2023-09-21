@@ -1,8 +1,10 @@
 import gc
 import os
-
+import sys
+sys.path.append("../")
 import benchlist
 import sensitivity_tests
+import range_dependency
 from colorama import Fore
 
 if __name__ == "__main__":
@@ -14,9 +16,9 @@ if __name__ == "__main__":
     path = benchlist.bench_path
 
     for suite in suits:
-        if suite == "rodinia":
+        if os.path.exists(path + suite) and suite == "deepbench":
             for bench in benchmarks[suite]:
-                if bench == "huffman":
+                if os.path.exists(path + suite + "/" + bench) and bench == "gemm":
                     sub_path = path + suite + "/" + bench + "/"
                     if {"torus", "ring", "mesh", "fly"}.issubset(set(os.listdir(sub_path))):
                         sensitivity_tests.bandwidth_sensitivity(sub_path, suite, bench)
