@@ -1,8 +1,9 @@
-suits = ['SDK', 'deepbench', 'ispass-2009', 'pannotia', 'parboil', 'polybench', 'rodinia', 'shoc', 'tango']
+suits = ['SDK', 'cutlass', 'deepbench', 'ispass-2009', 'pannotia', 'parboil', 'polybench', 'rodinia', 'shoc', 'tango']
 
 benchmarks = {
     'SDK': ['conjugate-gradient', 'dct8x8', 'fdtd3d', 'hsoptical', 'matrixmul', 'nvjpeg'],
-    'deepbench': ['gemm'],
+    'cutlass': ['gemm'],
+    'deepbench': ['gemm', 'rnn'],
     'ispass-2009': ['bfs', 'NQU', 'STO'],
     'pannotia': ['bc', 'color-max', 'color-maxmin', 'fw', 'fw-block', 'mis', 'pagerank', 'pagerank-spmv'],
     'parboil': ['bfs', 'cutcp', 'histo', 'mri-gridding', 'sgemm', 'spmv', 'stencil'],
@@ -36,8 +37,10 @@ multi_kernels = {
 
 nominated_benchmarks = {
     'SDK': ['conjugate-gradient', 'dct8x8', 'nvjpeg', 'hsoptical', 'matrixmul', 'fdtd3d'],
+    'cutlass': ['gemm'],
+    'deepbench': ['gemm', 'rnn'],
     'ispass-2009': ['bfs', 'STO'],
-    'pannotia': ['bc', 'color-maxmin', 'fw', 'fw-block', 'pagerank', 'pagerank-spmv'],
+    'pannotia': ['bc', 'color-max', 'color-maxmin', 'fw', 'fw-block', 'pagerank', 'pagerank-spmv'],
     'parboil': ['cutcp', 'histo', 'mri-gridding', 'sgemm', 'spmv'],
     'polybench': ['2mm', '3mm', 'gemm', 'syr2k', 'syrk'],
     'rodinia': ['b+tree', 'backprop', 'bfs', 'bt', 'cfd', 'gaussian', 'heartwall', 'hotspot', 'huffman', 'lavaMD', 'lud', 'nn', 'pathfinder', 'srad'],
@@ -57,7 +60,7 @@ traffic_type = {
         'spiky-async': ['parboil-stencil', 'rodinia-hotspot3D', 'rodinia-kmeans', 'polybench-atax', 'polybench-gesummv', 'polybench-gemm']
 }
 
-bench_path = "/home/ben/Desktop/benchmarks/"
+bench_path = "/hdd2/benchmarks/"
 
 
 

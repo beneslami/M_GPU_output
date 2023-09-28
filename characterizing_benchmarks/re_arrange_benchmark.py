@@ -6,6 +6,7 @@ sys.path.append("../")
 import benchlist
 from colorama import Fore
 from pathlib import Path
+import subprocess
 
 
 def determine_architecture(topo, nv, ch):
@@ -40,6 +41,19 @@ def determine_architecture(topo, nv, ch):
     return topol, NV, chipNum
 
 
+def kernel_is_valid(path, file_name):
+    out = subprocess.check_output("cat " + path + file_name + "| grep \"request injected\" | tail -n 1", shell=True, text=True)
+    cyc = 1
+    items = out.split("\t")
+    for item in items:
+        if item.split(": ")[0] == "cycle":
+            cyc = int(item.split(": ")[1])
+    if cyc > 5500:
+        return True
+    else:
+       return False
+
+
 def rearrange_traces(path, suite, bench, topo, NV, ch):
     topol, nv, chipNum = determine_architecture(topo, NV, ch)
     if not os.path.exists(path):
@@ -61,12 +75,22 @@ def rearrange_traces(path, suite, bench, topo, NV, ch):
         print(Fore.GREEN + "kernel directory exists" + Fore.WHITE)
         new_kernel_trace = path + suite + "-" + bench + "_NV" + str(nv) + "_1vc_" + str(chipNum) + "ch_" + topol + "_trace_"
         for f in os.listdir(path):
-            if "_trace" not in f:
-                if Path(f).suffix == '.txt':
-                    num = int(f.split(".")[0])
-                    os.rename(path + f, new_kernel_trace + str(num) + ".txt")
-                print(Fore.GREEN + "trace file renaming done successfully" + Fore.WHITE)
-    print(Fore.GREEN + "rearrange " + suite + "_" + bench + "_" + topo + "_" + NV + "_" + str(chipNum) + " [done " + u'\u2713]' + Fore.WHITE)
+            if Path(f).suffix == '.txt':
+                if kernel_is_valid(path, f):
+                    if "_trace" not in f:
+                        num = int(f.split(".")[0])
+                        os.rename(path + f, new_kernel_trace + str(num) + ".txt")
+                    else:
+                        num = -1
+                        if f.split(".")[0][-1].isnumeric():
+                            num = int(f.split(".")[0][-1])
+                        else:
+                            num = 1
+                        os.rename(path + f, new_kernel_trace + str(num) + ".txt")
+                    print(Fore.GREEN + "trace file renaming done successfully" + Fore.WHITE)
+                else:
+                    print(Fore.RED + "kernel " + f + " is not suitable for modeling- hence, deleted" + Fore.RESET)
+    print(Fore.GREEN + "rearrange " + suite + "_" + bench + "_" + topo + "_" + NV + "_" + str(chipNum) + " [done " + u'\u2713]' + Fore.RESET)
 
     gc.enable()
     gc.collect()
@@ -76,7 +100,9 @@ def rename_output(path, suite, bench, topo, NV, ch):
     topol, nv, chipNum = determine_architecture(topo, NV, ch)
     file_name = "_NV" + str(nv) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
     for file in os.listdir(path):
-        if file_name in file:
+        if os.path.getsize(path + file) < 900000:
+            os.rmdir(path + file)
+        elif file_name in file:
             os.rename(path + file, path + suite + "-" + bench + file_name)
 
 

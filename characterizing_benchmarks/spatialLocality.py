@@ -377,4 +377,76 @@ def destination_locality(request_packet):
     for dest in dest_chips.keys():
         plt.plot(dest_chips[dest].keys(), dest_chips[dest].values(), 'o', label=str(dest))
     plt.legend()
-    plt.show()
+    #plt.show()
+
+
+def measure_packet_distribution(file_name, suite, bench, kernel_num):
+    file2 = open(file_name, "r")
+    raw_content = ""
+    if file2.mode == "r":
+        raw_content = file2.readlines()
+    file2.close()
+    del (file2)
+    lined_list = []
+    for line in raw_content:
+        item = [x for x in line.split("\t") if x not in ['', '\t']]
+        lined_list.append(item)
+    del (raw_content)
+    request_packet = {}
+    for i in range(len(lined_list)):
+        if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
+            if lined_list[i] not in request_packet[int(lined_list[i][3].split(": ")[1])]:
+                request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+        else:
+            request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
+    del (lined_list)
+    gc.enable()
+    gc.collect()
+    intensity = {"r": 0, "w": 0}
+    per_chiplet = {}
+    for id in request_packet.keys():
+        for j in range(len(request_packet[id])):
+            if request_packet[id][j][0] == "request injected":
+                src = int(request_packet[id][j][1].split(": ")[1])
+                dst = int(request_packet[id][j][2].split(": ")[1])
+                cycle = int(request_packet[id][j][5].split(": ")[1])
+                byte = int(request_packet[id][j][7].split(": ")[1])
+                if byte == 8:
+                    intensity["r"] += 1
+                else:
+                    intensity["w"] += 1
+                """if src not in per_chiplet.keys():
+                    if byte == 8:
+                        per_chiplet.setdefault(src, {})["r"] = 1
+                    else:
+                        per_chiplet.setdefault(src, {}).setdefault("w", {})[byte] = 1
+                else:
+                    if byte == 8:
+                        if "r" not in per_chiplet[src].keys():
+                            per_chiplet[src]["r"] = 1
+                        else:
+                            per_chiplet[src]["r"] += 1
+                    else:
+                        if "w" not in per_chiplet[src].keys():
+                            per_chiplet[src].setdefault("w", {})[byte] = 1
+                        else:
+                            if byte not in per_chiplet[src]["w"].keys():
+                                per_chiplet[src]["w"][byte] = 1
+                            else:
+                                per_chiplet[src]["w"][byte] += 1
+    total = 0
+    w_total = 0
+    for src in per_chiplet.keys():
+        for type in per_chiplet[src].keys():
+            if type == "r":
+                total += sum(per_chiplet[src].values())
+            else:
+                total += sum(per_chiplet[src][type].values())
+                w_total += sum(per_chiplet[src][type].values())"""
+
+    r = intensity["r"]
+    w = intensity["w"]
+    tot = r + w
+    read = int((r/tot)*100)
+    write = int((w/tot)*100)
+    return str(read) + "/" + str(write)

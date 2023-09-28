@@ -4,7 +4,6 @@ import sys
 sys.path.append("../")
 import benchlist
 import sensitivity_tests
-import range_dependency
 from colorama import Fore
 
 if __name__ == "__main__":
@@ -16,7 +15,7 @@ if __name__ == "__main__":
     path = benchlist.bench_path
 
     for suite in suits:
-        if os.path.exists(path + suite) and suite == "deepbench":
+        if os.path.exists(path + suite) and suite == "cutlass":
             for bench in benchmarks[suite]:
                 if os.path.exists(path + suite + "/" + bench) and bench == "gemm":
                     sub_path = path + suite + "/" + bench + "/"
