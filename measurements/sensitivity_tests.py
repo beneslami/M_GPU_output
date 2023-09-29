@@ -214,69 +214,72 @@ def bandwidth_sensitivity(path, suite, bench):
     NVLink = benchlist.NVLink
     chiplet = benchlist.chiplet_num
     for ch in chiplet:
-        bandwidth_ipc = {}
-        bandwidth_throughput = {}
-        for topo in topology:
-            for nv in NVLink:
-                topol, NV, chipNum = determine_architecture(topo, nv, ch)
-                sub_path = path + topo + "/" + nv + "/" + ch + "/"
-                file_name = suite + "-" + bench + "_NV" + str(NV) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
-                if len(os.listdir(os.path.dirname(sub_path))) != 0:
-                    content = ""
-                    with open(sub_path + file_name, "r") as file:
-                        content = file.readlines()
-                    duration = -1
-                    tot_cycle = 0
-                    partial_sum = 0
-                    ipc = []
-                    for line in content:
-                        if "gpu_ipc" in line:
-                            if "nan" not in line.split(" = ")[1]:
-                                ipc.append(float(line.split(" = ")[1]))
-                        elif "gpu_sim_cycle" in line:
-                            duration = int(line.split(" = ")[1])
-                            tot_cycle += duration
-                        elif "gpu_throughput" in line:
-                            if "nan" not in line.split(" = ")[1]:
-                                partial_sum += float(line.split(" = ")[1]) * duration
-                    if topo not in bandwidth_ipc.keys():
-                        bandwidth_ipc.setdefault(topo, {})[nv] = np.mean(ipc)
+        if ch == "4chiplet":
+            bandwidth_ipc = {}
+            bandwidth_throughput = {}
+            for topo in topology:
+                for nv in NVLink:
+                    topol, NV, chipNum = determine_architecture(topo, nv, ch)
+                    sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
+                    file_name = suite + "-" + bench + "_NV" + str(NV) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
+                    if len(os.listdir(os.path.dirname(sub_path))) != 0:
+                        content = ""
+                        with open(sub_path + file_name, "r") as file:
+                            content = file.readlines()
+                        duration = -1
+                        tot_cycle = 0
+                        partial_sum = 0
+                        ipc = []
+                        for line in content:
+                            if "gpu_ipc" in line:
+                                if "nan" not in line.split(" = ")[1]:
+                                    ipc.append(float(line.split(" = ")[1]))
+                            elif "gpu_sim_cycle" in line:
+                                duration = int(line.split(" = ")[1])
+                                tot_cycle += duration
+                            elif "gpu_throughput" in line:
+                                if "nan" not in line.split(" = ")[1]:
+                                    partial_sum += float(line.split(" = ")[1]) * duration
+                        if topo not in bandwidth_ipc.keys():
+                            bandwidth_ipc.setdefault(topo, {})[nv] = np.mean(ipc)
+                        else:
+                            bandwidth_ipc[topo][nv] = np.mean(ipc)
+                        if topo not in bandwidth_throughput.keys():
+                            bandwidth_throughput.setdefault(topo, {})[nv] = partial_sum/tot_cycle
+                        else:
+                            bandwidth_throughput[topo][nv] = partial_sum/tot_cycle
                     else:
-                        bandwidth_ipc[topo][nv] = np.mean(ipc)
-                    if topo not in bandwidth_throughput.keys():
-                        bandwidth_throughput.setdefault(topo, {})[nv] = partial_sum/tot_cycle
-                    else:
-                        bandwidth_throughput[topo][nv] = partial_sum/tot_cycle
-                else:
-                    print(Fore.YELLOW + "directory " + sub_path + " is empty" + Fore.WHITE)
+                        print(Fore.YELLOW + "directory " + sub_path + " is empty" + Fore.WHITE)
 
-        for topo in bandwidth_ipc.keys():
-            bandwidth_ipc[topo] = dict(sorted(bandwidth_ipc[topo].items(), key=lambda x: x[0]))
-        if len(bandwidth_ipc) != 0:
-            plt.figure(figsize=(10, 7))
+            path += suite + "/" + bench
+
             for topo in bandwidth_ipc.keys():
-                plt.plot(list(bandwidth_ipc[topo].keys()), list(bandwidth_ipc[topo].values()), marker="o", label=topo)
-            plt.xlabel("Bandwidth")
-            plt.ylabel("ipc")
-            plt.title(suite + "-" + bench + " bandwidth/ipc sensitivity")
-            plt.tight_layout()
-            plt.legend()
-            plt.savefig(path + "/bandwidth_ipc_" + str(ch) + ".jpg")
-            plt.close()
+                bandwidth_ipc[topo] = dict(sorted(bandwidth_ipc[topo].items(), key=lambda x: x[0]))
+            if len(bandwidth_ipc) != 0:
+                plt.figure(figsize=(10, 7))
+                for topo in bandwidth_ipc.keys():
+                    plt.plot(list(bandwidth_ipc[topo].keys()), list(bandwidth_ipc[topo].values()), marker="o", label=topo)
+                plt.xlabel("Bandwidth")
+                plt.ylabel("ipc")
+                plt.title(suite + "-" + bench + " bandwidth/ipc sensitivity")
+                plt.tight_layout()
+                plt.legend()
+                plt.savefig(path + "/bandwidth_ipc_" + str(ch) + ".jpg")
+                plt.close()
 
-        for topo in bandwidth_throughput.keys():
-            bandwidth_throughput[topo] = dict(sorted(bandwidth_throughput[topo].items(), key=lambda x: x[0]))
-        if len(bandwidth_throughput) != 0:
-            plt.figure(figsize=(10, 7))
             for topo in bandwidth_throughput.keys():
-                plt.plot(list(bandwidth_throughput[topo].keys()), list(bandwidth_throughput[topo].values()), marker="o", label=topo)
-            plt.xlabel("Bandwidth")
-            plt.ylabel("throughput(byte/cycle/chiplet)")
-            plt.title(suite + "-" + bench + " bandwidth/throughput sensitivity")
-            plt.legend()
-            plt.tight_layout()
-            plt.savefig(path + "/bandwidth_throughput_" + str(ch) + ".jpg")
-            plt.close()
+                bandwidth_throughput[topo] = dict(sorted(bandwidth_throughput[topo].items(), key=lambda x: x[0]))
+            if len(bandwidth_throughput) != 0:
+                plt.figure(figsize=(10, 7))
+                for topo in bandwidth_throughput.keys():
+                    plt.plot(list(bandwidth_throughput[topo].keys()), list(bandwidth_throughput[topo].values()), marker="o", label=topo)
+                plt.xlabel("Bandwidth")
+                plt.ylabel("throughput(byte/cycle/chiplet)")
+                plt.title(suite + "-" + bench + " bandwidth/throughput sensitivity")
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(path + "/bandwidth_throughput_" + str(ch) + ".jpg")
+                plt.close()
 
 
 def kernel_sensitivity_test(): # number of remote request per kilo instruction

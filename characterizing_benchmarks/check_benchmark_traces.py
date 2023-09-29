@@ -33,14 +33,3 @@ def determine_architecture(topo, nv, ch):
     elif nv == "NVLink1":
         NV = 1
     return topol, NV, chipNum
-
-
-def check_kernel_traces(path, suite, bench, topo, nv, ch):
-    topol, NV, chipNum = determine_architecture(topo, nv, ch)
-    file_name = path + suite + '-' + bench + "_NV" + str(NV) + '_1vc_' + str(chipNum) + 'ch_' + topol + "_trace*"
-    if glob.glob(file_name):
-        print(Fore.GREEN + suite + "-" + bench + "_" + topo + "_" + str(NV) + "_" + str(chipNum) + " [passed " + u'\u2713]' + Fore.WHITE)
-    else:
-        print(Fore.RED + suite + "-" + bench + "_" + topo + "_" + str(NV) + "_" + str(chipNum) + " [failed " + u'\u274c]' + Fore.WHITE)
-    gc.enable()
-    gc.collect()

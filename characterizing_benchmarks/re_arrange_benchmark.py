@@ -8,6 +8,10 @@ from colorama import Fore
 from pathlib import Path
 import subprocess
 
+topology = benchlist.topology
+NVLink = benchlist.NVLink
+chiplet_num = benchlist.chiplet_num
+
 
 def determine_architecture(topo, nv, ch):
     topol = ""
@@ -51,7 +55,7 @@ def kernel_is_valid(path, file_name):
     if cyc > 5500:
         return True
     else:
-       return False
+        return False
 
 
 def rearrange_traces(path, suite, bench, topo, NV, ch):
@@ -61,9 +65,10 @@ def rearrange_traces(path, suite, bench, topo, NV, ch):
         old_kernel_trace = ""
         ch_sub_path = os.path.dirname(path)
         for file in os.listdir(ch_sub_path):
-            if file.__contains__("_trace.txt"):
+            if file.__contains__("_trace"):
                 old_kernel_trace = ch_sub_path + file
                 break
+        print(path)
         assert os.path.exists(old_kernel_trace)
         new_kernel_trace = ch_sub_path + suite + '-' + bench + "_NV" + str(nv) + '_1vc_' + str(chipNum) + 'ch_' + topol + '_trace.txt'
         os.rename(old_kernel_trace, new_kernel_trace)
@@ -73,6 +78,7 @@ def rearrange_traces(path, suite, bench, topo, NV, ch):
         print(Fore.GREEN + "moving trace file to kernel directory done successfully" + Fore.WHITE)
     else:
         print(Fore.GREEN + "kernel directory exists" + Fore.WHITE)
+        path += "/kernels/"
         new_kernel_trace = path + suite + "-" + bench + "_NV" + str(nv) + "_1vc_" + str(chipNum) + "ch_" + topol + "_trace_"
         for f in os.listdir(path):
             if Path(f).suffix == '.txt':
@@ -81,15 +87,15 @@ def rearrange_traces(path, suite, bench, topo, NV, ch):
                         num = int(f.split(".")[0])
                         os.rename(path + f, new_kernel_trace + str(num) + ".txt")
                     else:
-                        num = -1
                         if f.split(".")[0][-1].isnumeric():
                             num = int(f.split(".")[0][-1])
                         else:
                             num = 1
                         os.rename(path + f, new_kernel_trace + str(num) + ".txt")
-                    print(Fore.GREEN + "trace file renaming done successfully" + Fore.WHITE)
+                    print(Fore.GREEN + "trace file renaming " + " [done " + u'\u2713]' + Fore.WHITE)
                 else:
                     print(Fore.RED + "kernel " + f + " is not suitable for modeling- hence, deleted" + Fore.RESET)
+                    os.remove(path + f)
     print(Fore.GREEN + "rearrange " + suite + "_" + bench + "_" + topo + "_" + NV + "_" + str(chipNum) + " [done " + u'\u2713]' + Fore.RESET)
 
     gc.enable()
@@ -100,10 +106,22 @@ def rename_output(path, suite, bench, topo, NV, ch):
     topol, nv, chipNum = determine_architecture(topo, NV, ch)
     file_name = "_NV" + str(nv) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
     for file in os.listdir(path):
-        if os.path.getsize(path + file) < 900000:
-            os.rmdir(path + file)
-        elif file_name in file:
-            os.rename(path + file, path + suite + "-" + bench + file_name)
+        if Path(file).suffix == ".txt":
+            if file_name in file:
+                os.rename(path + "/" + file, path + suite + "-" + bench + file_name)
+                print(Fore.GREEN + "renaming " + path + suite + "-" + bench + file_name + " [done " + u'\u2713]' + Fore.RESET)
+
+
+def organizing_benchmark(path, suite, bench):
+    for topo in topology:
+        for NV in NVLink:
+            for ch in chiplet_num:
+                if len(os.listdir(path + suite + "/" + bench + "/" + topo + "/" + NV + "/" + ch)) != 0:
+                    sub_path = path + suite + "/" + bench + "/" + topo + "/" + NV + "/" + ch + "/"
+                    rearrange_traces(sub_path, suite, bench, topo, NV, ch)
+                    rename_output(sub_path, suite, bench, topo, NV, ch)
+                else:
+                    print(Fore.YELLOW + ch + " directory is empty" + Fore.RESET)
 
 
 if __name__ == "__main__":
@@ -115,14 +133,13 @@ if __name__ == "__main__":
     path = benchlist.bench_path
 
     for suite in suits:
-        if suite == "pannotia":
+        if suite == "shoc":
             for bench in benchmarks[suite]:
-                if bench == "color-max":
+                if bench == "gemm":
                     for topo in topology:
                         for nv in NVLink:
-                            #if nv == "NVLink1":
-                            for ch in chiplet_num:
-                                if ch == "4chiplet":
-                                    bench_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
-                                    print(bench_path)
-                                    rename_output(bench_path, suite, bench, topo, nv, ch)
+                            if nv == "NVLink4":
+                                for ch in chiplet_num:
+                                    if ch == "4chiplet":
+                                        bench_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
+                                        rename_output(bench_path, suite, bench, topo, nv, ch)
