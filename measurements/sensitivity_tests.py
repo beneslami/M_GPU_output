@@ -64,37 +64,63 @@ def latency_sensitivity_test(path):
     bench_name = path.split("/")[-1]
     vc_num = vc_lengths(path)
     queue_length = queue_lengths(path)
-    latency = {}
+    data = {}
     for length in queue_length:
         q_path = path + "/" + str(length) + "/" + bench_name
+        latency = {}
         for vc in vc_num:
             vc_file = q_path + "_" + str(vc) + "vc_" + str(length) + ".txt"
             content = ""
-            temp_latency = []
-            ipc = []
+            temp_latency = {}
             with open(vc_file, "r") as file:
                 content = file.readlines()
+            flag = 0
+            flag2 = 0
+            kernel_num = -1
             for line in content:
-                if "Packet latency average" in line and "samples)" in line:
-                    temp_latency.append(float(line.split(" = ")[1].split(" (")[0]))
-            if vc not in latency.keys():
-                latency.setdefault(vc, {})[length] = temp_latency[-1]
-            else:
-                if length not in latency[vc].keys():
-                    latency[vc][length] = temp_latency[-1]
-    latency = dict(sorted(latency.items(), key=lambda x: x[0]))
-    for vc in latency.keys():
-        latency[vc] = dict(sorted(latency[vc].items(), key=lambda x: x[0]))
-        plt.plot(list(latency[vc].keys()), list(latency[vc].values()), marker="o", label=str(vc) + " vc")
-    plt.xticks(list(latency[list(latency)[0]].keys()))
-    plt.xlabel("Queue length")
-    plt.ylabel("latency")
-    plt.title(bench_name + " latency sensitivity")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-    plt.close()
+                if "-kernel id" in line:
+                    kernel_num = int(line.split(" = ")[1])
+                    flag = 1
+                if "chLet-DETAILS" in line and flag == 1:
+                    flag2 = 1
+                if flag2 == 1:
+                    if "Packet latency average" in line and flag == 1:
+                        temp_latency[kernel_num] = float(line.split(" = ")[1])
+                        flag = 0
+                        flag2 = 0
 
+            if vc not in latency.keys():
+                latency[vc] = temp_latency
+            else:
+                for ker in temp_latency.keys():
+                    latency[vc][ker] = temp_latency[ker]
+        data[length] = latency
+    data = dict(sorted(data.items(), key=lambda x: x[0]))
+    for l in data.keys():
+        data[l] = dict(sorted(data[l].items(), key=lambda x: x[0]))
+
+    kernels_list = list(data[32][1].keys())
+    kernels_list.sort()
+    vc_list = list(data[32].keys())
+    vc_list.sort()
+    q_list = list(data.keys())
+    q_list.sort()
+    if not os.path.exists(path + "/figures/"):
+        os.mkdir(path + "/figures/")
+    plt.figure(figsize=(10, 10))
+    for k in kernels_list:
+        for vc in vc_list:
+            temp = []
+            for length in q_list:
+                temp.append(data[length][vc][k])
+            plt.plot(q_list, temp, marker="o", label=str(vc) + " vc")
+        plt.title("kernel " + str(k))
+        plt.xticks(q_list)
+        plt.ylabel("packet latency")
+        plt.xlabel("queue length")
+        plt.tight_layout()
+        plt.savefig(path + "/figures/latency_kernel_" + str(k) + ".jpg")
+        plt.close()
     gc.enable()
     gc.collect()
 
@@ -103,66 +129,94 @@ def ipc_sensitivity_test(path):
     bench_name = path.split("/")[-1]
     vc_num = vc_lengths(path)
     queue_length = queue_lengths(path)
-    ipc = {}
+    data = {}
     for length in queue_length:
         q_path = path + "/" + str(length) + "/" + bench_name
+        vc_ipc = {}
         for vc in vc_num:
             vc_file = q_path + "_" + str(vc) + "vc_" + str(length) + ".txt"
             content = ""
-            temp_ipc = []
+            temp_ipc = {}
             with open(vc_file, "r") as file:
                 content = file.readlines()
+            kernel_num = -1
+            flag = 0
             for line in content:
-                if "gpu_ipc" in line:
-                    temp_ipc.append(float(line.split(" = ")[1]))
-            if vc not in ipc.keys():
-                ipc.setdefault(vc, {})[length] = np.mean(temp_ipc)
+                if "kernel_launch_uid" in line:
+                    try:
+                        int(line.split(" = ")[1])
+                    except:
+                        continue
+                    else:
+                        kernel_num = int(line.split(" = ")[1])
+                        flag = 1
+                if "gpu_sim_cycle" in line and flag == 1:
+                    if "nan" not in line:
+                        temp_ipc[kernel_num] = int(line.split(" = ")[1])
+                        flag = 0
+                    else:
+                        continue
+            if vc not in vc_ipc.keys():
+                vc_ipc[vc] = temp_ipc
             else:
-                if length not in ipc[vc].keys():
-                    ipc[vc][length] = np.mean(temp_ipc)
-    ipc = dict(sorted(ipc.items(), key=lambda x: x[0]))
-    for vc in ipc.keys():
-        ipc[vc] = dict(sorted(ipc[vc].items(), key=lambda x: x[0]))
-        plt.plot(list(ipc[vc].keys()), list(ipc[vc].values()), marker="o", label=str(vc) + " vc")
-    plt.xticks(list(ipc[list(ipc)[0]].keys()))
-    plt.xlabel("Queue length")
-    plt.ylabel("ipc")
-    plt.title(bench_name + " ipc sensitivity")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-    plt.close()
+                for k, num in temp_ipc.items():
+                    vc_ipc[vc][k] = num
+        data[length] = vc_ipc
+    data = dict(sorted(data.items(), key=lambda x: x[0]))
+    for length in data.keys():
+        data[length] = dict(sorted(data[length].items(), key=lambda x: x[0]))
+    kernels_list = list(data[32][1].keys())
+    kernels_list.sort()
+    vc_list = list(data[32].keys())
+    vc_list.sort()
+    q_list = list(data.keys())
+    q_list.sort()
+    if not os.path.exists(path + "/figures/"):
+        os.mkdir(path + "/figures/")
+    for k in kernels_list:
+        plt.figure(figsize=(10, 10))
+        for vc in vc_list:
+            temp = []
+            for length in q_list:
+                temp.append(data[length][vc][k])
+            plt.plot(q_list, temp, marker="o", label=str(vc) + " vc")
+        plt.title("kernel " + str(k))
+        plt.xticks(q_list)
+        plt.ylabel("IPC")
+        plt.xlabel("queue length")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(path + "/figures/ipc_kernel_" + str(k) + ".jpg")
+        plt.close()
 
-    x_tick = ipc[list(ipc.keys())[0]].keys()
-    data = {}
-    for vc in ipc.keys():
-        for queue, value in ipc[vc].items():
-            if vc not in data.keys():
-                data.setdefault(vc, []).append(value)
-            else:
-                data[vc].append(value)
-    x = np.arange(len(x_tick))
-    width = 0.25
-    multiplier = 0
-    fig, ax = plt.subplots(layout='constrained')
-    for attribute, measurement in data.items():
-        offset = width * multiplier
-        col = ""
-        if attribute == 1:
-            col = "black"
-        elif attribute == 4:
-            col = "yellow"
-        elif attribute == 8:
-            col = "red"
-        ax.bar(x + offset, measurement, width, color=col, label=str(attribute) + " vc")
-        multiplier += 1
-
-    ax.set_xlabel("queue length")
-    ax.set_ylabel('ipc')
-    ax.set_title('parboil-spmv relative IPC')
-    ax.set_xticks(x + width, x_tick)
-    ax.legend()
-    plt.show()
+    for k in kernels_list:
+        fig, ax = plt.subplots(layout='constrained')
+        width = 0.25
+        multiplier = 0
+        x_tick = list(data.keys())
+        x = np.arange(len(x_tick))
+        for vc in vc_list:
+            temp = []
+            for length in q_list:
+                temp.append(data[length][vc][k])
+            offset = width * multiplier
+            col = ""
+            if vc == 1:
+                col = "black"
+            elif vc == 4:
+                col = "yellow"
+            elif vc == 8:
+                col = "red"
+            ax.bar(x + offset, temp, width, color=col, label=str(vc) + " vc")
+            multiplier += 1
+        ax.set_xlabel("queue length")
+        ax.set_ylabel('ipc')
+        ax.set_title("kernel " + str(k))
+        ax.set_xticks(x + width, x_tick)
+        ax.legend()
+        plt.tight_layout()
+        plt.savefig(path + "/figures/ipc2_kernel_" + str(k) + ".jpg")
+        plt.close()
 
     gc.enable()
     gc.collect()
@@ -172,42 +226,61 @@ def throughput_sensitivity(path):
     bench_name = path.split("/")[-1]
     vc_num = vc_lengths(path)
     queue_length = queue_lengths(path)
-    throughput = {}
+    data = {}
     for length in queue_length:
         q_path = path + "/" + str(length) + "/" + bench_name
+        throughput = {}
         for vc in vc_num:
             vc_file = q_path + "_" + str(vc) + "vc_" + str(length) + ".txt"
             content = ""
-            temp_thr = []
             with open(vc_file, "r") as file:
                 content = file.readlines()
-            duration = -1
-            tot_cycle = 0
-            partial_sum = 0
+            temp_throughput = {}
+            kernel_num = -1
             for line in content:
-                if "gpu_sim_cycle" in line:
-                    duration = int(line.split(" = ")[1])
-                    tot_cycle += duration
+                if "kernel_launch_uid" in line:
+                    try:
+                        int(line.split(" = ")[1])
+                    except:
+                        continue
+                    else:
+                        kernel_num = int(line.split(" = ")[1])
                 if "gpu_throughput" in line:
-                    partial_sum += float(line.split(" = ")[1])*duration
-                    temp_thr.append(float(line.split(" = ")[1]))
+                    temp_throughput[kernel_num] = float(line.split(" = ")[1])
+
             if vc not in throughput.keys():
-                throughput.setdefault(vc, {})[length] = partial_sum/tot_cycle
+                throughput[vc] = temp_throughput
             else:
-                if length not in throughput[vc].keys():
-                    throughput[vc][length] = partial_sum/tot_cycle
-    throughput = dict(sorted(throughput.items(), key=lambda x: x[0]))
-    for vc in throughput.keys():
-        throughput[vc] = dict(sorted(throughput[vc].items(), key=lambda x: x[0]))
-        plt.plot(list(throughput[vc].keys()), list(throughput[vc].values()), marker="o", label=str(vc) + " vc")
-    plt.xticks(list(throughput[list(throughput)[0]].keys()))
-    plt.xlabel("Queue length")
-    plt.ylabel("throughput (byte/cycle)")
-    plt.title(bench_name + " throughput sensitivity")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-    plt.close()
+                for k, th in temp_throughput.keys():
+                    throughput[vc][k] = th
+        data[length] = throughput
+
+    data = dict(sorted(data.items(), key=lambda x: x[0]))
+    for length in data.keys():
+        data[length] = dict(sorted(data[length].items(), key=lambda x: x[0]))
+    kernels_list = list(data[32][1].keys())
+    kernels_list.sort()
+    vc_list = list(data[32].keys())
+    vc_list.sort()
+    q_list = list(data.keys())
+    q_list.sort()
+    if not os.path.exists(path + "/figures/"):
+        os.mkdir(path + "/figures/")
+    for k in kernels_list:
+        plt.figure(figsize=(10, 10))
+        for vc in vc_list:
+            temp = []
+            for length in q_list:
+                temp.append(data[length][vc][k])
+            plt.plot(q_list, temp, marker="o", label=str(vc) + " vc")
+        plt.title("kernel " + str(k))
+        plt.xticks(q_list)
+        plt.ylabel("throughput(byte/cycle)")
+        plt.xlabel("queue length")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(path + "/figures/throughput_kernel_" + str(k) + ".jpg")
+        plt.close()
 
     gc.enable()
     gc.collect()
