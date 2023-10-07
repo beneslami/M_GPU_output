@@ -82,8 +82,9 @@ def latency_sensitivity_test(path):
             else:
                 if length not in latency[vc].keys():
                     latency[vc][length] = temp_latency[-1]
-
+    latency = dict(sorted(latency.items(), key=lambda x: x[0]))
     for vc in latency.keys():
+        latency[vc] = dict(sorted(latency[vc].items(), key=lambda x: x[0]))
         plt.plot(list(latency[vc].keys()), list(latency[vc].values()), marker="o", label=str(vc) + " vc")
     plt.xticks(list(latency[list(latency)[0]].keys()))
     plt.xlabel("Queue length")
@@ -119,8 +120,9 @@ def ipc_sensitivity_test(path):
             else:
                 if length not in ipc[vc].keys():
                     ipc[vc][length] = np.mean(temp_ipc)
-
+    ipc = dict(sorted(ipc.items(), key=lambda x: x[0]))
     for vc in ipc.keys():
+        ipc[vc] = dict(sorted(ipc[vc].items(), key=lambda x: x[0]))
         plt.plot(list(ipc[vc].keys()), list(ipc[vc].values()), marker="o", label=str(vc) + " vc")
     plt.xticks(list(ipc[list(ipc)[0]].keys()))
     plt.xlabel("Queue length")
@@ -194,7 +196,9 @@ def throughput_sensitivity(path):
             else:
                 if length not in throughput[vc].keys():
                     throughput[vc][length] = partial_sum/tot_cycle
+    throughput = dict(sorted(throughput.items(), key=lambda x: x[0]))
     for vc in throughput.keys():
+        throughput[vc] = dict(sorted(throughput[vc].items(), key=lambda x: x[0]))
         plt.plot(list(throughput[vc].keys()), list(throughput[vc].values()), marker="o", label=str(vc) + " vc")
     plt.xticks(list(throughput[list(throughput)[0]].keys()))
     plt.xlabel("Queue length")

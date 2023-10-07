@@ -637,7 +637,8 @@ if __name__ == "__main__":
                                     sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
                                     if len(os.listdir(os.path.dirname(os.path.dirname(sub_path)))) != 0:
                                         for trace_file in os.listdir(sub_path):
-                                            if Path(trace_file).suffix == '.txt' and os.path.getsize(sub_path + trace_file) > 500000:
+                                            if Path(trace_file).suffix == '.txt':
+                                                kernel_num = int(trace_file.split(".")[0][-1])
                                                 file = open(sub_path + trace_file, "r")
                                                 raw_content = ""
                                                 if file.mode == "r":
@@ -679,7 +680,7 @@ if __name__ == "__main__":
                                                 #plot_ccdf(sub_path, trace_file, traffic)
                                                 plot_dispersion(sub_path, trace_file, traffic)
                                                 cv_iat = interarrival_time_cov(traffic)
-                                                cv_vol = traffic_volume_cov(traffic)
+                                                cv_vol = burst_volume_cov(traffic)
                                                 cv_rat = burst_ratio_cov(traffic)
                                                 cv_dur = burst_duration_cov(traffic)
                                                 cv_item_iat.append(cv_iat)
