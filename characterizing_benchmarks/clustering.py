@@ -1,7 +1,5 @@
 import os
 import sys
-import csv
-
 import pandas as pd
 import plotly.graph_objs as go
 import numpy as np
@@ -20,14 +18,14 @@ def collect_data(topo, nv, ch):
     for suite in benchlist.suits:
         for bench in benchlist.benchmarks[suite]:
             if os.path.exists(benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"):
-                df = csv.reader(benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
-                for row in df:
-                    kernel_num = row[0]
-                    hurst = row[1]
-                    iat = row[2]
-                    vol = row[3]
-                    duration = row[5]
-                    ratio = row[4]
+                df = pd.read_csv(benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
+                for row in df.index:
+                    kernel_num = df["kernel_num"][row]
+                    hurst = df["hurst"][row]
+                    iat = df["IAT_CoV"][row]
+                    vol = df["Vol_CoV"][row]
+                    duration = df["Dur_CoV"][row]
+                    ratio = df["ratio_CoV"][row]
                     threeD[kernel_counter] = [iat, vol, duration]
                     twoD[kernel_counter] = [iat, ratio]
                     if suite not in benchmark_category.keys():
@@ -49,6 +47,8 @@ def collect_data(topo, nv, ch):
 
 
 def measure_inertia(twoD, threeD, nv, topo):
+    if not os.path.exists(benchlist.bench_path + "/characterization_output/"):
+        os.mkdir(benchlist.bench_path + "/characterization_output/")
     wss = []
     iterator = range(1, 10)
     for k in iterator:
@@ -57,7 +57,7 @@ def measure_inertia(twoD, threeD, nv, topo):
         wss.append(km.inertia_)
     kf = KneeFinder(np.array(iterator), wss)
     twoD_knee_x, _ = kf.find_knee()
-    kf.plot("WSS error for 2D clustering (IAT/burst ratio)", benchlist.bench_path + "2D_inertia_" + nv + "_" + topo + ".jpg")
+    kf.plot("WSS error for 2D clustering (IAT/burst ratio)", benchlist.bench_path + "/characterization_output/2D_inertia_" + nv + "_" + topo + ".jpg")
     wss = []
     for k in iterator:
         km = KMeans(n_clusters=k)
@@ -65,11 +65,13 @@ def measure_inertia(twoD, threeD, nv, topo):
         wss.append(km.inertia_)
     kf = KneeFinder(np.array(iterator), wss)
     threeD_knee_x, _ = kf.find_knee()
-    kf.plot("WSS error for 3D clustering (IAT/burst volume/burst duration)", benchlist.bench_path + "3D_inertia.jpg" + nv + "_" + topo + ".jpg")
+    kf.plot("WSS error for 3D clustering (IAT/burst volume/burst duration)", benchlist.bench_path + "/characterization_output/3D_inertia.jpg" + nv + "_" + topo + ".jpg")
     return twoD_knee_x, threeD_knee_x
 
 
 def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster, benchmark_category):
+    if not os.path.exists(benchlist.bench_path + "/characterization_output/"):
+        os.mkdir(benchlist.bench_path + "/characterization_output/")
     km = KMeans(n_clusters=twoD_cluster, init='k-means++')
     fit = km.fit_predict(list(twoD.values()))
     x_val = []
@@ -89,7 +91,7 @@ def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster, benchmark_cat
     plt.xlabel('Inter Arrival Time CoV')
     plt.ylabel('Burst ratio CoV')
     plt.tight_layout()
-    plt.savefig(benchlist.bench_path + "2D_clustering.jpg")
+    plt.savefig(benchlist.bench_path + "/characterization_output/2D_clustering.jpg")
     plt.close()
 
     km = KMeans(n_clusters=threeD_cluster, init='k-means++')
@@ -149,7 +151,7 @@ def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster, benchmark_cat
         data_plot.append(mesh)
     layout = go.Layout(margin=dict(l=0, r=0, b=0, t=0))
     fig = go.Figure(data=data_plot, layout=layout)
-    fig.write_html(benchlist.bench_path + "3D_clustering.html")
+    fig.write_html(benchlist.bench_path + "/characterization_output/3D_clustering.html")
 
     category_list = {}
     for i in range(len(labels)):
@@ -178,7 +180,10 @@ def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster, benchmark_cat
                         category_list[suite][bench][kernel_num]["ratio_CoV"] = bench_values[4]
                         category_list[suite][bench][kernel_num]["Cluster_id"] = cluster_id
     df = pd.DataFrame(category_list, columns=["suite", "benchmark", "kernel_num", "hurst", "IAT_CoV", "Vol_CoV", "Dur_CoV", "ratio_CoV", "Cluster_id"])
-    print(df)
+    df.set_index(["suite", "benchmark", "kernel_num", "hurst", "IAT_CoV", "Vol_CoV", "Dur_CoV", "ratio_CoV", "Cluster_id"], inplace=True)
+    df.to_html(benchlist.bench_path + "/" + ch + "_" + nv + "_kernel_clustering.html", index=True)
+    df.to_csv(benchlist.bench_path + "/" + ch + "_" + nv + "_kernel_clustering.csv", index=True)
+
 
 if __name__ == "__main__":
     ch = "4chiplet"
