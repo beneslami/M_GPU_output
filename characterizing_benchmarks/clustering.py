@@ -1,6 +1,8 @@
 import os
 import sys
 import csv
+
+import pandas as pd
 import plotly.graph_objs as go
 import numpy as np
 from kneefinder import KneeFinder
@@ -13,6 +15,7 @@ from sklearn.cluster import KMeans
 def collect_data(topo, nv, ch):
     threeD = {}
     twoD = {}
+    benchmark_category = {}
     kernel_counter = 1
     for suite in benchlist.suits:
         for bench in benchlist.benchmarks[suite]:
@@ -27,8 +30,22 @@ def collect_data(topo, nv, ch):
                     ratio = row[4]
                     threeD[kernel_counter] = [iat, vol, duration]
                     twoD[kernel_counter] = [iat, ratio]
+                    if suite not in benchmark_category.keys():
+                        benchmark_category.setdefault(suite, {}).setdefault(bench, {}).setdefault(kernel_num, [])
+                    else:
+                        if bench not in benchmark_category[suite].keys():
+                            benchmark_category[suite].setdefault(bench, {}).setdefault(kernel_num, [])
+                        else:
+                            if kernel_num not in benchmark_category[suite][bench].keys():
+                                benchmark_category[suite][bench].setdefault(kernel_num, [])
+                    benchmark_category[suite][bench][kernel_num].append(hurst)
+                    benchmark_category[suite][bench][kernel_num].append(iat)
+                    benchmark_category[suite][bench][kernel_num].append(vol)
+                    benchmark_category[suite][bench][kernel_num].append(duration)
+                    benchmark_category[suite][bench][kernel_num].append(ratio)
+                    benchmark_category[suite][bench][kernel_num].append(kernel_counter)
                     kernel_counter += 1
-    return twoD, threeD
+    return twoD, threeD, benchmark_category
 
 
 def measure_inertia(twoD, threeD, nv, topo):
@@ -52,7 +69,7 @@ def measure_inertia(twoD, threeD, nv, topo):
     return twoD_knee_x, threeD_knee_x
 
 
-def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster):
+def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster, benchmark_category):
     km = KMeans(n_clusters=twoD_cluster, init='k-means++')
     fit = km.fit_predict(list(twoD.values()))
     x_val = []
@@ -104,7 +121,9 @@ def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster):
 
     scatter_colors = ["red", "green", "blue", "black", "yellow"]
     plot_points = {}
-    for i in range(3):
+    minimum = min(fit)
+    maximum = max(fit)
+    for i in range(minimum, maximum + 1):
         plot_points.setdefault(i, {})
 
     for i in range(len(labels)):
@@ -132,11 +151,39 @@ def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster):
     fig = go.Figure(data=data_plot, layout=layout)
     fig.write_html(benchlist.bench_path + "3D_clustering.html")
 
+    category_list = {}
+    for i in range(len(labels)):
+        kernel_index = list(threeD)[i][0]
+        traffic_charcteristics = list(threeD)[i][1]
+        cluster_id = labels[i]
+        for suite in benchmark_category.keys():
+            for bench in benchmark_category[suite].keys():
+                for kernel_num, bench_values in benchmark_category[suite][bench].items():
+                    if kernel_index == bench_values[4]:
+                        assert(bench_values[1] == traffic_charcteristics[0])
+                        assert(bench_values[2] == traffic_charcteristics[1])
+                        assert(bench_values[3] == traffic_charcteristics[2])
+                        if suite not in category_list.keys():
+                            category_list.setdefault(suite, {}).setdefault(bench, {}).setdefault(kernel_num, {})
+                        else:
+                            if bench not in category_list[suite].keys():
+                                category_list[suite].setdefault(bench, {}).setdefault(kernel_num, {})
+                            else:
+                                if kernel_num not in category_list[suite][bench].keys():
+                                    category_list[suite][bench].setdefault(kernel_num, {})
+                        category_list[suite][bench][kernel_num]["hurst"] = bench_values[0]
+                        category_list[suite][bench][kernel_num]["IAT_CoV"] = bench_values[1]
+                        category_list[suite][bench][kernel_num]["Vol_CoV"] = bench_values[2]
+                        category_list[suite][bench][kernel_num]["Dur_CoV"] = bench_values[3]
+                        category_list[suite][bench][kernel_num]["ratio_CoV"] = bench_values[4]
+                        category_list[suite][bench][kernel_num]["Cluster_id"] = cluster_id
+    df = pd.DataFrame(category_list, columns=["suite", "benchmark", "kernel_num", "hurst", "IAT_CoV", "Vol_CoV", "Dur_CoV", "ratio_CoV", "Cluster_id"])
+    print(df)
 
 if __name__ == "__main__":
     ch = "4chiplet"
     for nv in benchlist.NVLink:
         for topo in benchlist.topology:
-            twoD, threeD = collect_data(topo, nv, ch)
+            twoD, threeD, benchmark_category = collect_data(topo, nv, ch)
             twoD_cluster, threeD_cluster = measure_inertia(twoD, threeD, nv, topo)
-            optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster)
+            optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster, benchmark_category)

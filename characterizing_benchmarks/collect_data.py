@@ -12,26 +12,26 @@ def read_csv_files(path, nv, ch):
         for bench in benchlist.benchmarks[suite]:
             for topo in benchlist.topology:
                 if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"):
-                    df = csv.reader(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
-                    for row in df:
-                        kernel_num = row[0]
-                        hurst = row[1]
-                        iat = row[2]
-                        vol = row[3]
-                        ratio = row[4]
-                        duration = row[5]
-                        rw = row[6]
-                        reqinst = row[7]
-                        cta = row[8]
-                        local = row[9]
-                        remote = row[10]
-                        cycle = row[11]
-                        instruction = row[12]
-                        platency = row[13]
-                        nlatency = row[14]
-                        throughput = row[15]
-                        ipc = row[16]
-                        gpu_occ = row[17]
+                    df = pd.read_csv(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
+                    for row in df.index:
+                        kernel_num = df["kernel_num"][row]
+                        hurst = df["hurst"][row]
+                        iat = df["IAT CoV"][row]
+                        vol = df["Vol CoV"][row]
+                        ratio = df["dur CoV"][row]
+                        duration = df["ratio CoV"][row]
+                        rw = df["R/W"][row]
+                        reqinst = df["req/inst"][row]
+                        cta = df["CTA"][row]
+                        local = df["local"][row]
+                        remote = df["remote"][row]
+                        cycle = df["gpu_cycle"][row]
+                        instruction = df["instruction"][row]
+                        platency = df["P latency"][row]
+                        nlatency = df["N latency"][row]
+                        throughput = df["throughput"][row]
+                        ipc = df["ipc"][row]
+                        gpu_occ = df["GPU occupancy"][row]
                         info = {"ipc": ipc, "throughput": throughput, "hurst": hurst, "IAT_CoV": iat, "Vol_CoV": vol,
                                 "dur_CoV": duration, "ratio_CoV": ratio, "R_W": rw, "reqinst": reqinst, "CTA": cta,
                                 "local": local, "remote": remote, "gpu_cycle": cycle, "instruction": instruction,
@@ -74,47 +74,47 @@ def collect_data(path, nv, ch, data):
     data_per_suite = []
     for suite in data.keys():
         for bench in data[suite].keys():
-            topo = list(data[suite][bench].keys())[0]
-            for kernel in data[suite][bench][topo][nv][ch].keys():
-                suits.append(suite)
-                benchmarks.append(bench)
-                kernels.append(kernel)
-                topology.append(topo)
-                for key, value in data[suite][bench][topo][nv][ch][kernel].items():
-                    if key == "ipc":
-                        ipc.append(value)
-                    elif key == "throughput":
-                        throughput.append(value)
-                    elif key == "hurst":
-                        hurst.append(value)
-                    elif key == "IAT_CoV":
-                        iat_cov.append(value)
-                    elif key == "Vol_CoV":
-                        vol_cov.append(value)
-                    elif key == "dur_CoV":
-                        dur_cov.append(value)
-                    elif key == "ratio_CoV":
-                        ratio_cov.append(value)
-                    elif key == "R_W":
-                        r_w.append(value)
-                    elif key == "reqinst":
-                        reqinst.append(value)
-                    elif key == "CTA":
-                        cta.append(value)
-                    elif key == "local":
-                        local.append(value)
-                    elif key == "remote":
-                        remote.append(value)
-                    elif key == "gpu_cycle":
-                        gpu_cycle.append(value)
-                    elif key == "instruction":
-                        instruction.append(value)
-                    elif key == "p_latency":
-                        platency.append(value)
-                    elif key == "n_latency":
-                        nlatency.append(value)
-                    elif key == "GPU_occupancy":
-                        gpu_occ.append(value)
+            for topo in data[suite][bench].keys():
+                for kernel in data[suite][bench][topo][nv][ch].keys():
+                    suits.append(suite)
+                    benchmarks.append(bench)
+                    kernels.append(kernel)
+                    topology.append(topo)
+                    for key, value in data[suite][bench][topo][nv][ch][kernel].items():
+                        if key == "ipc":
+                            ipc.append(value)
+                        elif key == "throughput":
+                            throughput.append(value)
+                        elif key == "hurst":
+                            hurst.append(value)
+                        elif key == "IAT_CoV":
+                            iat_cov.append(value)
+                        elif key == "Vol_CoV":
+                            vol_cov.append(value)
+                        elif key == "dur_CoV":
+                            dur_cov.append(value)
+                        elif key == "ratio_CoV":
+                            ratio_cov.append(value)
+                        elif key == "R_W":
+                            r_w.append(value)
+                        elif key == "reqinst":
+                            reqinst.append(value)
+                        elif key == "CTA":
+                            cta.append(value)
+                        elif key == "local":
+                            local.append(value)
+                        elif key == "remote":
+                            remote.append(value)
+                        elif key == "gpu_cycle":
+                            gpu_cycle.append(value)
+                        elif key == "instruction":
+                            instruction.append(value)
+                        elif key == "p_latency":
+                            platency.append(value)
+                        elif key == "n_latency":
+                            nlatency.append(value)
+                        elif key == "GPU_occupancy":
+                            gpu_occ.append(value)
         table = {"suite": suits, "benchmarks": benchmarks, "kernels": kernels, "topology": topology, "ipc": ipc,
              "throughput": throughput, "hurst": hurst, "IAT_CoV": iat_cov, "Vol_CoV": vol_cov, "Dur_CoV": dur_cov,
              "ratio_CoV": ratio_cov, "R/W": r_w, "Req/Kinst": reqinst, "CTA": cta, "local": local, "remote": remote,
