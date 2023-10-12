@@ -192,7 +192,7 @@ if __name__ == "__main__":
                                 if os.path.exists(file_path):
                                     for file in os.listdir(file_path):
                                         if Path(file).suffix == ".txt":
-                                            kernel_num = int(file.split(".")[0][-1])
+                                            kernel_num = int(file.split(".")[0].split("_")[-1])
                                             request_packet = {}
                                             file2 = open(file_path + file, "r")
                                             raw_content = ""

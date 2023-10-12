@@ -46,16 +46,20 @@ def determine_architecture(topo, nv, ch):
 
 
 def kernel_is_valid(path, file_name):
-    out = subprocess.check_output("cat " + path + file_name + "| grep \"request injected\" | tail -n 1", shell=True, text=True)
-    cyc = 1
-    items = out.split("\t")
-    for item in items:
-        if item.split(": ")[0] == "cycle":
-            cyc = int(item.split(": ")[1])
-    if cyc > 5500:
-        return True
-    else:
+    #out = subprocess.check_output("cat " + path + file_name + "| grep \"request injected\" | tail -n 1", shell=True, text=True)
+    #cyc = 1
+    #items = out.split("\t")
+    #for item in items:
+        #if item.split(": ")[0] == "cycle":
+            #cyc = int(item.split(": ")[1])
+    #if cyc > 5500:
+        #return True
+    #else:
+        #return False
+    if os.path.getsize(path + file_name) < 10000:
         return False
+    else:
+        return True
 
 
 def rearrange_traces(path, suite, bench, topo, NV, ch):
@@ -68,7 +72,6 @@ def rearrange_traces(path, suite, bench, topo, NV, ch):
             if file.__contains__("_trace"):
                 old_kernel_trace = ch_sub_path + file
                 break
-        print(path)
         assert os.path.exists(old_kernel_trace)
         new_kernel_trace = ch_sub_path + suite + '-' + bench + "_NV" + str(nv) + '_1vc_' + str(chipNum) + 'ch_' + topol + '_trace.txt'
         os.rename(old_kernel_trace, new_kernel_trace)
@@ -82,20 +85,20 @@ def rearrange_traces(path, suite, bench, topo, NV, ch):
         new_kernel_trace = path + suite + "-" + bench + "_NV" + str(nv) + "_1vc_" + str(chipNum) + "ch_" + topol + "_trace_"
         for f in os.listdir(path):
             if Path(f).suffix == '.txt':
-                if kernel_is_valid(path, f):
+                if 1: #kernel_is_valid(path, f):
                     if "_trace" not in f:
-                        num = int(f.split(".")[0])
+                        num = int(f.split(".")[0].split("_")[-1])
                         os.rename(path + f, new_kernel_trace + str(num) + ".txt")
                     else:
                         if f.split(".")[0][-1].isnumeric():
-                            num = int(f.split(".")[0][-1])
+                            num = int(f.split(".")[0].split("_")[-1])
                         else:
                             num = 1
                         os.rename(path + f, new_kernel_trace + str(num) + ".txt")
                     print(Fore.GREEN + "trace file renaming " + " [done " + u'\u2713]' + Fore.WHITE)
                 else:
                     print(Fore.RED + "kernel " + f + " is not suitable for modeling- hence, deleted" + Fore.RESET)
-                    os.remove(path + f)
+                    #os.remove(path + f)
     print(Fore.GREEN + "rearrange " + suite + "_" + bench + "_" + topo + "_" + NV + "_" + str(chipNum) + " [done " + u'\u2713]' + Fore.RESET)
 
     gc.enable()

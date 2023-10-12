@@ -75,8 +75,9 @@ def start_processing_portal(input_, chiplet_num):
         del (lined_list)
         gc.enable()
         gc.collect()
-    kernel_num = file_name.split(".")[0][-1]
-    if kernel_num == "e":
+    try:
+        kernel_num = file_name.split(".")[0].split("_")[-1]
+    except:
         kernel_num = 1
     else:
         kernel_num = int(kernel_num)

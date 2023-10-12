@@ -60,7 +60,7 @@ traffic_type = {
         'spiky-async': ['parboil-stencil', 'rodinia-hotspot3D', 'rodinia-kmeans', 'polybench-atax', 'polybench-gesummv', 'polybench-gemm']
 }
 
-bench_path = "/hdd2/benchmarks/"
+bench_path = "/home/ben/Desktop/benchmarks/"
 
 
 

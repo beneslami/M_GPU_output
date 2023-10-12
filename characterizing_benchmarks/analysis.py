@@ -34,15 +34,15 @@ def kernel_analysis(path, suite, bench):
                                         if kernel_is_valid(sub_path, trace_file):
                                             information = []
                                             start_processing_portal(sub_path + trace_file, chip_num)
-                                            information.append(int(trace_file.split(".")[0][-1]))
-                                            information.append(calculate_hurst(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0][-1]))) #calculate Hurst
-                                            information.append(burstiness.measure_iat(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0][-1]))) # caluclate burstiness
-                                            information.append(burstiness.measure_vol(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0][-1]))) # caluclate burstiness
-                                            information.append(burstiness.measure_duration(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0][-1]))) # caluclate burstiness
-                                            information.append(burstiness.measure_burst_ratio(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0][-1]))) # caluclate burstiness
-                                            information.append(measure_packet_distribution(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0][-1]))) # calculate read/write intensity
+                                            information.append(int(trace_file.split(".")[0].split("_")[-1]))
+                                            information.append(calculate_hurst(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) #calculate Hurst
+                                            information.append(burstiness.measure_iat(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
+                                            information.append(burstiness.measure_vol(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
+                                            information.append(burstiness.measure_duration(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
+                                            information.append(burstiness.measure_burst_ratio(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
+                                            information.append(measure_packet_distribution(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # calculate read/write intensity
                                             req_inst, remote, local, CTA, cycle, inst, occ, P_latency, N_latency, throughput, ipc = extract_kernel_info(
-                                                os.path.dirname(os.path.dirname(sub_path)), suite, bench, topo, nv, ch, int(trace_file.split(".")[0][-1]))
+                                                os.path.dirname(os.path.dirname(sub_path)), suite, bench, topo, nv, ch, int(trace_file.split(".")[0].split("_")[-1]))
                                             information.append(req_inst)
                                             information.append(CTA)
                                             information.append(local)
@@ -76,7 +76,7 @@ def link_analysis(path, suite, bench):
                             sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
                             for trace_file in os.listdir(sub_path):
                                 if Path(trace_file).suffix == '.txt':
-                                    kernel_num = (int(trace_file.split(".")[0][-1]))
+                                    kernel_num = (int(trace_file.split(".")[0].split("_")[-1]))
                                     req_inst, _, _, _, cycle, _, _, P_latency, N_latency, throughput, ipc = extract_kernel_info(
                                         os.path.dirname(os.path.dirname(sub_path)), suite, bench, topo, nv, ch, kernel_num)
                                     if nv not in data.keys():
@@ -162,7 +162,7 @@ def topology_analysis(path, suite, bench):
                                     sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
                                     for trace_file in os.listdir(sub_path):
                                         if Path(trace_file).suffix == '.txt':
-                                            kernel_num = (int(trace_file.split(".")[0][-1]))
+                                            kernel_num = (int(trace_file.split(".")[0].split("_")[-1]))
                                             req_inst, _, _, _, cycle, _, _, P_latency, N_latency, throughput, ipc = extract_kernel_info(
                                                 os.path.dirname(os.path.dirname(sub_path)), suite, bench, topo, nv, ch,
                                                 kernel_num)

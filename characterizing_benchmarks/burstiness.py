@@ -23,11 +23,11 @@ def plot_ccdf(sub_path, trace_file, traffic):
         os.mkdir(sub_path)
     kernel_num = -1
     try:
-        int(trace_file.split(".")[0][-1])
+        int(trace_file.split(".")[0].split("_")[-1])
     except:
         kernel_num = 0
     else:
-        kernel_num = int(trace_file.split(".")[0][-1])
+        kernel_num = int(trace_file.split(".")[0].split("_")[-1])
     if not os.path.exists(sub_path + str(kernel_num)):
         os.mkdir(sub_path + str(kernel_num))
     sub_path += str(kernel_num)
@@ -94,7 +94,7 @@ def plot_ccdf(sub_path, trace_file, traffic):
         burst_length_value[cycle] = byte / sum(list(burst_length_value.values()))
     burst_amount_cdf = np.array(list(burst_length_value.values())).cumsum() / np.array(list(burst_length_value.values())).sum()
     burst_amount_ccdf = 1 - burst_amount_cdf
-    
+
     plt.close()
     plt.plot(list(burst_length_dist.keys()), burst_length_ccdf, marker="|", label="burst length fraction")
     plt.plot(list(burst_length_value.keys()), burst_amount_ccdf, marker="*", label="burst volume fraction")
@@ -119,11 +119,11 @@ def plot_dispersion(sub_path, trace_file, traffic):
         os.mkdir(sub_path)
     kernel_num = -1
     try:
-        int(trace_file.split(".")[0][-1])
+        int(trace_file.split(".")[0].split("_")[-1])
     except:
         kernel_num = 0
     else:
-        kernel_num = int(trace_file.split(".")[0][-1])
+        kernel_num = int(trace_file.split(".")[0].split("_")[-1])
     if not os.path.exists(sub_path + "/" + str(kernel_num)):
         os.mkdir(sub_path + "/" + str(kernel_num))
     sub_path += "/" + str(kernel_num)
@@ -638,7 +638,7 @@ if __name__ == "__main__":
                                     if len(os.listdir(os.path.dirname(os.path.dirname(sub_path)))) != 0:
                                         for trace_file in os.listdir(sub_path):
                                             if Path(trace_file).suffix == '.txt':
-                                                kernel_num = int(trace_file.split(".")[0][-1])
+                                                kernel_num = int(trace_file.split(".")[0].split("_")[-1])
                                                 file = open(sub_path + trace_file, "r")
                                                 raw_content = ""
                                                 if file.mode == "r":
@@ -677,7 +677,7 @@ if __name__ == "__main__":
                                                     if i not in traffic.keys():
                                                         traffic[i] = 0
                                                 traffic = dict(sorted(traffic.items(), key=lambda x: x[0]))
-                                                #plot_ccdf(sub_path, trace_file, traffic)
+                                                plot_ccdf(sub_path, trace_file, traffic)
                                                 plot_dispersion(sub_path, trace_file, traffic)
                                                 cv_iat = interarrival_time_cov(traffic)
                                                 cv_vol = burst_volume_cov(traffic)

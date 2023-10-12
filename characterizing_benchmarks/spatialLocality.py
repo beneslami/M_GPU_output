@@ -374,9 +374,9 @@ def destination_locality(request_packet):
                 dest_chips.setdefault(dest, {})[cyc] = dest
             else:
                 dest_chips[dest][cyc] = dest
-    for dest in dest_chips.keys():
-        plt.plot(dest_chips[dest].keys(), dest_chips[dest].values(), 'o', label=str(dest))
-    plt.legend()
+    #for dest in dest_chips.keys():
+        #plt.plot(dest_chips[dest].keys(), dest_chips[dest].values(), 'o', label=str(dest))
+    #plt.legend()
     #plt.show()
 
 
