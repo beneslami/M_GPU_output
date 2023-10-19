@@ -67,7 +67,7 @@ def kernel_analysis(path, suite, bench):
 
 def link_analysis(path, suite, bench):
     for topo in topology:
-        if os.path.exists(path + suite + "/" + bench + "/" + topo) and topo == "torus":
+        if os.path.exists(path + suite + "/" + bench + "/" + topo):
             for ch in chiplet_num:
                 data = {}
                 for nv in NVLink:
@@ -139,7 +139,17 @@ def link_analysis(path, suite, bench):
                         file.write("request per instruction\n")
                         file.write(reqinstTable.get_csv_string())
                         file.write("cycle\n")
-                        file.write(cycleTable.get_csv_string())
+                        file.write(cycleTable.get_csv_string()).
+
+
+def find_the_number_of_fucking_kernels(suite, bench, topo, nv, ch):
+    sub_path = benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/" 
+    items = []
+    for trace_file in os.listdir(sub_path):
+        if Path(trace_file).suffix == '.txt':
+            num = int(trace_file.split('.')[0].split('_')[-1])
+            items.append(num)
+    return items
 
 
 def topology_analysis(path, suite, bench):
@@ -178,7 +188,6 @@ def topology_analysis(path, suite, bench):
                                     print(
                                         Fore.YELLOW + "directory " + path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + " is empty" + Fore.RESET)
         sub_path = path + suite + "/" + bench + "/"
-        k = list(data["torus"]["NVLink4"]["4chiplet"].keys())
         for ch in chiplet_num:
             if ch == "4chiplet":
                 ipc_tableList = {}
@@ -200,6 +209,7 @@ def topology_analysis(path, suite, bench):
                     cycleTable.field_names = ["kernel_num", "torus", "ring", "mesh", "fly"]
                     platTable.field_names = ["kernel_num", "torus", "ring", "mesh", "fly"]
                     nlatTable.field_names = ["kernel_num", "torus", "ring", "mesh", "fly"]
+                    k = find_the_number_of_fucking_kernels(suite, bench, topo, nv, ch) # so frustrated at this point, tbh
                     for num in k:
                         ipc_items = [num]
                         throughput_items = [num]

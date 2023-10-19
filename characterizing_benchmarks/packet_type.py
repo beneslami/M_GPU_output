@@ -27,55 +27,51 @@ def mk_groups(data):
     return [thisgroup] + groups
 
 
-def add_line(ax, xpos, ypos):
-    line = plt.Line2D([xpos, xpos], [ypos + .1, ypos], transform=ax.transAxes, color='black')
+def add_line(data, df, col_count):
+    xpos = 0
+    scale = 1. / col_count
+    ypos = -8
+    for bench in data.keys():
+        k_num = len(data[bench])
+        #plt.Line2D([xpos, xpos], [ypos + .1, ypos], transform=ax.transAxes, color='black')
+        df[list(struct.keys())].axvline(x = 85, color = 'green', linestyle='-.');
+        df[list(struct.keys())].text(x=70, y=0, s= 'Productivity target', color= 'green');
+        xpos += k_num
     line.set_clip_on(False)
     ax.add_line(line)
 
 
-def label_group_bar(ax, data):
-    xticklabel = []
+def label_group_bar(suite, data):
     names = []
+    gropus = []
+    final_items = []
     for bench in data.keys():
         names.append(bench)
-        for index, values in data[bench].items():
-            xticklabel.append(index)
-    groups = mk_groups(data)
-    xy = groups.pop()
-    x, y = zip(*xy)
-    ly = int(len(y) / 2)
+        kernel_temp = []
+        for k in data[bench].keys():
+            temp = []
+            for key, value in data[bench][k].items():
+                temp.append(value)
+            kernel_temp.append(temp)
+        gropus.append(kernel_temp)
 
-    xticks = range(1, ly + 1)
-    r = []
-    w = []
-    for i in range(len(y)):
-        if i % 2 == 0:
-            r.append(y[i])
-        else:
-            w.append(y[i])
-
-    ax.bar(xticks, r, align='center', color="blue")
-    ax.bar(xticks, w, bottom=r, align='center', color="red")
-    ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabel)
-    ax.set_xlim(.5, ly + .5)
-    ax.yaxis.grid(True)
-
-    scale = 1. / ly
-    ypos = -0.1
-    pos = 0
-    line_points = []
-    for i in xticklabel:
-        if i == 1:
-            add_line(ax, pos * scale, ypos)
-            line_points.append(pos)
-        pos += 1
-    line_points.append(pos)
-    ypos = -8
-    for i in range(len(line_points) - 1):
-        first = line_points[i]
-        second = line_points[i + 1]
-        ax.text(((first + second) / 2) + 0.5, ypos, names[i], ha='center')
+    for i in range(len(names)):
+        bench_name = names[i]
+        kernel_num = len(gropus[i])
+        indexs = range(1, kernel_num+1)
+        read_list = []
+        write_list = []
+        for items in gropus[i]:
+            read_list.append(items[0])
+            write_list.append(items[1])
+        df = pd.DataFrame({"read": read_list, "write": write_list}, index=indexs)
+        final_items.append(df)
+    final_df = pd.concat(final_items)
+    final_df.plot.bar(stacked=True, color=["blue", "red"])
+    plt.title(suite + " packet_type")
+    plt.tight_layout()
+    plt.savefig(benchlist.bench_path + suite + "/packet_type.jpg")
+    plt.close()
 
 
 def read_data(path):
@@ -84,11 +80,20 @@ def read_data(path):
     for i in df.index:
         kernel_num = int(df['kernel_num'][i])
         r = int(df["R/W"][i].split("/")[0])
-        w = int(df["R/W"][i].split("/")[1]) + 1
+        w = int(df["R/W"][i].split("/")[1])
+        if r > w:
+            w += 1
+        elif w > r:
+            r += 1
+        if r == 100:
+            w = 0
+        elif w == 100:
+            r = 0
+        assert(r+w == 100)
         if kernel_num not in packet_ratio.keys():
             packet_ratio.setdefault(kernel_num, {})
-        packet_ratio[kernel_num]['r'] = r
-        packet_ratio[kernel_num]['w'] = w
+        packet_ratio[kernel_num]['read'] = r
+        packet_ratio[kernel_num]['write'] = w
     return packet_ratio
 
 
@@ -98,15 +103,10 @@ if __name__ == "__main__":
     topo = "torus"
     for suite in benchlist.suits:
         data = {}
-        if suite == "parboil":
+        if suite == "SDK":
             for bench in benchlist.benchmarks[suite]:
                 if os.path.exists(benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv"):
                     path = benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
                     packet_ratio = read_data(path)
                     data[bench] = packet_ratio
-            fig = plt.figure(figsize=(20, 8))
-            ax = fig.add_subplot(1, 1, 1)
-            label_group_bar(ax, data)
-            plt.title("read/write ratio - " + suite + " benchmark suite")
-            plt.tight_layout()
-            plt.savefig(benchlist.bench_path + suite + "/packet_type.jpg")
+            label_group_bar(suite, data)

@@ -40,26 +40,26 @@ def start_processing_portal(input_, chiplet_num):
     base_path = os.path.dirname(os.path.dirname(input_))
     file_size = os.path.getsize(input_)
     file_name = os.path.basename(input_)
-    if file_size > 1000000000:
-        line_num = os.popen("cat " + input_ + " | wc -l").read()
-        chunk_size = round(int(line_num) / 8)
-        os.system("split --numeric-suffixes=1 --additional-suffix=.txt -l " + str(chunk_size) + " " + input_ + " data_")
-        file_num = int(os.popen("ls -d *data* | wc -l").read())
-    else:
-        file_num = 1
+    #if file_size > 1000000000:
+        #line_num = os.popen("cat " + input_ + " | wc -l").read()
+        #chunk_size = round(int(line_num) / 8)
+        #os.system("split --numeric-suffixes=1 --additional-suffix=.txt -l " + str(chunk_size) + " " + input_ + " data_")
+        #file_num = int(os.popen("ls -d *data* | wc -l").read())
+    #else:
+        #file_num = 1
     request_packet = {}
-    for i in range(1, file_num+1, 1):
-        if file_size > 1000000000:
-            file_name = "data_0" + str(i) + ".txt"
-        else:
-            file_name = input_
+    for i in range(1): #, file_num+1, 1):
+        #if file_size > 1000000000:
+            #file_name = "data_0" + str(i) + ".txt"
+        #else:
+        file_name = input_
         file2 = open(file_name, "r")
         raw_content = ""
         if file2.mode == "r":
             raw_content = file2.readlines()
         file2.close()
-        if file_name != input_:
-            os.system("rm " + file_name)
+        #if file_name != input_:
+            #os.system("rm " + file_name)
         del(file2)
         lined_list = []
         for line in raw_content:

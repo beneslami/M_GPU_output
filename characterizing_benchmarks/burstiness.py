@@ -216,6 +216,13 @@ def interarrival_time_cov(traffic, path, suite, bench, kernel_num):
                 else:
                     dist[cycle - prev_cycle] += 1
     dist = dict(sorted(dist.items(), key=lambda x: x[0]))
+    while "kernels" in path:
+        path = os.path.dirname(path)
+    if not os.path.exists(path + "/data/"):
+        os.mkdir(path + "/data/")
+    with open(path + "/data/iat_" + str(kernel_num) + ".csv", "w") as file:
+        for k, v in dist.items():
+            file.write(str(k) + "," + str(v) + "\n")
     total = sum(list(dist.values()))
     for k, v in dist.items():
         dist[k] = v / total
@@ -223,8 +230,6 @@ def interarrival_time_cov(traffic, path, suite, bench, kernel_num):
     for k, v in dist.items():
         dist[k] = v + total
         total += v
-    while "kernels" in path:
-        path = os.path.dirname(path)
     if not os.path.exists(path + "/plots/"):
         os.mkdir(path + "/plots/")
     path += "/plots/"
@@ -263,6 +268,11 @@ def burst_volume_cov(traffic, path, suite, bench, kernel_num):
                 aggregate_burst = 0
 
     dist = dict(sorted(dist.items(), key=lambda x: x[0]))
+    while "kernels" in path:
+        path = os.path.dirname(path)
+    with open(path + "/data/burst-vol_" + str(kernel_num) + ".csv", "w") as file:
+        for k, v in dist.items():
+            file.write(str(k) + "," + str(v) + "\n")
     total = sum(list(dist.values()))
     for k, v in dist.items():
         dist[k] = v / total
@@ -270,8 +280,6 @@ def burst_volume_cov(traffic, path, suite, bench, kernel_num):
     for k, v in dist.items():
         dist[k] = v + total
         total += v
-    while "kernels" in path:
-        path = os.path.dirname(path)
     if not os.path.exists(path + "/plots/"):
         os.mkdir(path + "/plots/")
     path += "/plots/"
@@ -309,6 +317,11 @@ def burst_duration_cov(traffic, path, suite, bench, kernel_num):
                 start_flag = 0
 
     dist = dict(sorted(dist.items(), key=lambda x: x[0]))
+    while "kernels" in path:
+        path = os.path.dirname(path)
+    with open(path + "/data/burst-dur_" + str(kernel_num) + ".csv", "w") as file:
+        for k, v in dist.items():
+            file.write(str(k) + "," + str(v) + "\n")
     total = sum(list(dist.values()))
     for k, v in dist.items():
         dist[k] = v / total
@@ -316,8 +329,6 @@ def burst_duration_cov(traffic, path, suite, bench, kernel_num):
     for k, v in dist.items():
         dist[k] = v + total
         total += v
-    while "kernels" in path:
-        path = os.path.dirname(path)
     if not os.path.exists(path + "/plots/"):
         os.mkdir(path + "/plots/")
     path += "/plots/"
@@ -358,6 +369,11 @@ def burst_ratio_cov(traffic, path, suite, bench, kernel_num):
                 aggregate_burst = 0
 
     dist = dict(sorted(dist.items(), key=lambda x: x[0]))
+    while "kernels" in path:
+        path = os.path.dirname(path)
+    with open(path + "/data/burst-ratio_" + str(kernel_num) + ".csv", "w") as file:
+        for k, v in dist.items():
+            file.write(str(k) + "," + str(v) + "\n")
     total = sum(list(dist.values()))
     for k, v in dist.items():
         dist[k] = v / total
@@ -365,8 +381,7 @@ def burst_ratio_cov(traffic, path, suite, bench, kernel_num):
     for k, v in dist.items():
         dist[k] = v + total
         total += v
-    while "kernels" in path:
-        path = os.path.dirname(path)
+
     if not os.path.exists(path + "/plots/"):
         os.mkdir(path + "/plots/")
     path += "/plots/"
@@ -595,130 +610,113 @@ def measure_burst_ratio(file_name, suite, bench, kernel_num):
     return "{:.2f}".format(cv)
 
 
+def find_the_number_of_fucking_kernels(path):
+    k_list = []
+    for item in os.listdir(path):
+        if int(item.split(".")[0].split("_")[-1]) not in k_list:
+            k_list.append(int(item.split(".")[0].split("_")[-1]))
+    k_list.sort()
+    return k_list
+
+
+def burstiness_statistics(path, kernel_num):
+    iat_file = path + "iat_" + str(kernel_num) + ".csv"
+    burst_vol_file = path + "burst-vol_" + str(kernel_num) + ".csv"
+    burst_dur_file = path + "burst-dur_" + str(kernel_num) + ".csv"
+    iat = {"iat", [], "freq": []}
+    vol = {"vol": [], "freq": []}
+    dur = {"dur": [], "freq": []}
+    with open(iat_file, "r") as file:
+        content = file.readlines()
+    for item in content:
+        k = int(item.split(",")[0])
+        v = int(item.split(",")[1])
+        iat["iat"].append(k)
+        iat["freq"].append(v)
+    df_iat = pd.DataFrame.from_dict(iat)
+    with open(burst_vol_file, "r") as file:
+        content = file.readlines()
+    for item in content:
+        k = int(item.split(",")[0])
+        v = int(item.split(",")[1])
+        vol["vol"].append(k)
+        vol["freq"].append(v)
+    df_vol = pd.DataFrame.from_dict(vol)
+    with open(burst_du_file, "r") as file:
+        content = file.readlines()
+    for item in content:
+        k = int(item.split(",")[0])
+        v = int(item.split(",")[1])
+        dur["dur"].append(k)
+        dur["freq"].append(v)
+    df_dur = pd.DataFrame.from_dict(dur)
+
+    df_iat[["iat", "freq"]].mean()
+
+
 if __name__ == "__main__":
     suits = benchlist.suits
-    benchmarks = benchlist.nominated_benchmarks
+    benchmarks = benchlist.benchmarks
     topology = benchlist.topology
     NVLink = benchlist.NVLink
     chiplet_num = benchlist.chiplet_num
     path = benchlist.bench_path
-    cov_iat = [["", "NVLink4", "NVLink3", "NVLink2", "NVLink1"]]
-    cov_vol = [["", "NVLink4", "NVLink3", "NVLink2", "NVLink1"]]
-    cov_rat = [["", "NVLink4", "NVLink3", "NVLink2", "NVLink1"]]
-    cov_dur = [["", "NVLink4", "NVLink3", "NVLink2", "NVLink1"]]
     for suite in suits:
-        if suite == "deepbench":
+        if suite == "SDK":
             for bench in benchmarks[suite]:
-                if bench == "rnn":
-                    bench_name_iat = []
-                    bench_name_vol = []
-                    bench_name_dur = []
-                    bench_name_rat = []
-                    bench_name_iat.append(bench)
-                    bench_name_vol.append(bench)
-                    bench_name_dur.append(bench)
-                    bench_name_rat.append(bench)
-                    for topo in topology:
-                        nv_item_iat = []
-                        nv_item_vol = []
-                        nv_item_rat = []
-                        nv_item_dur = []
-                        nv_item_iat.append(topo)
-                        nv_item_vol.append(topo)
-                        nv_item_rat.append(topo)
-                        nv_item_dur.append(topo)
-                        for nv in NVLink:
-                            for ch in chiplet_num:
-                                if ch == "4chiplet":
-                                    cv_item_iat = []
-                                    cv_item_vol = []
-                                    cv_item_rat = []
-                                    cv_item_dur = []
-                                    sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
-                                    if len(os.listdir(os.path.dirname(os.path.dirname(sub_path)))) != 0:
-                                        for trace_file in os.listdir(sub_path):
-                                            if Path(trace_file).suffix == '.txt':
-                                                kernel_num = int(trace_file.split(".")[0].split("_")[-1])
-                                                file = open(sub_path + trace_file, "r")
-                                                raw_content = ""
-                                                if file.mode == "r":
-                                                    raw_content = file.readlines()
-                                                file.close()
-                                                lined_list = []
-                                                request_packet = {}
-                                                for line in raw_content:
-                                                    item = [x for x in line.split("\t") if x not in ['', '\t']]
-                                                    lined_list.append(item)
-                                                for i in range(len(lined_list)):
-                                                    if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
-                                                        if lined_list[i] not in request_packet[int(lined_list[i][3].split(": ")[1])]:
-                                                            request_packet.setdefault(
-                                                                int(lined_list[i][3].split(": ")[1]), []).append(
-                                                                lined_list[i])
-                                                    else:
-                                                        request_packet.setdefault(int(lined_list[i][3].split(": ")[1]), []).append(lined_list[i])
-                                                del (raw_content)
-                                                del (lined_list)
-                                                traffic = {}
-                                                for id in request_packet.keys():
-                                                    for j in range(len(request_packet[id])):
-                                                        if request_packet[id][j][0] == "request injected":
-                                                            src = int(request_packet[id][j][1].split(": ")[1])
-                                                            dst = int(request_packet[id][j][2].split(": ")[1])
-                                                            cycle = int(request_packet[id][j][5].split(": ")[1])
-                                                            byte = int(request_packet[id][j][7].split(": ")[1])
-                                                            if cycle not in traffic.keys():
-                                                                traffic[cycle] = byte
-                                                            else:
-                                                                traffic[cycle] += byte
+                for topo in topology:
+                    for nv in NVLink:
+                        for ch in chiplet_num:
+                            if ch == "4chiplet":
+                                sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
+                                if len(os.listdir(os.path.dirname(os.path.dirname(sub_path)))) != 0:
+                                    for trace_file in os.listdir(sub_path):
+                                        if Path(trace_file).suffix == '.txt':
+                                            kernel_num = int(trace_file.split(".")[0].split("_")[-1])
+                                            file = open(sub_path + trace_file, "r")
+                                            raw_content = ""
+                                            if file.mode == "r":
+                                                raw_content = file.readlines()
+                                            file.close()
+                                            lined_list = []
+                                            request_packet = {}
+                                            for line in raw_content:
+                                                item = [x for x in line.split("\t") if x not in ['', '\t']]
+                                                lined_list.append(item)
+                                            for i in range(len(lined_list)):
+                                                if int(lined_list[i][3].split(": ")[1]) in request_packet.keys():
+                                                    if lined_list[i] not in request_packet[
+                                                        int(lined_list[i][3].split(": ")[1])]:
+                                                        request_packet.setdefault(
+                                                            int(lined_list[i][3].split(": ")[1]), []).append(
+                                                            lined_list[i])
+                                                else:
+                                                    request_packet.setdefault(int(lined_list[i][3].split(": ")[1]),
+                                                                              []).append(lined_list[i])
+                                            del (raw_content)
+                                            del (lined_list)
+                                            traffic = {}
+                                            for id in request_packet.keys():
+                                                for j in range(len(request_packet[id])):
+                                                    if request_packet[id][j][0] == "request injected":
+                                                        src = int(request_packet[id][j][1].split(": ")[1])
+                                                        dst = int(request_packet[id][j][2].split(": ")[1])
+                                                        cycle = int(request_packet[id][j][5].split(": ")[1])
+                                                        byte = int(request_packet[id][j][7].split(": ")[1])
+                                                        if cycle not in traffic.keys():
+                                                            traffic[cycle] = byte
+                                                        else:
+                                                            traffic[cycle] += byte
+                                            if len(traffic) > 0:
                                                 minimum = min(list(traffic.keys()))
                                                 maximum = max(list(traffic.keys()))
                                                 for i in range(minimum, maximum):
                                                     if i not in traffic.keys():
                                                         traffic[i] = 0
                                                 traffic = dict(sorted(traffic.items(), key=lambda x: x[0]))
-                                                plot_ccdf(sub_path, trace_file, traffic)
-                                                plot_dispersion(sub_path, trace_file, traffic)
-                                                cv_iat = interarrival_time_cov(traffic)
-                                                cv_vol = burst_volume_cov(traffic)
-                                                cv_rat = burst_ratio_cov(traffic)
-                                                cv_dur = burst_duration_cov(traffic)
-                                                cv_item_iat.append(cv_iat)
-                                                cv_item_vol.append(cv_vol)
-                                                cv_item_rat.append(cv_rat)
-                                                cv_item_dur.append(cv_dur)
-                                                print(sub_path+trace_file)
-                                    if len(cv_item_iat) != 0:
-                                        nv_item_iat.append("{:.2f}".format(np.mean(cv_item_iat)))
-                                    else:
-                                        nv_item_iat.append(-1)
-                                    if len(cv_item_vol) != 0:
-                                        nv_item_vol.append("{:.2f}".format(np.mean(cv_item_vol)))
-                                    else:
-                                        nv_item_vol.append(-1)
-                                    if len(cv_item_rat) != 0:
-                                        nv_item_rat.append("{:.2f}".format(np.mean(cv_item_rat)))
-                                    else:
-                                        nv_item_rat.append(-1)
-                                    if len(cv_item_dur) != 0:
-                                        nv_item_dur.append("{:.2f}".format(np.mean(cv_item_dur)))
-                                    else:
-                                        nv_item_dur.append(-1)
-                        bench_name_iat.append(nv_item_iat)
-                        bench_name_vol.append(nv_item_vol)
-                        bench_name_rat.append(nv_item_rat)
-                        bench_name_dur.append(nv_item_dur)
-                    cov_iat.append(bench_name_iat)
-                    cov_vol.append(bench_name_vol)
-                    cov_rat.append(bench_name_rat)
-                    cov_dur.append(bench_name_dur)
-    print("cov iat")
-    print(tabulate(cov_iat))
-    print("\ncov vol")
-    print(tabulate(cov_vol))
-    print("\ncov ratio")
-    print(tabulate(cov_rat))
-    print("\ncov duration")
-    print(tabulate(cov_dur))
-    gc.enable()
-    gc.collect()
+                                                cv_iat = interarrival_time_cov(traffic, path, suite, bench, kernel_num)
+                                                cv_vol = burst_volume_cov(traffic, path, suite, bench, kernel_num)
+                                                cv_rat = burst_ratio_cov(traffic, path, suite, bench, kernel_num)
+                                                cv_dur = burst_duration_cov(traffic, path, suite, bench, kernel_num)
+                                            else:
+                                                print(suite + " " + bench + " " + topo + " " + nv + " " + ch + " " + str(kernel_num) + " is empty")

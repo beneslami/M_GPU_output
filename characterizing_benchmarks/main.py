@@ -17,9 +17,9 @@ if __name__ == "__main__":
     path = benchlist.bench_path
 
     for suite in suits:
-        if os.path.exists(path + suite) and suite == "SDK":
+        if os.path.exists(path + suite) and (suite == "tango"):
             for bench in benchmarks[suite]:
-                if os.path.exists(path + suite + "/" + bench) and bench == "hsoptical" or bench == "nvjpeg":
+                if os.path.exists(path + suite + "/" + bench) and (bench != "gaussian"):
                     organizing_benchmark(path, suite, bench)
                     print(Fore.GREEN + "organizing files for benchmark " + bench + " from " + suite + " suite " + " [done " + u'\u2713]' + Fore.RESET)
                     kernel_analysis(path, suite, bench)
