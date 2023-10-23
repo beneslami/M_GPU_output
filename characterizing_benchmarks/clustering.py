@@ -11,6 +11,7 @@ from sklearn.cluster import KMeans
 
 
 def collect_data(topo, nv, ch):
+    oneD = {}
     threeD = {}
     twoD = {}
     benchmark_category = {}
@@ -28,6 +29,7 @@ def collect_data(topo, nv, ch):
                     ratio = df["ratio_CoV"][row]
                     threeD[kernel_counter] = [iat, vol, duration]
                     twoD[kernel_counter] = [iat, ratio]
+                    oneD[kernel_counter] = iat
                     if suite not in benchmark_category.keys():
                         benchmark_category.setdefault(suite, {}).setdefault(bench, {}).setdefault(kernel_num, [])
                     else:
@@ -43,10 +45,10 @@ def collect_data(topo, nv, ch):
                     benchmark_category[suite][bench][kernel_num].append(ratio)
                     benchmark_category[suite][bench][kernel_num].append(kernel_counter)
                     kernel_counter += 1
-    return twoD, threeD, benchmark_category
+    return oneD, twoD, threeD, benchmark_category
 
 
-def measure_inertia(twoD, threeD, nv, topo):
+def measure_inertia(oneD, twoD, threeD, nv, topo):
     if not os.path.exists(benchlist.bench_path + "/characterization_output/"):
         os.mkdir(benchlist.bench_path + "/characterization_output/")
     wss = []
@@ -66,12 +68,31 @@ def measure_inertia(twoD, threeD, nv, topo):
     kf = KneeFinder(np.array(iterator), wss)
     threeD_knee_x, _ = kf.find_knee()
     kf.plot("WSS error for 3D clustering (IAT/burst volume/burst duration)", benchlist.bench_path + "/characterization_output/3D_inertia.jpg" + nv + "_" + topo + ".jpg")
-    return twoD_knee_x, threeD_knee_x
+    wss = []
+    for k in iterator:
+        km = KMeans(n_clusters=k)
+        km.fit(list(oneD.values()))
+        wss.append(km.inertia_)
+    kf = KneeFinder(np.array(iterator), wss)
+    oneD_knee_x, _ = kf.find_knee()
+    kf.plot("WSS error for 1D clustering (IAT)", benchlist.bench_path + "/characterization_output/1D_inertia.jpg" + nv + "_" + topo + ".jpg")
+    return oneD_knee_x, twoD_knee_x, threeD_knee_x
 
 
-def optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster, benchmark_category):
+def optimum_clustering(oneD, twoD, threeD, oneD_cluster, twoD_cluster, threeD_cluster, benchmark_category):
     if not os.path.exists(benchlist.bench_path + "/characterization_output/"):
         os.mkdir(benchlist.bench_path + "/characterization_output/")
+
+    km = KMeans(n_clusters=oneD_cluster, init='k-means++')
+    fit = km.fit_predict(list(oneD.values()))
+    x_val = []
+    for kernel_id, values in oneD.items():
+        x_val.append(values)
+    x_center = []
+    for center_point in km.cluster_centers_:
+        x_center.append(center_point)
+    print(x_center)
+
     km = KMeans(n_clusters=twoD_cluster, init='k-means++')
     fit = km.fit_predict(list(twoD.values()))
     x_val = []
@@ -189,6 +210,6 @@ if __name__ == "__main__":
     ch = "4chiplet"
     for nv in benchlist.NVLink:
         for topo in benchlist.topology:
-            twoD, threeD, benchmark_category = collect_data(topo, nv, ch)
-            twoD_cluster, threeD_cluster = measure_inertia(twoD, threeD, nv, topo)
-            optimum_clustering(twoD, threeD, twoD_cluster, threeD_cluster, benchmark_category)
+            oneD, twoD, threeD, benchmark_category = collect_data(topo, nv, ch)
+            oneD_cluster, twoD_cluster, threeD_cluster = measure_inertia(oneD, twoD, threeD, nv, topo)
+            optimum_clustering(oneD, twoD, threeD, oneD_cluster, twoD_cluster, threeD_cluster, benchmark_category)
