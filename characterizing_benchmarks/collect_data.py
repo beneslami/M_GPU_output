@@ -11,7 +11,7 @@ def read_csv_files(path, nv, ch):
     for suite in benchlist.suits:
         for bench in benchlist.benchmarks[suite]:
             for topo in benchlist.topology:
-                if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"):
+                if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv"):
                     df = pd.read_csv(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
                     for row in df.index:
                         kernel_num = df["kernel_num"][row]
@@ -46,41 +46,44 @@ def read_csv_files(path, nv, ch):
                                     data[suite][bench].setdefault(kernel_num, {})[topo] = info
                                 else:
                                     data[suite][bench][kernel_num][topo] = info
+                else:
+                    #print("WARNING: bench_info.csv does not exist in " + str(suite) + " " + str(bench) + " " + str(topo) + " " + str(nv))
+                    pass
     return data
 
 
 def collect_data(path, nv, ch, data):
-    suits = []
-    benchmarks = []
-    kernels = []
-    topology = []
-    ipc = []
-    throughput = []
-    hurst = []
-    iat_cov = []
-    vol_cov = []
-    dur_cov = []
-    ratio_cov = []
-    r_w = []
-    reqinst = []
-    cta = []
-    local = []
-    remote = []
-    gpu_cycle = []
-    instruction = []
-    platency = []
-    nlatency = []
-    gpu_occ = []
     data_per_suite = []
     for suite in data.keys():
+        suits = []
+        benchmarks = []
+        kernels = []
+        topology = []
+        ipc = []
+        throughput = []
+        hurst = []
+        iat_cov = []
+        vol_cov = []
+        dur_cov = []
+        ratio_cov = []
+        r_w = []
+        reqinst = []
+        cta = []
+        local = []
+        remote = []
+        gpu_cycle = []
+        instruction = []
+        platency = []
+        nlatency = []
+        gpu_occ = []
         for bench in data[suite].keys():
-            for topo in data[suite][bench].keys():
-                for kernel in data[suite][bench][topo][nv][ch].keys():
+            for kernel in data[suite][bench].keys():
+                for topo in data[suite][bench][kernel].keys():
                     suits.append(suite)
                     benchmarks.append(bench)
                     kernels.append(kernel)
                     topology.append(topo)
-                    for key, value in data[suite][bench][topo][nv][ch][kernel].items():
+                    for key, value in data[suite][bench][kernel][topo].items():
                         if key == "ipc":
                             ipc.append(value)
                         elif key == "throughput":
@@ -122,14 +125,16 @@ def collect_data(path, nv, ch, data):
              "GPU_occupancy": gpu_occ}
         df = pd.DataFrame(table)
         df.set_index(['suite', 'benchmarks', 'topology', 'kernels', 'ipc', 'throughput', 'hurst', 'IAT_CoV', 'Vol_CoV',
-                          'Dur_CoV', 'ratio_CoV', 'R/W', 'req/Kinst', 'CTA', 'local', 'remote', 'gpu_cycle', 'instruction',
+                          'Dur_CoV', 'ratio_CoV', 'R/W', 'Req/Kinst', 'CTA', 'local', 'remote', 'gpu_cycle', 'instruction',
                           'P_latency', 'N_latency', 'GPU_occupancy'], inplace=True)
         data_per_suite.append(df)
         df.to_html(path + suite + "/" + ch + "_" + nv + "_characterization.html", index=True)
         df.to_csv(path + suite + "/" + ch + "_" + nv + "_characterization.csv", index=True)
     result = pd.concat(data_per_suite)
-    result.to_html(path + "/" + ch + "_" + nv + "_characterization.html", index=True)
-    result.to_csv(path + "/" + ch + "_" + nv + "_characterization.csv", index=True)
+    if not os.path.exists(path + "characterization_output/"):
+        os.mkdir(path + "characterization_output")
+    result.to_html(path + "characterization_output/" + ch + "_" + nv + "_characterization.html", index=True)
+    result.to_csv(path + "characterization_output/" + ch + "_" + nv + "_characterization.csv", index=True)
 
 
 if __name__ == "__main__":

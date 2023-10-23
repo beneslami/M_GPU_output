@@ -447,6 +447,9 @@ def measure_packet_distribution(file_name, suite, bench, kernel_num):
     r = intensity["r"]
     w = intensity["w"]
     tot = r + w
-    read = int((r/tot)*100)
-    write = int((w/tot)*100)
-    return str(read) + "/" + str(write)
+    if tot != 0:
+        read = int((r/tot)*100)
+        write = int((w/tot)*100)
+        return str(read) + "/" + str(write)
+    else:
+        return -1

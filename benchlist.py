@@ -8,7 +8,7 @@ benchmarks = {
     'pannotia': ['bc', 'color-max', 'color-maxmin', 'fw', 'fw-block', 'mis', 'pagerank', 'pagerank-spmv'],
     'parboil': ['bfs', 'cutcp', 'histo', 'mri-gridding', 'sgemm', 'spmv', 'stencil'],
     'polybench': ['2DConvolution', '2mm', '3mm', 'atax', 'bicg', 'correlation', 'covariance', 'fdtd2d', 'gemm', 'gesummv', 'mvt', 'syr2k', 'syrk'],
-    'rodinia': ["""'b+tree', 'backprop', 'bfs', 'bt', 'cfd', 'gaussian',""" 'heartwall', 'hotspot', 'hotspot3D', 'huffman', 'hybridsort', 'kmeans', 'lavaMD', 'lud', 'nn', 'particlefilter-float', 'pathfinder', 'srad', 'streamcluster'],
+    'rodinia': ['b+tree', 'backprop', 'bfs', 'bt', 'cfd', 'gaussian', 'heartwall', 'hotspot', 'hotspot3D', 'huffman', 'hybridsort', 'kmeans', 'lavaMD', 'lud', 'nn', 'particlefilter-float', 'pathfinder', 'srad', 'streamcluster'],
     'shoc': ['FFT', 'Spmv', 'gemm', 'scan'],
     'tango': ['AlexNet', 'ResNet', 'SqueezeNet']
 }

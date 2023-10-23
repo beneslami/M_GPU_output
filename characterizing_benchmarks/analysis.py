@@ -19,9 +19,9 @@ chiplet_num = benchlist.chiplet_num
 
 def kernel_analysis(path, suite, bench):
     for topo in topology:
-        if os.path.exists(path + suite + "/" + bench + "/" + topo):
+        if os.path.exists(path + suite + "/" + bench + "/" + topo) and topo == "torus":
             for nv in NVLink:
-                if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv):
+                if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv) and nv != "NVLink4":
                     for ch in chiplet_num:
                         if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch):
                             sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
@@ -31,9 +31,9 @@ def kernel_analysis(path, suite, bench):
                                 chip_num = int(ch[0])
                                 for trace_file in os.listdir(sub_path):
                                     if Path(trace_file).suffix == '.txt':
-                                        if kernel_is_valid(sub_path, trace_file):
+                                        if 1: #kernel_is_valid(sub_path, trace_file):
                                             information = []
-                                            start_processing_portal(sub_path + trace_file, chip_num)
+                                            #start_processing_portal(sub_path + trace_file, chip_num)
                                             information.append(int(trace_file.split(".")[0].split("_")[-1]))
                                             information.append(calculate_hurst(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) #calculate Hurst
                                             information.append(burstiness.measure_iat(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
@@ -139,7 +139,7 @@ def link_analysis(path, suite, bench):
                         file.write("request per instruction\n")
                         file.write(reqinstTable.get_csv_string())
                         file.write("cycle\n")
-                        file.write(cycleTable.get_csv_string()).
+                        file.write(cycleTable.get_csv_string())
 
 
 def find_the_number_of_fucking_kernels(suite, bench, topo, nv, ch):
@@ -267,3 +267,7 @@ def topology_analysis(path, suite, bench):
                             file.write("\n\n")
     else:
         print(Fore.RED + "benchmark " + bench + " from suite " + suite + " has no complete report" + Fore.RESET)
+
+
+if __name__ == "__main__":
+    kernel_analysis("/home/ben/Desktop/benchmarks/", "rodinia", "gaussian")
