@@ -2,8 +2,10 @@ import gc
 import os
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from colorama import Fore
 import benchlist
+import sieve_benchmark
 
 
 def determine_architecture(topo, nv, ch):
@@ -452,5 +454,257 @@ def kernel_sensitivity_test(): # number of remote request per kilo instruction
                     plt.close()
 
 
+def iat_sensitivity_test():
+    datasets = []
+    for nv in benchlist.NVLink:
+        sub_path = benchlist.bench_path + "burst_stats_" + nv + ".csv"
+        datasets.append(pd.read_csv(sub_path))
+    iat = {}
+    for suite in benchlist.suits:
+        for bench in benchlist.benchmarks[suite]:
+            for topo in benchlist.topology:
+                info = 0
+                for nv in benchlist.NVLink:
+                    if nv == "NVLink4":
+                        info = datasets[0]
+                    elif nv == "NVLink3":
+                        info = datasets[1]
+                    elif nv == "NVLink2":
+                        info = datasets[2]
+                    elif nv == "NVLink1":
+                        info = datasets[3]
+                    for i in info.index:
+                        if info["suite"][i] == suite:
+                            if info["benchmark"][i] == bench:
+                                if sieve_benchmark.is_sensitivie(suite, bench, info["kernel"][i]):
+                                    if suite not in iat.keys():
+                                        iat.setdefault(suite, {}).setdefault(bench, {}).setdefault(info["kernel"][i],
+                                                                                                   {}).setdefault(
+                                            info["topology"][i], {})[nv] = info["IAT_mean"][i]
+                                    else:
+                                        if bench not in iat[suite].keys():
+                                            iat[suite].setdefault(bench, {}).setdefault(
+                                                info["kernel"][i], {}).setdefault(info["topology"][i], {})[nv] = \
+                                                info["IAT_mean"][i]
+                                        else:
+                                            if info["kernel"][i] not in iat[suite][bench].keys():
+                                                iat[suite][bench].setdefault(
+                                                    info["kernel"][i], {}).setdefault(info["topology"][i], {})[nv] = \
+                                                    info["IAT_mean"][i]
+                                            else:
+                                                if info["topology"][i] not in iat[suite][bench][
+                                                    info["kernel"][i]].keys():
+                                                    iat[suite][bench][info["kernel"][i]].setdefault(info["topology"][i],
+                                                                                                    {})[nv] = \
+                                                        info["IAT_mean"][i]
+                                                else:
+                                                    iat[suite][bench][info["kernel"][i]][info["topology"][i]][nv] = \
+                                                    info["IAT_mean"][i]
+        for suite in iat.keys():
+            benchmark = []
+            kernels = []
+            topology = []
+            nv4 = []
+            nv3 = []
+            nv2 = []
+            nv1 = []
+            for bench in iat[suite].keys():
+                for kernel in iat[suite][bench].keys():
+                    for topo in iat[suite][bench][kernel].keys():
+                        benchmark.append(bench)
+                        kernels.append(kernel)
+                        topology.append(topo)
+                        for nv, value in iat[suite][bench][kernel][topo].items():
+                            if nv == "NVLink4":
+                                nv4.append(value)
+                            elif nv == "NVLink3":
+                                nv3.append(value)
+                            elif nv == "NVLink2":
+                                nv2.append(value)
+                            elif nv == "NVLink1":
+                                nv1.append(value)
+                benchmark.append(" ")
+                kernels.append(" ")
+                topology.append(" ")
+                nv4.append(" ")
+                nv3.append(" ")
+                nv2.append(" ")
+                nv1.append(" ")
+            table = {"benchmark": benchmark, "kernels": kernels, "topology": topology, "NVLink4": nv4, "NVLink3": nv3,
+                     "NVLink2": nv2, "NVLink1": nv1}
+            df = pd.DataFrame(table,
+                              columns=["benchmark", "kernels", "topology", "NVLink4", "NVLink3", "NVLink2", "NVLink1"])
+            df.set_index(["benchmark", "kernels", "topology", "NVLink4"], inplace=True)
+            df.to_csv(benchlist.bench_path + suite + "/iat_sensitivity.csv", index=True)
+
+
+def burst_volume_sensitivity_test():
+    datasets = []
+    for nv in benchlist.NVLink:
+        sub_path = benchlist.bench_path + "burst_stats_" + nv + ".csv"
+        datasets.append(pd.read_csv(sub_path))
+    iat = {}
+    for suite in benchlist.suits:
+        for bench in benchlist.benchmarks[suite]:
+            for topo in benchlist.topology:
+                info = 0
+                for nv in benchlist.NVLink:
+                    if nv == "NVLink4":
+                        info = datasets[0]
+                    elif nv == "NVLink3":
+                        info = datasets[1]
+                    elif nv == "NVLink2":
+                        info = datasets[2]
+                    elif nv == "NVLink1":
+                        info = datasets[3]
+                    for i in info.index:
+                        if info["suite"][i] == suite:
+                            if info["benchmark"][i] == bench:
+                                if sieve_benchmark.is_sensitivie(suite, bench, info["kernel"][i]):
+                                    if suite not in iat.keys():
+                                        iat.setdefault(suite, {}).setdefault(bench, {}).setdefault(info["kernel"][i],
+                                                                                                   {}).setdefault(
+                                            info["topology"][i], {})[nv] = info["vol_mean"][i]
+                                    else:
+                                        if bench not in iat[suite].keys():
+                                            iat[suite].setdefault(bench, {}).setdefault(
+                                                info["kernel"][i], {}).setdefault(info["topology"][i], {})[nv] = \
+                                                info["vol_mean"][i]
+                                        else:
+                                            if info["kernel"][i] not in iat[suite][bench].keys():
+                                                iat[suite][bench].setdefault(
+                                                    info["kernel"][i], {}).setdefault(info["topology"][i], {})[nv] = \
+                                                    info["vol_mean"][i]
+                                            else:
+                                                if info["topology"][i] not in iat[suite][bench][
+                                                    info["kernel"][i]].keys():
+                                                    iat[suite][bench][info["kernel"][i]].setdefault(info["topology"][i],
+                                                                                                    {})[nv] = \
+                                                        info["vol_mean"][i]
+                                                else:
+                                                    iat[suite][bench][info["kernel"][i]][info["topology"][i]][nv] = \
+                                                    info["vol_mean"][i]
+        for suite in iat.keys():
+            benchmark = []
+            kernels = []
+            topology = []
+            nv4 = []
+            nv3 = []
+            nv2 = []
+            nv1 = []
+            for bench in iat[suite].keys():
+                for kernel in iat[suite][bench].keys():
+                    for topo in iat[suite][bench][kernel].keys():
+                        benchmark.append(bench)
+                        kernels.append(kernel)
+                        topology.append(topo)
+                        for nv, value in iat[suite][bench][kernel][topo].items():
+                            if nv == "NVLink4":
+                                nv4.append(value)
+                            elif nv == "NVLink3":
+                                nv3.append(value)
+                            elif nv == "NVLink2":
+                                nv2.append(value)
+                            elif nv == "NVLink1":
+                                nv1.append(value)
+                benchmark.append(" ")
+                kernels.append(" ")
+                topology.append(" ")
+                nv4.append(" ")
+                nv3.append(" ")
+                nv2.append(" ")
+                nv1.append(" ")
+            table = {"benchmark": benchmark, "kernels": kernels, "topology": topology, "NVLink4": nv4, "NVLink3": nv3,
+                     "NVLink2": nv2, "NVLink1": nv1}
+            df = pd.DataFrame(table,
+                              columns=["benchmark", "kernels", "topology", "NVLink4", "NVLink3", "NVLink2", "NVLink1"])
+            df.set_index(["benchmark", "kernels", "topology", "NVLink4"], inplace=True)
+            df.to_csv(benchlist.bench_path + suite + "/burst_volume_sensitivity.csv", index=True)
+
+
+def burst_length_sensitivity_test():
+    datasets = []
+    for nv in benchlist.NVLink:
+        sub_path = benchlist.bench_path + "burst_stats_" + nv + ".csv"
+        datasets.append(pd.read_csv(sub_path))
+    iat = {}
+    for suite in benchlist.suits:
+        for bench in benchlist.benchmarks[suite]:
+            for topo in benchlist.topology:
+                info = 0
+                for nv in benchlist.NVLink:
+                    if nv == "NVLink4":
+                        info = datasets[0]
+                    elif nv == "NVLink3":
+                        info = datasets[1]
+                    elif nv == "NVLink2":
+                        info = datasets[2]
+                    elif nv == "NVLink1":
+                        info = datasets[3]
+                    for i in info.index:
+                        if info["suite"][i] == suite:
+                            if info["benchmark"][i] == bench:
+                                if sieve_benchmark.is_sensitivie(suite, bench, info["kernel"][i]):
+                                    if suite not in iat.keys():
+                                        iat.setdefault(suite, {}).setdefault(bench, {}).setdefault(info["kernel"][i],
+                                                                                                   {}).setdefault(
+                                            info["topology"][i], {})[nv] = info["dur_mean"][i]
+                                    else:
+                                        if bench not in iat[suite].keys():
+                                            iat[suite].setdefault(bench, {}).setdefault(
+                                                info["kernel"][i], {}).setdefault(info["topology"][i], {})[nv] = \
+                                                info["dur_mean"][i]
+                                        else:
+                                            if info["kernel"][i] not in iat[suite][bench].keys():
+                                                iat[suite][bench].setdefault(
+                                                    info["kernel"][i], {}).setdefault(info["topology"][i], {})[nv] = \
+                                                    info["dur_mean"][i]
+                                            else:
+                                                if info["topology"][i] not in iat[suite][bench][
+                                                    info["kernel"][i]].keys():
+                                                    iat[suite][bench][info["kernel"][i]].setdefault(info["topology"][i],
+                                                                                                    {})[nv] = \
+                                                        info["dur_mean"][i]
+                                                else:
+                                                    iat[suite][bench][info["kernel"][i]][info["topology"][i]][nv] = \
+                                                    info["dur_mean"][i]
+        for suite in iat.keys():
+            benchmark = []
+            kernels = []
+            topology = []
+            nv4 = []
+            nv3 = []
+            nv2 = []
+            nv1 = []
+            for bench in iat[suite].keys():
+                for kernel in iat[suite][bench].keys():
+                    for topo in iat[suite][bench][kernel].keys():
+                        benchmark.append(bench)
+                        kernels.append(kernel)
+                        topology.append(topo)
+                        for nv, value in iat[suite][bench][kernel][topo].items():
+                            if nv == "NVLink4":
+                                nv4.append(value)
+                            elif nv == "NVLink3":
+                                nv3.append(value)
+                            elif nv == "NVLink2":
+                                nv2.append(value)
+                            elif nv == "NVLink1":
+                                nv1.append(value)
+                benchmark.append(" ")
+                kernels.append(" ")
+                topology.append(" ")
+                nv4.append(" ")
+                nv3.append(" ")
+                nv2.append(" ")
+                nv1.append(" ")
+            table = {"benchmark": benchmark, "kernels": kernels, "topology": topology, "NVLink4": nv4, "NVLink3": nv3,
+                     "NVLink2": nv2, "NVLink1": nv1}
+            df = pd.DataFrame(table,
+                              columns=["benchmark", "kernels", "topology", "NVLink4", "NVLink3", "NVLink2", "NVLink1"])
+            df.set_index(["benchmark", "kernels", "topology", "NVLink4"], inplace=True)
+            df.to_csv(benchlist.bench_path + suite + "/burst_length_sensitivity.csv", index=True)
+
+
 if __name__ == "__main__":
-    kernel_sensitivity_test()
+    iat_sensitivity_test()
