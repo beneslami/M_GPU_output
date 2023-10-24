@@ -19,9 +19,9 @@ chiplet_num = benchlist.chiplet_num
 
 def kernel_analysis(path, suite, bench):
     for topo in topology:
-        if os.path.exists(path + suite + "/" + bench + "/" + topo) and topo == "torus":
+        if os.path.exists(path + suite + "/" + bench + "/" + topo):
             for nv in NVLink:
-                if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv) and nv != "NVLink4":
+                if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv):
                     for ch in chiplet_num:
                         if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch):
                             sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
@@ -31,32 +31,29 @@ def kernel_analysis(path, suite, bench):
                                 chip_num = int(ch[0])
                                 for trace_file in os.listdir(sub_path):
                                     if Path(trace_file).suffix == '.txt':
-                                        if 1: #kernel_is_valid(sub_path, trace_file):
-                                            information = []
-                                            #start_processing_portal(sub_path + trace_file, chip_num)
-                                            information.append(int(trace_file.split(".")[0].split("_")[-1]))
-                                            information.append(calculate_hurst(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) #calculate Hurst
-                                            information.append(burstiness.measure_iat(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
-                                            information.append(burstiness.measure_vol(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
-                                            information.append(burstiness.measure_duration(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
-                                            information.append(burstiness.measure_burst_ratio(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
-                                            information.append(measure_packet_distribution(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # calculate read/write intensity
-                                            req_inst, remote, local, CTA, cycle, inst, occ, P_latency, N_latency, throughput, ipc = extract_kernel_info(
-                                                os.path.dirname(os.path.dirname(sub_path)), suite, bench, topo, nv, ch, int(trace_file.split(".")[0].split("_")[-1]))
-                                            information.append(req_inst)
-                                            information.append(CTA)
-                                            information.append(local)
-                                            information.append(remote)
-                                            information.append(cycle)
-                                            information.append(inst)
-                                            information.append(P_latency)
-                                            information.append(N_latency)
-                                            information.append(throughput)
-                                            information.append(ipc)
-                                            information.append(occ)
-                                            benchTable.add_row(information)
-                                        else:
-                                            print(Fore.RED + "kernel " + trace_file + " not usable" + Fore.RESET)
+                                        information = []
+                                        #start_processing_portal(sub_path + trace_file, chip_num)
+                                        information.append(int(trace_file.split(".")[0].split("_")[-1]))
+                                        information.append(calculate_hurst(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) #calculate Hurst
+                                        information.append(burstiness.measure_iat(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
+                                        information.append(burstiness.measure_vol(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
+                                        information.append(burstiness.measure_duration(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
+                                        information.append(burstiness.measure_burst_ratio(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # caluclate burstiness
+                                        information.append(measure_packet_distribution(sub_path + trace_file, suite, bench, int(trace_file.split(".")[0].split("_")[-1]))) # calculate read/write intensity
+                                        req_inst, remote, local, CTA, cycle, inst, occ, P_latency, N_latency, throughput, ipc = extract_kernel_info(
+                                            os.path.dirname(os.path.dirname(sub_path)), suite, bench, topo, nv, ch, int(trace_file.split(".")[0].split("_")[-1]))
+                                        information.append(req_inst)
+                                        information.append(CTA)
+                                        information.append(local)
+                                        information.append(remote)
+                                        information.append(cycle)
+                                        information.append(inst)
+                                        information.append(P_latency)
+                                        information.append(N_latency)
+                                        information.append(throughput)
+                                        information.append(ipc)
+                                        information.append(occ)
+                                        benchTable.add_row(information)
                                 benchTable.sortby = "kernel_num"
                                 with open(os.path.dirname(os.path.dirname(sub_path)) + "/bench_info.csv", "w") as file:
                                     file.write(benchTable.get_csv_string())

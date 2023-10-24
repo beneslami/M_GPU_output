@@ -108,7 +108,9 @@ def plot_ccdf(sub_path, trace_file, traffic):
 
 
 def calculate_cov(data):
-    cv = np.std(data, ddof=1)/np.mean(data) * 100
+    cv = -1
+    if len(data) > 1:
+        cv = np.std(data, ddof=1)/np.mean(data) * 100
     return cv
 
 
@@ -212,7 +214,7 @@ def interarrival_time_cov(traffic, path, suite, bench, kernel_num):
             if start_flag == 1:
                 start_flag = 0
                 iat.append(cycle - prev_cycle)
-                if cycle - prev_cycle not in dist. keys():
+                if cycle - prev_cycle not in dist.keys():
                     dist[cycle - prev_cycle] = 1
                 else:
                     dist[cycle - prev_cycle] += 1
@@ -221,29 +223,30 @@ def interarrival_time_cov(traffic, path, suite, bench, kernel_num):
         path = os.path.dirname(path)
     if not os.path.exists(path + "/data/"):
         os.mkdir(path + "/data/")
-    with open(path + "/data/iat_" + str(kernel_num) + ".csv", "w") as file:
+    if len(dist) > 0:
+        with open(path + "/data/iat_" + str(kernel_num) + ".csv", "w") as file:
+            for k, v in dist.items():
+                file.write(str(k) + "," + str(v) + "\n")
+        total = sum(list(dist.values()))
         for k, v in dist.items():
-            file.write(str(k) + "," + str(v) + "\n")
-    total = sum(list(dist.values()))
-    for k, v in dist.items():
-        dist[k] = v / total
-    total = 0
-    for k, v in dist.items():
-        dist[k] = v + total
-        total += v
-    if not os.path.exists(path + "/plots/"):
-        os.mkdir(path + "/plots/")
-    path += "/plots/"
-    if not os.path.exists(path + str(kernel_num)):
-        os.mkdir(path + str(kernel_num))
-    path += str(kernel_num) + "/"
-    plt.plot(dist.keys(), dist.values(), marker="o")
-    plt.xlabel("inter arrival time")
-    plt.ylabel("CDF")
-    plt.title(str(suite) + "-" + str(bench) + " Inter Arrival Time")
-    plt.tight_layout()
-    plt.savefig(path + "IAT_" + str(kernel_num) + ".jpg")
-    plt.close()
+            dist[k] = v / total
+        total = 0
+        for k, v in dist.items():
+            dist[k] = v + total
+            total += v
+        if not os.path.exists(path + "/plots/"):
+            os.mkdir(path + "/plots/")
+        path += "/plots/"
+        if not os.path.exists(path + str(kernel_num)):
+            os.mkdir(path + str(kernel_num))
+        path += str(kernel_num) + "/"
+        plt.plot(dist.keys(), dist.values(), marker="o")
+        plt.xlabel("inter arrival time")
+        plt.ylabel("CDF")
+        plt.title(str(suite) + "-" + str(bench) + " Inter Arrival Time")
+        plt.tight_layout()
+        plt.savefig(path + "IAT_" + str(kernel_num) + ".jpg")
+        plt.close()
     cv = calculate_cov(iat)
     return cv
 
@@ -267,33 +270,33 @@ def burst_volume_cov(traffic, path, suite, bench, kernel_num):
                     dist[aggregate_burst] += 1
                 start_flag = 0
                 aggregate_burst = 0
-
     dist = dict(sorted(dist.items(), key=lambda x: x[0]))
     while "kernels" in path:
         path = os.path.dirname(path)
-    with open(path + "/data/burst-vol_" + str(kernel_num) + ".csv", "w") as file:
+    if len(burst_volume) > 0:
+        with open(path + "/data/burst-vol_" + str(kernel_num) + ".csv", "w") as file:
+            for k, v in dist.items():
+                file.write(str(k) + "," + str(v) + "\n")
+        total = sum(list(dist.values()))
         for k, v in dist.items():
-            file.write(str(k) + "," + str(v) + "\n")
-    total = sum(list(dist.values()))
-    for k, v in dist.items():
-        dist[k] = v / total
-    total = 0
-    for k, v in dist.items():
-        dist[k] = v + total
-        total += v
-    if not os.path.exists(path + "/plots/"):
-        os.mkdir(path + "/plots/")
-    path += "/plots/"
-    if not os.path.exists(path + str(kernel_num)):
-        os.mkdir(path + str(kernel_num))
-    path += str(kernel_num) + "/"
-    plt.plot(dist.keys(), dist.values(), marker="o")
-    plt.xlabel("burst volume")
-    plt.ylabel("CDF")
-    plt.title(str(suite) + "-" + str(bench) + " Burst Volume")
-    plt.tight_layout()
-    plt.savefig(path + "burst_vol_" + str(kernel_num) + ".jpg")
-    plt.close()
+            dist[k] = v / total
+        total = 0
+        for k, v in dist.items():
+            dist[k] = v + total
+            total += v
+        if not os.path.exists(path + "/plots/"):
+            os.mkdir(path + "/plots/")
+        path += "/plots/"
+        if not os.path.exists(path + str(kernel_num)):
+            os.mkdir(path + str(kernel_num))
+        path += str(kernel_num) + "/"
+        plt.plot(dist.keys(), dist.values(), marker="o")
+        plt.xlabel("burst volume")
+        plt.ylabel("CDF")
+        plt.title(str(suite) + "-" + str(bench) + " Burst Volume")
+        plt.tight_layout()
+        plt.savefig(path + "burst_vol_" + str(kernel_num) + ".jpg")
+        plt.close()
     cv = calculate_cov(burst_volume)
     return cv
 
@@ -320,29 +323,30 @@ def burst_duration_cov(traffic, path, suite, bench, kernel_num):
     dist = dict(sorted(dist.items(), key=lambda x: x[0]))
     while "kernels" in path:
         path = os.path.dirname(path)
-    with open(path + "/data/burst-dur_" + str(kernel_num) + ".csv", "w") as file:
+    if len(burst_duration) > 0:
+        with open(path + "/data/burst-dur_" + str(kernel_num) + ".csv", "w") as file:
+            for k, v in dist.items():
+                file.write(str(k) + "," + str(v) + "\n")
+        total = sum(list(dist.values()))
         for k, v in dist.items():
-            file.write(str(k) + "," + str(v) + "\n")
-    total = sum(list(dist.values()))
-    for k, v in dist.items():
-        dist[k] = v / total
-    total = 0
-    for k, v in dist.items():
-        dist[k] = v + total
-        total += v
-    if not os.path.exists(path + "/plots/"):
-        os.mkdir(path + "/plots/")
-    path += "/plots/"
-    if not os.path.exists(path + str(kernel_num)):
-        os.mkdir(path + str(kernel_num))
-    path += str(kernel_num) + "/"
-    plt.plot(dist.keys(), dist.values(), marker="o")
-    plt.xlabel("burst duration")
-    plt.ylabel("CDF")
-    plt.title(str(suite) + "-" + str(bench) + " Burst duration")
-    plt.tight_layout()
-    plt.savefig(path + "burst_duration_" + str(kernel_num) + ".jpg")
-    plt.close()
+            dist[k] = v / total
+        total = 0
+        for k, v in dist.items():
+            dist[k] = v + total
+            total += v
+        if not os.path.exists(path + "/plots/"):
+            os.mkdir(path + "/plots/")
+        path += "/plots/"
+        if not os.path.exists(path + str(kernel_num)):
+            os.mkdir(path + str(kernel_num))
+        path += str(kernel_num) + "/"
+        plt.plot(dist.keys(), dist.values(), marker="o")
+        plt.xlabel("burst duration")
+        plt.ylabel("CDF")
+        plt.title(str(suite) + "-" + str(bench) + " Burst duration")
+        plt.tight_layout()
+        plt.savefig(path + "burst_duration_" + str(kernel_num) + ".jpg")
+        plt.close()
     cv = calculate_cov(burst_duration)
     return cv
 
@@ -372,31 +376,32 @@ def burst_ratio_cov(traffic, path, suite, bench, kernel_num):
     dist = dict(sorted(dist.items(), key=lambda x: x[0]))
     while "kernels" in path:
         path = os.path.dirname(path)
-    with open(path + "/data/burst-ratio_" + str(kernel_num) + ".csv", "w") as file:
+    if len(burst_ratio) > 0:
+        with open(path + "/data/burst-ratio_" + str(kernel_num) + ".csv", "w") as file:
+            for k, v in dist.items():
+                file.write(str(k) + "," + str(v) + "\n")
+        total = sum(list(dist.values()))
         for k, v in dist.items():
-            file.write(str(k) + "," + str(v) + "\n")
-    total = sum(list(dist.values()))
-    for k, v in dist.items():
-        dist[k] = v / total
-    total = 0
-    for k, v in dist.items():
-        dist[k] = v + total
-        total += v
+            dist[k] = v / total
+        total = 0
+        for k, v in dist.items():
+            dist[k] = v + total
+            total += v
 
-    if not os.path.exists(path + "/plots/"):
-        os.mkdir(path + "/plots/")
-    path += "/plots/"
-    if not os.path.exists(path + str(kernel_num)):
-        os.mkdir(path + str(kernel_num))
-    path += str(kernel_num) + "/"
-    plt.plot(dist.keys(), dist.values(), marker="o")
-    plt.xlabel("burst duration")
-    plt.ylabel("CDF")
-    plt.title(str(suite) + "-" + str(bench) + " Burst duration")
-    plt.tight_layout()
-    plt.savefig(path + "burst_duration_" + str(kernel_num) + ".jpg")
+        if not os.path.exists(path + "/plots/"):
+            os.mkdir(path + "/plots/")
+        path += "/plots/"
+        if not os.path.exists(path + str(kernel_num)):
+            os.mkdir(path + str(kernel_num))
+        path += str(kernel_num) + "/"
+        plt.plot(dist.keys(), dist.values(), marker="o")
+        plt.xlabel("burst duration")
+        plt.ylabel("CDF")
+        plt.title(str(suite) + "-" + str(bench) + " Burst duration")
+        plt.tight_layout()
+        plt.savefig(path + "burst_duration_" + str(kernel_num) + ".jpg")
+        plt.close()
     cv = calculate_cov(burst_ratio)
-    plt.close()
     return cv
 
 
