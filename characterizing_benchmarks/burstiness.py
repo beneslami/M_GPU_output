@@ -764,36 +764,9 @@ def burstiness_statistics(path, kernel_num):
     data["intensity"].append(int_kur)
     return data
 
-if __name__ == "__main__":
-    """suits = benchlist.suits
-    benchmarks = benchlist.benchmarks
-    topology = benchlist.topology
-    NVLink = benchlist.NVLink
-    chiplet_num = benchlist.chiplet_num
-    path = benchlist.bench_path
-    for suite in suits:
-        if suite == "rodinia":
-            for bench in benchmarks[suite]:
-                for topo in topology:
-                    for nv in NVLink:
-                        for ch in chiplet_num:
-                            if ch == "4chiplet" and bench == "heartwall":
-                                sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
-                                if len(os.listdir(os.path.dirname(os.path.dirname(sub_path)))) != 0:
-                                    for trace_file in os.listdir(sub_path):
-                                        if Path(trace_file).suffix == '.txt':
-                                            kernel_num = int(trace_file.split(".")[0].split("_")[-1])
-                                            if kernel_is_valid(sub_path, trace_file):
-                                                cv_iat = measure_iat(sub_path + trace_file, suite, bench, kernel_num)
-                                                print(bench + " " + nv  + " iat done")
-                                                cv_vol = measure_vol(sub_path + trace_file, suite, bench, kernel_num)
-                                                print(bench + " " + nv + " vol done")
-                                                cv_rat = measure_duration(sub_path + trace_file, suite, bench, kernel_num)
-                                                print(bench + " " + nv + " ratio done")
-                                                cv_dur = measure_burst_ratio(sub_path + trace_file, suite, bench, kernel_num)
-                                                print(bench + " " + nv + " duration done")"""
 
-    """for nv in NVLink:
+def burst_feature_extraction(ch):
+    for nv in NVLink:
         suite_list = []
         bench_list = []
         kernel_list = []
@@ -819,8 +792,10 @@ if __name__ == "__main__":
                 k = find_the_number_of_fucking_kernels(suite, bench, ch)
                 for kernel_num in k:
                     for topo in topology:
-                        if os.path.exists(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv"):
-                            info = pd.read_csv(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
+                        if os.path.exists(
+                                path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv"):
+                            info = pd.read_csv(
+                                path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
                             sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/data/"
                             data = burstiness_statistics(sub_path, kernel_num)
                             suite_list.append(suite)
@@ -859,21 +834,59 @@ if __name__ == "__main__":
                                             flag = 1
                                             break
                                     if flag == 0:
-                                        print(path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv    " + str(kernel_num))
+                                        print(
+                                            path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv" + str(
+                                                kernel_num))
 
                         else:
-                            print("WARNING:  " + path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
+                            print(
+                                "WARNING:  " + path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
 
         table = {"suite": suite_list, "benchmark": bench_list, "kernel": kernel_list, "topology": topo_list,
                  "hurst": hurst_list, "IAT_mean": iat_mean, "IAT_std": iat_std, "IAT_skewness": iat_ske,
-                 "IAT_kurtosis": iat_kur, "IAT_CoV": iat_cov, "vol_mean": vol_mean, "vol_std": vol_std, "vol_skewness": vol_ske,
-                 "vol_kurtosis": vol_kur, "vol_CoV": vol_cov, "dur_mean": dur_mean, "dur_std": dur_std, "dur_skewness": dur_ske,
+                 "IAT_kurtosis": iat_kur, "IAT_CoV": iat_cov, "vol_mean": vol_mean, "vol_std": vol_std,
+                 "vol_skewness": vol_ske,
+                 "vol_kurtosis": vol_kur, "vol_CoV": vol_cov, "dur_mean": dur_mean, "dur_std": dur_std,
+                 "dur_skewness": dur_ske,
                  "dur_kurtosis": dur_kur, "dur_CoV": dur_cov
-        }
+                 }
         df = pd.DataFrame(table)
         df.set_index(["suite", "benchmark", "kernel", "topology",
-                 "hurst", "IAT_mean", "IAT_std", "IAT_skewness", "IAT_kurtosis", "IAT_CoV", "vol_mean", "vol_std", "vol_skewness",
-                 "vol_kurtosis", "vol_CoV", "dur_mean", "dur_std", "dur_skewness", "dur_kurtosis", "dur_CoV"], inplace=True)
+                      "hurst", "IAT_mean", "IAT_std", "IAT_skewness", "IAT_kurtosis", "IAT_CoV", "vol_mean", "vol_std",
+                      "vol_skewness",
+                      "vol_kurtosis", "vol_CoV", "dur_mean", "dur_std", "dur_skewness", "dur_kurtosis", "dur_CoV"],
+                     inplace=True)
 
-        df.to_html(path + "burst_stats_" + nv + ".html")
-        df.to_csv(path + "burst_stats_" + nv + ".csv")"""
+        df.to_html(benchlist.bench_path + "burst_stats_" + nv + ".html")
+        df.to_csv(benchlist.bench_path + "burst_stats_" + nv + ".csv")
+
+
+if __name__ == "__main__":
+    """suits = benchlist.suits
+    benchmarks = benchlist.benchmarks
+    topology = benchlist.topology
+    NVLink = benchlist.NVLink
+    chiplet_num = benchlist.chiplet_num
+    path = benchlist.bench_path
+    for suite in suits:
+        if suite == "rodinia":
+            for bench in benchmarks[suite]:
+                for topo in topology:
+                    for nv in NVLink:
+                        for ch in chiplet_num:
+                            if ch == "4chiplet" and bench == "heartwall":
+                                sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/kernels/"
+                                if len(os.listdir(os.path.dirname(os.path.dirname(sub_path)))) != 0:
+                                    for trace_file in os.listdir(sub_path):
+                                        if Path(trace_file).suffix == '.txt':
+                                            kernel_num = int(trace_file.split(".")[0].split("_")[-1])
+                                            if kernel_is_valid(sub_path, trace_file):
+                                                cv_iat = measure_iat(sub_path + trace_file, suite, bench, kernel_num)
+                                                print(bench + " " + nv  + " iat done")
+                                                cv_vol = measure_vol(sub_path + trace_file, suite, bench, kernel_num)
+                                                print(bench + " " + nv + " vol done")
+                                                cv_rat = measure_duration(sub_path + trace_file, suite, bench, kernel_num)
+                                                print(bench + " " + nv + " ratio done")
+                                                cv_dur = measure_burst_ratio(sub_path + trace_file, suite, bench, kernel_num)
+                                                print(bench + " " + nv + " duration done")"""
+    pass

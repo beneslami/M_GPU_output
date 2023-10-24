@@ -137,6 +137,17 @@ def collect_data(path, nv, ch, data):
     result.to_csv(path + "characterization_output/" + ch + "_" + nv + "_characterization.csv", index=True)
 
 
+def data_collection_wrapper(ch):
+    suits = benchlist.suits
+    benchmarks = benchlist.benchmarks
+    topology = benchlist.topology
+    NVLink = benchlist.NVLink
+    path = benchlist.bench_path
+    for nv in NVLink:
+        data = read_csv_files(path, nv, ch)
+        collect_data(path, nv, ch, data)
+
+
 if __name__ == "__main__":
     ch = "4chiplet"
     suits = benchlist.suits

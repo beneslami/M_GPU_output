@@ -115,16 +115,15 @@ def rename_output(path, suite, bench, topo, NV, ch):
                 print(Fore.GREEN + "renaming " + path + suite + "-" + bench + file_name + " [done " + u'\u2713]' + Fore.RESET)
 
 
-def organizing_benchmark(path, suite, bench):
+def organizing_benchmark(path, suite, bench, ch):
     for topo in topology:
         for NV in NVLink:
-            for ch in chiplet_num:
-                if len(os.listdir(path + suite + "/" + bench + "/" + topo + "/" + NV + "/" + ch)) != 0:
-                    sub_path = path + suite + "/" + bench + "/" + topo + "/" + NV + "/" + ch + "/"
-                    rearrange_traces(sub_path, suite, bench, topo, NV, ch)
-                    rename_output(sub_path, suite, bench, topo, NV, ch)
-                else:
-                    print(Fore.YELLOW + ch + " directory is empty" + Fore.RESET)
+            if len(os.listdir(path + suite + "/" + bench + "/" + topo + "/" + NV + "/" + ch)) != 0:
+                sub_path = path + suite + "/" + bench + "/" + topo + "/" + NV + "/" + ch + "/"
+                rearrange_traces(sub_path, suite, bench, topo, NV, ch)
+                rename_output(sub_path, suite, bench, topo, NV, ch)
+            else:
+                print(Fore.YELLOW + ch + " directory is empty" + Fore.RESET)
 
 
 if __name__ == "__main__":

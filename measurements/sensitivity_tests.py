@@ -1,5 +1,7 @@
 import gc
 import os
+import sys
+sys.path.append("..")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -288,50 +290,53 @@ def throughput_sensitivity(path):
     gc.collect()
 
 
-def bandwidth_sensitivity(path, suite, bench):
+def bandwidth_sensitivity(path, suite, bench, ch):
     topology = benchlist.topology
     NVLink = benchlist.NVLink
     chiplet = benchlist.chiplet_num
-    for ch in chiplet:
-        if ch == "4chiplet":
-            bandwidth_ipc = {}
-            bandwidth_throughput = {}
-            for topo in topology:
-                for nv in NVLink:
-                    topol, NV, chipNum = determine_architecture(topo, nv, ch)
-                    sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
-                    file_name = suite + "-" + bench + "_NV" + str(NV) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
-                    if len(os.listdir(os.path.dirname(sub_path))) != 0:
-                        content = ""
-                        with open(sub_path + file_name, "r") as file:
-                            content = file.readlines()
-                        duration = -1
-                        tot_cycle = 0
-                        partial_sum = 0
-                        ipc = []
-                        for line in content:
-                            if "gpu_ipc" in line:
-                                if "nan" not in line.split(" = ")[1]:
-                                    ipc.append(float(line.split(" = ")[1]))
-                            elif "gpu_sim_cycle" in line:
-                                duration = int(line.split(" = ")[1])
-                                tot_cycle += duration
-                            elif "gpu_throughput" in line:
-                                if "nan" not in line.split(" = ")[1]:
-                                    partial_sum += float(line.split(" = ")[1]) * duration
-                        if topo not in bandwidth_ipc.keys():
-                            bandwidth_ipc.setdefault(topo, {})[nv] = np.mean(ipc)
-                        else:
-                            bandwidth_ipc[topo][nv] = np.mean(ipc)
-                        if topo not in bandwidth_throughput.keys():
-                            bandwidth_throughput.setdefault(topo, {})[nv] = partial_sum/tot_cycle
-                        else:
-                            bandwidth_throughput[topo][nv] = partial_sum/tot_cycle
-                    else:
-                        print(Fore.YELLOW + "directory " + sub_path + " is empty" + Fore.WHITE)
+    bandwidth_ipc = {}
+    bandwidth_throughput = {}
+    for topo in topology:
+        for nv in NVLink:
+            topol, NV, chipNum = determine_architecture(topo, nv, ch)
+            sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
+            file_name = suite + "-" + bench + "_NV" + str(NV) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
+            if len(os.listdir(os.path.dirname(sub_path))) != 0:
+                content = ""
+                with open(sub_path + file_name, "r") as file:
+                    content = file.readlines()
+                duration = -1
+                tot_cycle = 0
+                partial_sum = 0
+                ipc = []
+                for line in content:
+                    if "gpu_ipc" in line:
+                        if "nan" not in line.split(" = ")[1]:
+                            ipc.append(float(line.split(" = ")[1]))
+                    elif "gpu_sim_cycle" in line:
+                        duration = int(line.split(" = ")[1])
+                        tot_cycle += duration
+                    elif "gpu_throughput" in line:
+                        if "nan" not in line.split(" = ")[1]:
+                            partial_sum += float(line.split(" = ")[1]) * duration
+                if topo not in bandwidth_ipc.keys():
+                    bandwidth_ipc.setdefault(topo, {})[nv] = np.mean(ipc)
+                else:
+                    bandwidth_ipc[topo][nv] = np.mean(ipc)
+                if topo not in bandwidth_throughput.keys():
+                    bandwidth_throughput.setdefault(topo, {})[nv] = partial_sum/tot_cycle
+                else:
+                    bandwidth_throughput[topo][nv] = partial_sum/tot_cycle
+            else:
+                print(Fore.YELLOW + "directory " + sub_path + " is empty" + Fore.WHITE)
 
-            path += suite + "/" + bench
 
+            path = benchlist.bench_path
+            if not os.path.exists(path + suite + "/result/"):
+                os.mkdir(path + suite + "/result/")
+            if not os.path.exists(path + suite + "/result/" + ch):
+                os.mkdir(path + suite + "/result/" + ch)
+            path = path + suite + "/result/" + ch
             for topo in bandwidth_ipc.keys():
                 bandwidth_ipc[topo] = dict(sorted(bandwidth_ipc[topo].items(), key=lambda x: x[0]))
             if len(bandwidth_ipc) != 0:
@@ -343,7 +348,7 @@ def bandwidth_sensitivity(path, suite, bench):
                 plt.title(suite + "-" + bench + " bandwidth/ipc sensitivity")
                 plt.tight_layout()
                 plt.legend()
-                plt.savefig(path + "/bandwidth_ipc_" + str(ch) + ".jpg")
+                plt.savefig(path + "/bandwidth_ipc_total" + str(ch) + ".jpg")
                 plt.close()
 
             for topo in bandwidth_throughput.keys():
@@ -357,104 +362,104 @@ def bandwidth_sensitivity(path, suite, bench):
                 plt.title(suite + "-" + bench + " bandwidth/throughput sensitivity")
                 plt.legend()
                 plt.tight_layout()
-                plt.savefig(path + "/bandwidth_throughput_" + str(ch) + ".jpg")
+                plt.savefig(path + "/bandwidth_throughput_total" + str(ch) + ".jpg")
                 plt.close()
 
 
-def kernel_sensitivity_test(): # number of remote request per kilo instruction
+def kernel_sensitivity_test(ch):
     topology = benchlist.topology
     NVLink = benchlist.NVLink
     benchmarks = benchlist.nominated_benchmarks
     path = benchlist.bench_path
-    ch = "4chiplet"
 
     for suite in benchmarks.keys():
         for benchmark in benchmarks[suite]:
             data = {}
-            if suite == "SDK" and benchmark == "dct8x8":
-                if not os.path.exists(path + suite + "/" + benchmark + "/result/"):
-                    os.mkdir(path + suite + "/" + benchmark + "/result/")
-                if not os.path.exists(path + suite + "/" + benchmark + "/result/" + ch):
-                    os.mkdir(path + suite + "/" + benchmark + "/result/" + ch + "/")
-                for topo in topology:
-                    data.setdefault(topo, {})
-                    for nv in NVLink:
-                        data[topo].setdefault(nv, {})
-                        topol, NV, chip = determine_architecture(topo, nv, ch)
-                        file_path = path + suite + "/" + benchmark + "/" + topo + "/" + nv + "/" + ch + "/"
-                        file_name = suite + "-" + benchmark + "_NV" + str(NV) + "_1vc_" + str(chip) + "ch_" + topol + ".txt"
-                        content = ""
-                        with open(file_path + file_name, "r") as file:
-                            content = file.readlines()
-                        kernel_num = 0
-                        ipc = 0
-                        flag = 0
-                        for line in content:
-                            if "kernel_launch_uid" in line:
-                                kernel_num = int(line.split(" = ")[1])
-                                flag = 1
-                            if "gpu_ipc" in line and flag == 1:
-                                if "nan" not in line.split(" = ")[1]:
-                                    ipc = float(line.split(" = ")[1])
-                            if "gpu_throughput" in line and flag == 1:
-                                if "nan" not in line.split(" = ")[1]:
-                                    thrughtput = float(line.split(" = ")[1])
-                                    if kernel_num not in data[topo][nv].keys():
-                                        data[topo][nv].setdefault(kernel_num, {})
-                                    data[topo][nv][kernel_num]["ipc"] = ipc
-                                    data[topo][nv][kernel_num]["throughput"] = thrughtput
-                                    flag = 0
-                data = dict(sorted(data.items(), key=lambda x: x[0]))
-                for topo in data.keys():
-                    data[topo] = dict(sorted(data[topo].items(), key=lambda x: x[0]))
-                    for nv in data[topo].keys():
-                        data[topo][nv] = dict(sorted(data[topo][nv].items(), key=lambda x: x[0]))
-                throghput = {}
-                ipc = {}
-                for topo in data.keys():
-                    for nv in data[topo].keys():
-                        for kernel_num in data[topo][nv].keys():
-                            if kernel_num not in throghput.keys():
-                                throghput.setdefault(kernel_num, {}).setdefault(topo, {})
-                                ipc.setdefault(kernel_num, {}).setdefault(topo, {})
-                            else:
-                                if topo not in throghput[kernel_num].keys():
-                                    throghput[kernel_num].setdefault(topo, {})
-                                if topo not in ipc[kernel_num].keys():
-                                    ipc[kernel_num].setdefault(topo, {})
-                            for key, value in data[topo][nv][kernel_num].items():
-                                if key == "ipc":
-                                    ipc[kernel_num][topo][nv] = value
-                                elif key == "throughput":
-                                    throghput[kernel_num][topo][nv] = value
-                for kernel_num in ipc.keys():
-                    plt.figure(figsize=(10, 8))
-                    for topo in ipc[kernel_num].keys():
-                        ipc[kernel_num] = dict(sorted(ipc[kernel_num].items(), key=lambda x: x[0]))
-                        plt.plot(ipc[kernel_num][topo].keys(), ipc[kernel_num][topo].values(), marker="o", label=topo)
-                    plt.title("kernel " + str(kernel_num))
-                    plt.xlabel("Bandwidth")
-                    plt.ylabel("ipc")
-                    plt.legend()
-                    plt.tight_layout()
-                    plt.savefig(path + suite + "/" + benchmark + "/result/" + ch + "/bandwidth_ipc_kernel_" + str(kernel_num) + ".jpg")
-                    plt.close()
+            if not os.path.exists(path + suite + "/" + benchmark + "/result/"):
+                os.mkdir(path + suite + "/" + benchmark + "/result/")
+            if not os.path.exists(path + suite + "/" + benchmark + "/result/" + ch):
+                os.mkdir(path + suite + "/" + benchmark + "/result/" + ch + "/")
+            if not os.path.exists(path + suite + "/" + benchmark + "/result/" + ch + "/per_kernel_sensitivity"):
+                os.mkdir(path + suite + "/" + benchmark + "/result/" + ch + "/per_kernel_sensitivity/")
+            for topo in topology:
+                data.setdefault(topo, {})
+                for nv in NVLink:
+                    data[topo].setdefault(nv, {})
+                    topol, NV, chip = determine_architecture(topo, nv, ch)
+                    file_path = path + suite + "/" + benchmark + "/" + topo + "/" + nv + "/" + ch + "/"
+                    file_name = suite + "-" + benchmark + "_NV" + str(NV) + "_1vc_" + str(chip) + "ch_" + topol + ".txt"
+                    content = ""
+                    with open(file_path + file_name, "r") as file:
+                        content = file.readlines()
+                    kernel_num = 0
+                    ipc = 0
+                    flag = 0
+                    for line in content:
+                        if "kernel_launch_uid" in line:
+                            kernel_num = int(line.split(" = ")[1])
+                            flag = 1
+                        if "gpu_ipc" in line and flag == 1:
+                            if "nan" not in line.split(" = ")[1]:
+                                ipc = float(line.split(" = ")[1])
+                        if "gpu_throughput" in line and flag == 1:
+                            if "nan" not in line.split(" = ")[1]:
+                                thrughtput = float(line.split(" = ")[1])
+                                if kernel_num not in data[topo][nv].keys():
+                                    data[topo][nv].setdefault(kernel_num, {})
+                                data[topo][nv][kernel_num]["ipc"] = ipc
+                                data[topo][nv][kernel_num]["throughput"] = thrughtput
+                                flag = 0
+            data = dict(sorted(data.items(), key=lambda x: x[0]))
+            for topo in data.keys():
+                data[topo] = dict(sorted(data[topo].items(), key=lambda x: x[0]))
+                for nv in data[topo].keys():
+                    data[topo][nv] = dict(sorted(data[topo][nv].items(), key=lambda x: x[0]))
+            throghput = {}
+            ipc = {}
+            for topo in data.keys():
+                for nv in data[topo].keys():
+                    for kernel_num in data[topo][nv].keys():
+                        if kernel_num not in throghput.keys():
+                            throghput.setdefault(kernel_num, {}).setdefault(topo, {})
+                            ipc.setdefault(kernel_num, {}).setdefault(topo, {})
+                        else:
+                            if topo not in throghput[kernel_num].keys():
+                                throghput[kernel_num].setdefault(topo, {})
+                            if topo not in ipc[kernel_num].keys():
+                                ipc[kernel_num].setdefault(topo, {})
+                        for key, value in data[topo][nv][kernel_num].items():
+                            if key == "ipc":
+                                ipc[kernel_num][topo][nv] = value
+                            elif key == "throughput":
+                                throghput[kernel_num][topo][nv] = value
+            for kernel_num in ipc.keys():
+                plt.figure(figsize=(10, 8))
+                for topo in ipc[kernel_num].keys():
+                    ipc[kernel_num] = dict(sorted(ipc[kernel_num].items(), key=lambda x: x[0]))
+                    plt.plot(ipc[kernel_num][topo].keys(), ipc[kernel_num][topo].values(), marker="o", label=topo)
+                plt.title("kernel " + str(kernel_num))
+                plt.xlabel("Bandwidth")
+                plt.ylabel("ipc")
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(path + suite + "/" + benchmark + "/result/" + ch + "/per_kernel_sensitivity/bandwidth_ipc_kernel_" + str(kernel_num) + ".jpg")
+                plt.close()
 
-                for kernel_num in throghput.keys():
-                    plt.figure(figsize=(10, 8))
-                    for topo in throghput[kernel_num].keys():
-                        throghput[kernel_num] = dict(sorted(throghput[kernel_num].items(), key=lambda x: x[0]))
-                        plt.plot(throghput[kernel_num][topo].keys(), throghput[kernel_num][topo].values(), marker="o", label=topo)
-                    plt.title("kernel " + str(kernel_num))
-                    plt.xlabel("Bandwidth")
-                    plt.ylabel("throughput (byte/cycle)")
-                    plt.legend()
-                    plt.tight_layout()
-                    plt.savefig(path + suite + "/" + benchmark + "/result/" + ch + "/bandwidth_throughput_kernel_" + str(kernel_num) + ".jpg")
-                    plt.close()
+            for kernel_num in throghput.keys():
+                plt.figure(figsize=(10, 8))
+                for topo in throghput[kernel_num].keys():
+                    throghput[kernel_num] = dict(sorted(throghput[kernel_num].items(), key=lambda x: x[0]))
+                    plt.plot(throghput[kernel_num][topo].keys(), throghput[kernel_num][topo].values(), marker="o", label=topo)
+                plt.title("kernel " + str(kernel_num))
+                plt.xlabel("Bandwidth")
+                plt.ylabel("throughput (byte/cycle)")
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig(path + suite + "/" + benchmark + "/result/" + ch + "/per_kernel_sensitivity/bandwidth_throughput_kernel_" + str(kernel_num) + ".jpg")
+                plt.close()
 
 
-def iat_sensitivity_test():
+def iat_sensitivity_test(ch):
     datasets = []
     for nv in benchlist.NVLink:
         sub_path = benchlist.bench_path + "burst_stats_" + nv + ".csv"
@@ -535,10 +540,10 @@ def iat_sensitivity_test():
             df = pd.DataFrame(table,
                               columns=["benchmark", "kernels", "topology", "NVLink4", "NVLink3", "NVLink2", "NVLink1"])
             df.set_index(["benchmark", "kernels", "topology", "NVLink4"], inplace=True)
-            df.to_csv(benchlist.bench_path + suite + "/iat_sensitivity.csv", index=True)
+            df.to_csv(benchlist.bench_path + suite + "/result/" + ch + "/iat_sensitivity.csv", index=True)
 
 
-def burst_volume_sensitivity_test():
+def burst_volume_sensitivity_test(ch):
     datasets = []
     for nv in benchlist.NVLink:
         sub_path = benchlist.bench_path + "burst_stats_" + nv + ".csv"
@@ -619,10 +624,10 @@ def burst_volume_sensitivity_test():
             df = pd.DataFrame(table,
                               columns=["benchmark", "kernels", "topology", "NVLink4", "NVLink3", "NVLink2", "NVLink1"])
             df.set_index(["benchmark", "kernels", "topology", "NVLink4"], inplace=True)
-            df.to_csv(benchlist.bench_path + suite + "/burst_volume_sensitivity.csv", index=True)
+            df.to_csv(benchlist.bench_path + suite + "/result/" + ch + "/burst_volume_sensitivity.csv", index=True)
 
 
-def burst_length_sensitivity_test():
+def burst_length_sensitivity_test(ch):
     datasets = []
     for nv in benchlist.NVLink:
         sub_path = benchlist.bench_path + "burst_stats_" + nv + ".csv"
@@ -703,8 +708,8 @@ def burst_length_sensitivity_test():
             df = pd.DataFrame(table,
                               columns=["benchmark", "kernels", "topology", "NVLink4", "NVLink3", "NVLink2", "NVLink1"])
             df.set_index(["benchmark", "kernels", "topology", "NVLink4"], inplace=True)
-            df.to_csv(benchlist.bench_path + suite + "/burst_length_sensitivity.csv", index=True)
+            df.to_csv(benchlist.bench_path + suite + "/result/" + ch + "/burst_length_sensitivity.csv", index=True)
 
 
 if __name__ == "__main__":
-    iat_sensitivity_test()
+    kernel_sensitivity_test()
