@@ -1,9 +1,11 @@
-
+import math
 import os
 import gc
 import sys
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+
 sys.path.append("..")
 import benchlist
 from pathlib import Path
@@ -766,7 +768,7 @@ def burstiness_statistics(path, kernel_num):
 
 
 def burst_feature_extraction(ch):
-    for nv in NVLink:
+    for nv in benchlist.NVLink:
         suite_list = []
         bench_list = []
         kernel_list = []
@@ -787,16 +789,16 @@ def burst_feature_extraction(ch):
         dur_ske = []
         dur_kur = []
         dur_cov = []
-        for suite in suits:
-            for bench in benchmarks[suite]:
+        for suite in benchlist.suits:
+            for bench in benchlist.benchmarks[suite]:
                 k = find_the_number_of_fucking_kernels(suite, bench, ch)
                 for kernel_num in k:
-                    for topo in topology:
+                    for topo in benchlist.topology:
                         if os.path.exists(
-                                path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv"):
+                                benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv"):
                             info = pd.read_csv(
-                                path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
-                            sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/data/"
+                                benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
+                            sub_path = benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/data/"
                             data = burstiness_statistics(sub_path, kernel_num)
                             suite_list.append(suite)
                             bench_list.append(bench)
@@ -835,12 +837,12 @@ def burst_feature_extraction(ch):
                                             break
                                     if flag == 0:
                                         print(
-                                            path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv" + str(
+                                            benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv" + str(
                                                 kernel_num))
 
                         else:
                             print(
-                                "WARNING:  " + path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
+                                "WARNING:  " + benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
 
         table = {"suite": suite_list, "benchmark": bench_list, "kernel": kernel_list, "topology": topo_list,
                  "hurst": hurst_list, "IAT_mean": iat_mean, "IAT_std": iat_std, "IAT_skewness": iat_ske,

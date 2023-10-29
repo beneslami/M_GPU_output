@@ -1,7 +1,9 @@
+import os
 import sys
 import pandas as pd
 sys.path.append("..")
 import benchlist
+from sensitivity_tests import *
 
 
 def is_sensitivie(suite, bench, kernel_num):
@@ -23,4 +25,8 @@ def is_sensitivie(suite, bench, kernel_num):
 
 
 if __name__ == "__main__":
-    print(is_sensitivie("SDK", "hsoptical", 15))
+    for suite in benchlist.suits:
+        for bench in benchlist.benchmarks[suite]:
+            chiplet_number_sensitivity(suite, bench)
+            for ch in benchlist.chiplet_num:
+                bandwidth_sensitivity(suite, bench, ch)

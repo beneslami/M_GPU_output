@@ -42,6 +42,18 @@ def determine_architecture(topo, nv, ch):
     return topol, NV, chipNum
 
 
+def find_the_number_of_fucking_kernels(suite, bench, ch):
+    k_list = []
+    for topo in benchlist.topology:
+        for nv in benchlist.NVLink:
+            if os.path.exists(benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv"):
+                info = pd.read_csv(benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/bench_info.csv")
+                if list(info["kernel_num"]) not in k_list:
+                    k_list.append(list(info["kernel_num"]))
+    k_list.sort()
+    return k_list
+
+
 def queue_lengths(path):
     queue = []
     for file in os.listdir(path):
@@ -73,7 +85,7 @@ def latency_sensitivity_test(path):
         q_path = path + "/" + str(length) + "/" + bench_name
         latency = {}
         for vc in vc_num:
-            vc_file = q_path + "_" + str(vc) + "vc_" + str(length) + ".txt"
+            vc_file = q_path + "_NV4_" + str(vc) + "vc_4ch_ring_" + str(length) + ".txt"
             content = ""
             temp_latency = {}
             with open(vc_file, "r") as file:
@@ -138,7 +150,7 @@ def ipc_sensitivity_test(path):
         q_path = path + "/" + str(length) + "/" + bench_name
         vc_ipc = {}
         for vc in vc_num:
-            vc_file = q_path + "_" + str(vc) + "vc_" + str(length) + ".txt"
+            vc_file = q_path + "_NV4_" + str(vc) + "vc_4ch_ring_" + str(length) + ".txt"
             content = ""
             temp_ipc = {}
             with open(vc_file, "r") as file:
@@ -235,7 +247,7 @@ def throughput_sensitivity(path):
         q_path = path + "/" + str(length) + "/" + bench_name
         throughput = {}
         for vc in vc_num:
-            vc_file = q_path + "_" + str(vc) + "vc_" + str(length) + ".txt"
+            vc_file = q_path + "_NV4_" + str(vc) + "vc_4ch_ring_" + str(length) + ".txt"
             content = ""
             with open(vc_file, "r") as file:
                 content = file.readlines()
@@ -290,80 +302,159 @@ def throughput_sensitivity(path):
     gc.collect()
 
 
-def bandwidth_sensitivity(path, suite, bench, ch):
+def bandwidth_sensitivity(suite, bench, ch):
+    path = benchlist.bench_path
+    if not os.path.exists(path + suite + bench + "/result/"):
+        os.mkdir(path + suite + bench + "/result/")
+    if not os.path.exists(path + suite + bench + "/result/" + ch):
+        os.mkdir(path + suite + bench + "/result/" + ch)
+
     topology = benchlist.topology
     NVLink = benchlist.NVLink
-    chiplet = benchlist.chiplet_num
-    bandwidth_ipc = {}
-    bandwidth_throughput = {}
-    for topo in topology:
-        for nv in NVLink:
-            topol, NV, chipNum = determine_architecture(topo, nv, ch)
-            sub_path = path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
-            file_name = suite + "-" + bench + "_NV" + str(NV) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
-            if len(os.listdir(os.path.dirname(sub_path))) != 0:
-                content = ""
-                with open(sub_path + file_name, "r") as file:
-                    content = file.readlines()
-                duration = -1
-                tot_cycle = 0
-                partial_sum = 0
-                ipc = []
-                for line in content:
-                    if "gpu_ipc" in line:
-                        if "nan" not in line.split(" = ")[1]:
-                            ipc.append(float(line.split(" = ")[1]))
-                    elif "gpu_sim_cycle" in line:
-                        duration = int(line.split(" = ")[1])
-                        tot_cycle += duration
-                    elif "gpu_throughput" in line:
-                        if "nan" not in line.split(" = ")[1]:
-                            partial_sum += float(line.split(" = ")[1]) * duration
-                if topo not in bandwidth_ipc.keys():
-                    bandwidth_ipc.setdefault(topo, {})[nv] = np.mean(ipc)
+    k = sieve_benchmark.find_the_number_of_fucking_kernels(suite, bench, ch)
+    for kernel_num in k:
+        bandwidth_ipc = {}
+        bandwidth_throughput = {}
+        for topo in topology:
+            bandwidth_ipc.setdefault(topo, {})
+            bandwidth_throughput.setdefault(topo, {})
+            for nv in NVLink:
+                topol, NV, chipNum = determine_architecture(topo, nv, ch)
+                sub_path = benchlist.bench_path + suite + "/" + bench + "/" + topo + "/" + nv + "/" + ch + "/"
+                file_name = suite + "-" + bench + "_NV" + str(NV) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
+                if len(os.listdir(os.path.dirname(sub_path))) != 0:
+                    content = ""
+                    with open(sub_path + file_name, "r") as file:
+                        content = file.readlines()
+                    flag = 0
+                    for line in content:
+                        if "kernel_launch_uid" in line:
+                            try:
+                                int(line.split(" = ")[1])
+                            except:
+                                continue
+                            else:
+                                if kernel_num == int(line.split(" = ")[1]):
+                                    flag = 1
+                        if "gpu_ipc" in line and flag == 1:
+                            if "nan" not in line.split(" = ")[1]:
+                                bandwidth_ipc[topo][nv] = float(line.split(" = ")[1])
+                        elif "gpu_throughput" in line and flag == 1:
+                            if "nan" not in line.split(" = ")[1]:
+                                bandwidth_throughput[topo][nv] = float(line.split(" = ")[1])
+                                flag = 0
                 else:
-                    bandwidth_ipc[topo][nv] = np.mean(ipc)
-                if topo not in bandwidth_throughput.keys():
-                    bandwidth_throughput.setdefault(topo, {})[nv] = partial_sum/tot_cycle
-                else:
-                    bandwidth_throughput[topo][nv] = partial_sum/tot_cycle
-            else:
-                print(Fore.YELLOW + "directory " + sub_path + " is empty" + Fore.WHITE)
+                    print(Fore.YELLOW + "directory " + sub_path + " is empty" + Fore.WHITE)
 
-
-            path = benchlist.bench_path
-            if not os.path.exists(path + suite + "/result/"):
-                os.mkdir(path + suite + "/result/")
-            if not os.path.exists(path + suite + "/result/" + ch):
-                os.mkdir(path + suite + "/result/" + ch)
-            path = path + suite + "/result/" + ch
+        path = path + suite + bench + "/result/" + ch
+        if len(bandwidth_ipc) != 0:
             for topo in bandwidth_ipc.keys():
                 bandwidth_ipc[topo] = dict(sorted(bandwidth_ipc[topo].items(), key=lambda x: x[0]))
-            if len(bandwidth_ipc) != 0:
-                plt.figure(figsize=(10, 7))
+            plt.figure(figsize=(10, 7))
+            for topo in bandwidth_ipc.keys():
+                plt.plot(list(bandwidth_ipc[topo].keys()), list(bandwidth_ipc[topo].values()), marker="o", label=topo)
+            plt.xlabel("Bandwidth")
+            plt.ylabel("ipc")
+            plt.title(suite + "-" + bench + " bandwidth/ipc sensitivity")
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(path + "/bandwidth_ipc_kernel" + str(kernel_num) + "_" + str(ch) + ".jpg")
+            plt.close()
+            with open(path + "/bandwidth_ipc_kernel" + str(kernel_num) + "_" + ".csv", "w") as file:
                 for topo in bandwidth_ipc.keys():
-                    plt.plot(list(bandwidth_ipc[topo].keys()), list(bandwidth_ipc[topo].values()), marker="o", label=topo)
-                plt.xlabel("Bandwidth")
-                plt.ylabel("ipc")
-                plt.title(suite + "-" + bench + " bandwidth/ipc sensitivity")
-                plt.tight_layout()
-                plt.legend()
-                plt.savefig(path + "/bandwidth_ipc_total" + str(ch) + ".jpg")
-                plt.close()
+                    file.write(topo + "\n")
+                    for k, v in bandwidth_ipc[topo].items():
+                        file.write(str(k) + "," + str(v))
 
+        if len(bandwidth_throughput) != 0:
             for topo in bandwidth_throughput.keys():
                 bandwidth_throughput[topo] = dict(sorted(bandwidth_throughput[topo].items(), key=lambda x: x[0]))
-            if len(bandwidth_throughput) != 0:
-                plt.figure(figsize=(10, 7))
+            plt.figure(figsize=(10, 7))
+            for topo in bandwidth_throughput.keys():
+                plt.plot(list(bandwidth_throughput[topo].keys()), list(bandwidth_throughput[topo].values()), marker="o", label=topo)
+            plt.xlabel("Bandwidth")
+            plt.ylabel("throughput(byte/cycle/chiplet)")
+            plt.title(suite + "-" + bench + " bandwidth/throughput sensitivity")
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig(path + "/bandwidth_throughput_kernel" + str(kernel_num) + "_" + ".jpg")
+            plt.close()
+            with open(path + "/bandwidth_throughput_kernel" + str(kernel_num) + "_" + ".csv", "w") as file:
                 for topo in bandwidth_throughput.keys():
-                    plt.plot(list(bandwidth_throughput[topo].keys()), list(bandwidth_throughput[topo].values()), marker="o", label=topo)
-                plt.xlabel("Bandwidth")
-                plt.ylabel("throughput(byte/cycle/chiplet)")
-                plt.title(suite + "-" + bench + " bandwidth/throughput sensitivity")
-                plt.legend()
-                plt.tight_layout()
-                plt.savefig(path + "/bandwidth_throughput_total" + str(ch) + ".jpg")
-                plt.close()
+                    file.write(topo + "\n")
+                    for k, v in bandwidth_throughput[topo].items():
+                        file.write(str(k) + "," + str(v))
+
+
+def chiplet_number_sensitivity(suite, bench):
+    path = benchlist.bench_path
+    if not os.path.exists(path + suite + "/" + bench + "/result/"):
+        os.mkdir(path + suite + "/" + bench + "/result/")
+    if not os.path.exists(path + suite + "/" + bench + "/result/chiplet_sensitivity"):
+        os.mkdir(path + suite + "/" + bench + "/result/chiplet_sensitivity")
+    k_list = []
+    for ch in benchlist.chiplet_num:
+        k_list.append(set(find_the_number_of_fucking_kernels(suite, bench, ch)))
+    k = list(k_list[0].intersection(k_list[1], k_list[2], ..., k_list[len(k_list)]))
+    for kernel_num in k:
+        for topo in benchlist.topology:
+            for nv in benchlist.NVLink:
+                chiplet_num_ipc = {}
+                chiplet_num_throughput = {}
+                for ch in benchlist.chiplet_num:
+                    file_dir = benchlist.bench_path + suite + bench + "/" + topo + "/" + nv + "/" + ch + "/"
+                    topol, NV, chipNum = determine_architecture(topo, nv, ch)
+                    file_name = suite + "-" + bench + "_NV" + str(NV) + "_1vc_" + str(chipNum) + "ch_" + topol + ".txt"
+                    if os.path.exists(file_dir + file_name):
+                        with open(file_dir + file_name, "r") as file:
+                            content = file.readlines()
+                        flag = 0
+                        for line in content:
+                            if "kernel_launch_uid" in line:
+                                try:
+                                    int(line.split(" = ")[1])
+                                except:
+                                    continue
+                                else:
+                                    if kernel_num == int(line.split(" = ")[1]):
+                                        flag = 1
+                            if "gpu_ipc" in line and flag == 1:
+                                if "nan" not in line.split(" = ")[1]:
+                                    chiplet_num_ipc[ch] = float(line.split(" = ")[1])
+                            elif "gpu_throughput" in line and flag == 1:
+                                if "nan" not in line.split(" = ")[1]:
+                                    chiplet_num_throughput[ch] = float(line.split(" = ")[1])
+                                    break
+                    else:
+                        pass
+                if len(chiplet_num_ipc) != 0:
+                    chiplet_num_ipc = dict(sorted(chiplet_num_ipc.items(), key=lambda x: x[0]))
+                    chiplet_num_throughput = dict(sorted(chiplet_num_throughput.items(), key=lambda x: x[0]))
+                    plt.figure(figsize=(10, 7))
+                    plt.plot(list(chiplet_num_ipc.keys()), list(chiplet_num_ipc.values()), marker="o", label=topo)
+                    plt.xlabel("chiplet number")
+                    plt.ylabel("ipc")
+                    plt.title(suite + "-" + bench + " chiplet number/ipc sensitivity")
+                    plt.legend()
+                    plt.tight_layout()
+                    plt.savefig(path + suite + bench + "/result/chiplet_sensitivity" + "/chiplet_ipc_kernel" + str(kernel_num) + "_" + topo + "_" + nv + ".jpg")
+                    plt.close()
+                    with open(path + suite + bench + "/result/chiplet_sensitivity" + "/chiplet_ipc_kernel" + str(kernel_num) + "_" + topo + "_" + nv + ".csv", "w") as file:
+                        for k, v in chiplet_num_ipc.items():
+                            file.write(str(k) + "," + str(v))
+                if len(chiplet_num_throughput) != 0:
+                    plt.figure(figsize=(10, 7))
+                    plt.plot(list(chiplet_num_throughput.keys()), list(chiplet_num_throughput.values()), marker="o", label=topo)
+                    plt.xlabel("chiplet number")
+                    plt.ylabel("throughput")
+                    plt.title(suite + "-" + bench + " chiplet number/throughput sensitivity")
+                    plt.legend()
+                    plt.tight_layout()
+                    plt.savefig(path + suite + bench + "/result/chiplet_sensitivity" + "/chiplet_throughput_kernel" + str(kernel_num) + "_" + topo + "_" + nv + ".jpg")
+                    plt.close()
+                    with open(path + suite + bench + "/result/chiplet_sensitivity" + "/chiplet_throughput_kernel" + str(kernel_num) + "_" + topo + "_" + nv + ".csv", "w") as file:
+                        for k, v in chiplet_num_throughput.items():
+                            file.write(str(k) + "," + str(v))
 
 
 def kernel_sensitivity_test(ch):
